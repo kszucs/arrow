@@ -187,7 +187,10 @@ floating!(Float32, Precision::Single);
 floating!(Float64, Precision::Double);
 
 
-impl<T: DataType> DataType for List<T> {
+impl<T> DataType for List<T> 
+    where T: DataType,
+          T::Item: Copy 
+{
     type Data = ListData<T>;
     type Item = Vec<T::Item>;
 
@@ -203,6 +206,9 @@ impl<T: DataType> DataType for List<T> {
 
 
 
-impl<T: DataType> ListType for List<T> {
+impl<T> ListType for List<T> 
+    where T: DataType,
+          T::Item: Copy 
+{
     
 }

@@ -19,7 +19,7 @@ pub struct PrimitiveData<T: PrimitiveType> {
 pub struct ListData<T: DataType> {
     len: usize,
     nulls: BitMap,
-    offsets: Buffer<u32>,
+    offsets: Buffer<usize>,
     values: Array<T>
 }
 
@@ -61,16 +61,19 @@ impl<T> Data<T> for PrimitiveData<T> where T: PrimitiveType {
             self.values.double();
         }
         unsafe {
-            ptr::write(self.values.ptr().offset(self.len as isize), val);
+            let address = self.values.ptr().offset(self.len as isize);
+            ptr::write(address, val);
         }
         self.len += 1;
     }
 
-
 }
 
 
-impl<T> Data<List<T>> for ListData<T> where T: DataType {
+impl<T> Data<List<T>> for ListData<T> 
+    where T: DataType,
+          T::Item: Copy
+{
 
     fn empty(dtype: List<T>) -> Self {
         ListData {
@@ -86,7 +89,19 @@ impl<T> Data<List<T>> for ListData<T> where T: DataType {
     }
 
     fn push(&mut self, val: Vec<T::Item>) {
-        unimplemented!()
+        if self.len == self.offsets.cap() {
+            self.offsets.double();
+        }
+        unsafe {
+            let address = self.offsets.ptr().offset(self.len as isize);
+            ptr::write(address, self.values.len());
+        }
+
+        for elem in val.iter().cloned() {
+            self.values.push(elem);
+        }
+
+        self.len += 1;
     }
 }
 
@@ -160,6 +175,12 @@ mod tests {
     fn test_list() {
         let mut a = Array::new(List(Int64));
 
-        // a.push(vec![1,2,3]);
+        a.push(vec![1,2,3]);
+        a.push(vec![1,2]);
+        a.push(vec![4,5,6,7,8]);
+
+        assert_eq!(a.len(), 3);
+        assert_eq!(a.data.len(), 3);
+        assert_eq!(a.data.values.len(), 10);
     }
 }
