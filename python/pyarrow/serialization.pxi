@@ -89,6 +89,7 @@ cdef class SerializationContext:
         result = SerializationContext()
         result.type_to_type_id = self.type_to_type_id.copy()
         result.whitelisted_types = self.whitelisted_types.copy()
+        result.types_to_pickle = self.types_to_pickle.copy()
         result.custom_serializers = self.custom_serializers.copy()
         result.custom_deserializers = self.custom_deserializers.copy()
         result.pickle_serializer = self.pickle_serializer
@@ -104,8 +105,8 @@ cdef class SerializationContext:
         ----------
         type_ : TypeType
             The type that we can serialize.
-        type_id : bytes
-            A string of bytes used to identify the type.
+        type_id : string
+            A string used to identify the type.
         pickle : bool
             True if the serialization should be done with pickle.
             False if it should be done efficiently with Arrow.

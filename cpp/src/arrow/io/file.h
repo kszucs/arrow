@@ -37,7 +37,22 @@ namespace io {
 
 class ARROW_EXPORT FileOutputStream : public OutputStream {
  public:
-  ~FileOutputStream();
+  ~FileOutputStream() override;
+
+  /// \brief Open a local file for writing, truncating any existing file
+  /// \param[in] path with UTF8 encoding
+  /// \param[out] out a base interface OutputStream instance
+  ///
+  /// When opening a new file, any existing file with the indicated path is
+  /// truncated to 0 bytes, deleting any existing memory
+  static Status Open(const std::string& path, std::shared_ptr<OutputStream>* out);
+
+  /// \brief Open a local file for writing
+  /// \param[in] path with UTF8 encoding
+  /// \param[in] append append to existing file, otherwise truncate to 0 bytes
+  /// \param[out] out a base interface OutputStream instance
+  static Status Open(const std::string& path, bool append,
+                     std::shared_ptr<OutputStream>* out);
 
   /// \brief Open a local file for writing, truncating any existing file
   /// \param[in] path with UTF8 encoding
@@ -73,7 +88,7 @@ class ARROW_EXPORT FileOutputStream : public OutputStream {
 // Operating system file
 class ARROW_EXPORT ReadableFile : public RandomAccessFile {
  public:
-  ~ReadableFile();
+  ~ReadableFile() override;
 
   /// \brief Open a local file for reading
   /// \param[in] path with UTF8 encoding
@@ -125,7 +140,7 @@ class ARROW_EXPORT ReadableFile : public RandomAccessFile {
 // FileOutputStream
 class ARROW_EXPORT MemoryMappedFile : public ReadWriteFileInterface {
  public:
-  ~MemoryMappedFile();
+  ~MemoryMappedFile() override;
 
   /// Create new file with indicated size, return in read/write mode
   static Status Create(const std::string& path, int64_t size,

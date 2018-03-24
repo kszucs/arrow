@@ -65,6 +65,10 @@ if (ARROW_GPU)
   add_subdirectory(gpu)
 endif()
 
+if (ARROW_JEMALLOC AND JEMALLOC_VENDORED)
+  add_dependencies(arrow_dependencies jemalloc_static)
+endif()
+
 if (ARROW_WITH_BROTLI)
   add_definitions(-DARROW_WITH_BROTLI)
   SET(ARROW_SRCS util/compression_brotli.cc ${ARROW_SRCS})
@@ -153,6 +157,7 @@ install(FILES
   pretty_print.h
   record_batch.h
   status.h
+  stl.h
   table.h
   table_builder.h
   tensor.h
@@ -183,6 +188,7 @@ ADD_ARROW_TEST(memory_pool-test)
 ADD_ARROW_TEST(pretty_print-test)
 ADD_ARROW_TEST(public-api-test)
 ADD_ARROW_TEST(status-test)
+ADD_ARROW_TEST(stl-test)
 ADD_ARROW_TEST(type-test)
 ADD_ARROW_TEST(table-test)
 ADD_ARROW_TEST(table_builder-test)

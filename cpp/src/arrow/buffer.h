@@ -54,7 +54,11 @@ class ARROW_EXPORT Buffer {
   ///
   /// \note The passed memory must be kept alive through some other means
   Buffer(const uint8_t* data, int64_t size)
-      : is_mutable_(false), data_(data), size_(size), capacity_(size) {}
+      : is_mutable_(false),
+        data_(data),
+        mutable_data_(NULLPTR),
+        size_(size),
+        capacity_(size) {}
 
   /// \brief Construct from std::string without copying memory
   ///
@@ -97,9 +101,29 @@ class ARROW_EXPORT Buffer {
   Status Copy(const int64_t start, const int64_t nbytes,
               std::shared_ptr<Buffer>* out) const;
 
+  /// \brief Construct a new buffer that owns its memory from a std::string
+  ///
+  /// \param[in] data a std::string object
+  /// \param[in] pool a memory pool
+  /// \param[out] out the created buffer
+  ///
+  /// \return Status message
+  static Status FromString(const std::string& data, MemoryPool* pool,
+                           std::shared_ptr<Buffer>* out);
+
+  /// \brief Construct a new buffer that owns its memory from a std::string
+  /// using the default memory pool
+  static Status FromString(const std::string& data, std::shared_ptr<Buffer>* out);
+
   int64_t capacity() const { return capacity_; }
   const uint8_t* data() const { return data_; }
-  uint8_t* mutable_data() { return mutable_data_; }
+
+  uint8_t* mutable_data() {
+#ifndef NDEBUG
+    CheckMutable();
+#endif
+    return mutable_data_;
+  }
 
   int64_t size() const { return size_; }
 
@@ -114,6 +138,8 @@ class ARROW_EXPORT Buffer {
 
   // null by default, but may be set
   std::shared_ptr<Buffer> parent_;
+
+  void CheckMutable() const;
 
  private:
   ARROW_DISALLOW_COPY_AND_ASSIGN(Buffer);
@@ -184,7 +210,7 @@ class ARROW_EXPORT ResizableBuffer : public MutableBuffer {
 class ARROW_EXPORT PoolBuffer : public ResizableBuffer {
  public:
   explicit PoolBuffer(MemoryPool* pool = NULLPTR);
-  virtual ~PoolBuffer();
+  ~PoolBuffer() override;
 
   Status Resize(const int64_t new_size, bool shrink_to_fit = true) override;
   Status Reserve(const int64_t new_capacity) override;
@@ -333,6 +359,7 @@ class ARROW_EXPORT TypedBufferBuilder : public BufferBuilder {
 
   const T* data() const { return reinterpret_cast<const T*>(data_); }
   int64_t length() const { return size_ / sizeof(T); }
+  int64_t capacity() const { return capacity_ / sizeof(T); }
 };
 
 /// \brief Allocate a fixed size mutable buffer from a memory pool
@@ -355,22 +382,6 @@ Status AllocateBuffer(MemoryPool* pool, const int64_t size, std::shared_ptr<Buff
 ARROW_EXPORT
 Status AllocateResizableBuffer(MemoryPool* pool, const int64_t size,
                                std::shared_ptr<ResizableBuffer>* out);
-
-#ifndef ARROW_NO_DEPRECATED_API
-
-/// \brief Create Buffer referencing std::string memory
-///
-/// Warning: string instance must stay alive
-///
-/// \param str std::string instance
-/// \return std::shared_ptr<Buffer>
-///
-/// \note Deprecated Since 0.8.0
-static inline std::shared_ptr<Buffer> GetBufferFromString(const std::string& str) {
-  return std::make_shared<Buffer>(str);
-}
-
-#endif  // ARROW_NO_DEPRECATED_API
 
 }  // namespace arrow
 

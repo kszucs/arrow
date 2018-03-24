@@ -41,13 +41,16 @@ namespace arrow {
 class Array;
 class Decimal128;
 
+constexpr int64_t kBinaryMemoryLimit = std::numeric_limits<int32_t>::max() - 1;
+constexpr int64_t kListMaximumElements = std::numeric_limits<int32_t>::max() - 1;
+
 namespace internal {
 
 struct ArrayData;
 
 }  // namespace internal
 
-static constexpr int64_t kMinBuilderCapacity = 1 << 5;
+constexpr int64_t kMinBuilderCapacity = 1 << 5;
 
 /// Base class for all data array builders.
 //
@@ -109,13 +112,14 @@ class ARROW_EXPORT ArrayBuilder {
   std::shared_ptr<PoolBuffer> null_bitmap() const { return null_bitmap_; }
 
   /// \brief Return result of builder as an internal generic ArrayData
-  /// object. Resets builder
+  /// object. Resets builder except for dictionary builder
   ///
   /// \param[out] out the finalized ArrayData object
   /// \return Status
   virtual Status FinishInternal(std::shared_ptr<ArrayData>* out) = 0;
 
-  /// \brief Return result of builder as an Array object. Resets builder
+  /// \brief Return result of builder as an Array object.
+  ///        Resets the builder except for DictionaryBuilder
   ///
   /// \param[out] out the finalized Array object
   /// \return Status
@@ -682,10 +686,15 @@ class ARROW_EXPORT BinaryBuilder : public ArrayBuilder {
 
   Status Init(int64_t elements) override;
   Status Resize(int64_t capacity) override;
+  /// \brief Ensures there is enough allocated capacity to append the indicated
+  /// number of bytes to the value data buffer without additional allocations
+  Status ReserveData(int64_t elements);
   Status FinishInternal(std::shared_ptr<ArrayData>* out) override;
 
   /// \return size of values buffer so far
   int64_t value_data_length() const { return value_data_builder_.length(); }
+  /// \return capacity of values buffer
+  int64_t value_data_capacity() const { return value_data_builder_.capacity(); }
 
   /// Temporary access to a value.
   ///
@@ -695,8 +704,6 @@ class ARROW_EXPORT BinaryBuilder : public ArrayBuilder {
  protected:
   TypedBufferBuilder<int32_t> offsets_builder_;
   TypedBufferBuilder<uint8_t> value_data_builder_;
-
-  static constexpr int64_t kMaximumCapacity = std::numeric_limits<int32_t>::max() - 1;
 
   Status AppendNextOffset();
   void Reset();
@@ -846,13 +853,19 @@ struct DictionaryScalar<FixedSizeBinaryType> {
 }  // namespace internal
 
 /// \brief Array builder for created encoded DictionaryArray from dense array
+///
+/// Unlike other builders, dictionary builder does not completely reset the state
+/// on Finish calls. The arrays built after the initial Finish call will reuse
+/// the previously created encoding and build a delta dictionary when new terms
+/// occur.
+///
 /// data
 template <typename T>
 class ARROW_EXPORT DictionaryBuilder : public ArrayBuilder {
  public:
   using Scalar = typename internal::DictionaryScalar<T>::type;
 
-  ~DictionaryBuilder() {}
+  ~DictionaryBuilder() override {}
 
   DictionaryBuilder(const std::shared_ptr<DataType>& type, MemoryPool* pool);
 
@@ -874,9 +887,13 @@ class ARROW_EXPORT DictionaryBuilder : public ArrayBuilder {
   Status Resize(int64_t capacity) override;
   Status FinishInternal(std::shared_ptr<ArrayData>* out) override;
 
+  /// is the dictionary builder in the delta building mode
+  bool is_building_delta() { return entry_id_offset_ > 0; }
+
  protected:
   Status DoubleTableSize();
-  Scalar GetDictionaryValue(int64_t index);
+  Scalar GetDictionaryValue(typename TypeTraits<T>::BuilderType& dictionary_builder,
+                            int64_t index);
   int64_t HashValue(const Scalar& value);
   bool SlotDifferent(hash_slot_t slot, const Scalar& value);
   Status AppendDictionary(const Scalar& value);
@@ -887,11 +904,18 @@ class ARROW_EXPORT DictionaryBuilder : public ArrayBuilder {
   /// Size of the table. Must be a power of 2.
   int64_t hash_table_size_;
 
+  // offset for the entry ids. Used to build delta dictionaries,
+  // increased on every InternalFinish by the number of current entries
+  // in the dictionary
+  int64_t entry_id_offset_;
+
   // Store hash_table_size_ - 1, so that j & mod_bitmask_ is equivalent to j %
   // hash_table_size_, but uses far fewer CPU cycles
   int64_t mod_bitmask_;
 
   typename TypeTraits<T>::BuilderType dict_builder_;
+  typename TypeTraits<T>::BuilderType overflow_dict_builder_;
+
   AdaptiveIntBuilder values_builder_;
   int32_t byte_width_;
 
@@ -902,7 +926,7 @@ class ARROW_EXPORT DictionaryBuilder : public ArrayBuilder {
 template <>
 class ARROW_EXPORT DictionaryBuilder<NullType> : public ArrayBuilder {
  public:
-  ~DictionaryBuilder();
+  ~DictionaryBuilder() override;
 
   DictionaryBuilder(const std::shared_ptr<DataType>& type, MemoryPool* pool);
   explicit DictionaryBuilder(MemoryPool* pool);

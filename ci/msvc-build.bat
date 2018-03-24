@@ -29,6 +29,7 @@ if "%JOB%" == "Static_Crt_Build" (
         ..  || exit /B
 
   cmake --build . --config Debug || exit /B
+  ctest -VV  || exit /B
   popd
 
   mkdir cpp\build-release
@@ -60,42 +61,28 @@ if "%JOB%" == "Build_Debug" (
         ..  || exit /B
 
   cmake --build . --config Debug || exit /B
+  ctest -VV  || exit /B
   popd
 
   @rem Finish Debug build successfully
   exit /B 0
 )
 
-conda update --yes --quiet conda
-conda config --set auto_update_conda false
-conda info -a
-
-conda config --set show_channel_urls True
-
-# Help with SSL timeouts to S3
-conda config --set remote_connect_timeout_secs 12
-
-conda config --add channels https://repo.continuum.io/pkgs/free
-conda config --add channels conda-forge
-conda info -a
-
 conda create -n arrow -q -y python=%PYTHON% ^
-      six pytest setuptools numpy pandas cython ^
-      thrift-cpp
+      six pytest setuptools numpy pandas ^
+      cython=0.27.3 ^
+      thrift-cpp=0.11.0
+
+call activate arrow
 
 if "%JOB%" == "Toolchain" (
-
-  conda install -n arrow -q -y -c conda-forge ^
+  @rem Install pre-built "toolchain" packages for faster builds
+  conda install -q -y -c conda-forge ^
       flatbuffers rapidjson ^
       cmake ^
       git ^
       boost-cpp ^
       snappy zlib brotli gflags lz4-c zstd
-)
-
-call activate arrow
-
-if "%JOB%" == "Toolchain" (
   set ARROW_BUILD_TOOLCHAIN=%CONDA_PREFIX%\Library
 )
 
@@ -113,12 +100,15 @@ cmake -G "%GENERATOR%" ^
       -DARROW_CXXFLAGS="/WX /MP" ^
       -DARROW_PYTHON=ON ^
       ..  || exit /B
-cmake --build . --target INSTALL --config %CONFIGURATION%  || exit /B
+cmake --build . --target install --config %CONFIGURATION%  || exit /B
 
 @rem Needed so python-test.exe works
+set OLD_PYTHONPATH=%PYTHONPATH%
 set PYTHONPATH=%CONDA_PREFIX%\Lib;%CONDA_PREFIX%\Lib\site-packages;%CONDA_PREFIX%\python35.zip;%CONDA_PREFIX%\DLLs;%CONDA_PREFIX%;%PYTHONPATH%
 
 ctest -VV  || exit /B
+
+set PYTHONPATH=%OLD_PYTHONPATH%
 popd
 
 @rem Build parquet-cpp
@@ -134,17 +124,23 @@ cmake -G "%GENERATOR%" ^
      -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
      -DPARQUET_BOOST_USE_SHARED=OFF ^
      -DPARQUET_BUILD_TESTS=off .. || exit /B
-cmake --build . --target INSTALL --config %CONFIGURATION% || exit /B
+cmake --build . --target install --config %CONFIGURATION% || exit /B
 popd
 
-@rem Build and import pyarrow
+@rem Build and install pyarrow
 @rem parquet-cpp has some additional runtime dependencies that we need to figure out
 @rem see PARQUET-1018
 
 pushd python
 
 set PYARROW_CXXFLAGS=/WX
-python setup.py build_ext --inplace --with-parquet --bundle-arrow-cpp bdist_wheel  || exit /B
-py.test pyarrow -v -s --parquet || exit /B
+python setup.py build_ext --with-parquet --bundle-arrow-cpp --with-static-boost ^
+    install -q --single-version-externally-managed --record=record.text ^
+    bdist_wheel || exit /B
+
+@rem Test directly from installed location
+
+SET PYARROW_PATH=%CONDA_PREFIX%\Lib\site-packages\pyarrow
+py.test -r sxX --durations=15 -v %PYARROW_PATH% --parquet || exit /B
 
 popd

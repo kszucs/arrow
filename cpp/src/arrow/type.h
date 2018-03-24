@@ -232,12 +232,6 @@ class ARROW_EXPORT Field {
 
   std::shared_ptr<const KeyValueMetadata> metadata() const { return metadata_; }
 
-#ifndef ARROW_NO_DEPRECATED_API
-  /// \note Deprecated since 0.8.0
-  Status AddMetadata(const std::shared_ptr<const KeyValueMetadata>& metadata,
-                     std::shared_ptr<Field>* out) const;
-#endif
-
   std::shared_ptr<Field> AddMetadata(
       const std::shared_ptr<const KeyValueMetadata>& metadata) const;
   std::shared_ptr<Field> RemoveMetadata() const;
@@ -406,6 +400,19 @@ class ARROW_EXPORT ListType : public NestedType {
 
   std::string name() const override { return "list"; }
 };
+
+namespace meta {
+
+/// Additional ListType class that can be instantiated with only compile-time arguments.
+template <typename T>
+class ARROW_EXPORT ListType : public ::arrow::ListType {
+ public:
+  using ValueType = T;
+
+  ListType() : ::arrow::ListType(std::make_shared<T>()) {}
+};
+
+}  // namespace meta
 
 // BinaryType type is represents lists of 1-byte values.
 class ARROW_EXPORT BinaryType : public DataType, public NoExtraMeta {
@@ -754,12 +761,6 @@ class ARROW_EXPORT Schema {
   Status AddField(int i, const std::shared_ptr<Field>& field,
                   std::shared_ptr<Schema>* out) const;
   Status RemoveField(int i, std::shared_ptr<Schema>* out) const;
-
-#ifndef ARROW_NO_DEPRECATED_API
-  /// \note Deprecated since 0.8.0
-  Status AddMetadata(const std::shared_ptr<const KeyValueMetadata>& metadata,
-                     std::shared_ptr<Schema>* out) const;
-#endif
 
   /// \brief Replace key-value metadata with new metadata
   ///

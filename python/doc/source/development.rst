@@ -117,7 +117,10 @@ dependencies will be automatically built by Arrow's third-party toolchain.
 
    $ sudo apt-get install libjemalloc-dev libboost-dev \
                           libboost-filesystem-dev \
-                          libboost-system-dev
+                          libboost-system-dev \
+                          libboost-regex-dev \
+                          flex \
+                          bison
 
 On Arch Linux, you can get these dependencies via pacman.
 
@@ -245,6 +248,22 @@ To build a self-contained wheel (include Arrow C++ and Parquet C++), one can set
 
 Again, if you did not build parquet-cpp, you should omit ``--with-parquet`` and
 if you did not build with plasma, you should omit ``--with-plasma``.
+
+Known issues
+------------
+
+If using packages provided by conda-forge (see "Using Conda" above)
+together with a reasonably recent compiler, you may get "undefined symbol"
+errors when importing pyarrow.  In that case you'll need to force the C++
+ABI version to the older version used by conda-forge binaries:
+
+.. code-block:: shell
+
+   export CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0"
+   export PYARROW_CXXFLAGS=$CXXFLAGS
+
+Be sure to add ``-DCMAKE_CXX_FLAGS=$CXXFLAGS`` to the cmake invocations
+when rebuilding.
 
 Developing on Windows
 =====================

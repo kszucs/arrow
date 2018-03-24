@@ -166,10 +166,8 @@ cdef class StructType(DataType):
         DataType.init(self, type)
 
     def __getitem__(self, i):
-        if i < 0 or i >= self.num_children:
-            raise IndexError(i)
-
-        return pyarrow_wrap_field(self.type.child(i))
+        cdef int index = <int> _normalize_index(i, self.num_children)
+        return pyarrow_wrap_field(self.type.child(index))
 
     property num_children:
 
@@ -189,9 +187,6 @@ cdef class UnionType(DataType):
 
     cdef void init(self, const shared_ptr[CDataType]& type):
         DataType.init(self, type)
-        self.child_types = [
-            pyarrow_wrap_data_type(type.get().child(i).get().type())
-            for i in range(self.num_children)]
 
     property num_children:
 
@@ -202,19 +197,25 @@ cdef class UnionType(DataType):
 
         def __get__(self):
             cdef CUnionType* type = <CUnionType*> self.sp_type.get()
-            return type.mode()
+            cdef int mode = type.mode()
+            if mode == _UnionMode_DENSE:
+                return 'dense'
+            if mode == _UnionMode_SPARSE:
+                return 'sparse'
+            assert 0
 
     def __getitem__(self, i):
-        return self.child_types[i]
+        cdef int index = <int> _normalize_index(i, self.num_children)
+        return pyarrow_wrap_field(self.type.child(index))
 
     def __getstate__(self):
-        children = [pyarrow_wrap_field(self.type.child(i))
-                    for i in range(self.num_children)]
+        children = [self[i] for i in range(self.num_children)]
         return children, self.mode
 
     def __setstate__(self, state):
         cdef DataType reconstituted = union(*state)
         self.init(reconstituted.sp_type)
+
 
 cdef class TimestampType(DataType):
 
@@ -244,6 +245,13 @@ cdef class TimestampType(DataType):
         else:
             # Return DatetimeTZ
             return pdcompat.make_datetimetz(self.tz)
+
+    def __getstate__(self):
+        return self.unit, self.tz
+
+    def __setstate__(self, state):
+        cdef DataType reconstituted = timestamp(*state)
+        self.init(reconstituted.sp_type)
 
 
 cdef class Time32Type(DataType):
@@ -293,7 +301,7 @@ cdef class FixedSizeBinaryType(DataType):
 cdef class Decimal128Type(FixedSizeBinaryType):
 
     cdef void init(self, const shared_ptr[CDataType]& type):
-        DataType.init(self, type)
+        FixedSizeBinaryType.init(self, type)
         self.decimal128_type = <const CDecimal128Type*> type.get()
 
     def __getstate__(self):
@@ -431,24 +439,9 @@ cdef class Schema:
     def __len__(self):
         return self.schema.num_fields()
 
-    def __getitem__(self, int i):
-        cdef:
-            Field result = Field()
-            int num_fields = self.schema.num_fields()
-            int index
-
-        if not -num_fields <= i < num_fields:
-            raise IndexError(
-                'Schema field index {:d} is out of range'.format(i)
-            )
-
-        index = i if i >= 0 else num_fields + i
-        assert index >= 0
-
-        result.init(self.schema.field(index))
-        result.type = pyarrow_wrap_data_type(result.field.type())
-
-        return result
+    def __getitem__(self, key):
+        cdef int index = <int> _normalize_index(key, self.schema.num_fields())
+        return pyarrow_wrap_field(self.schema.field(index))
 
     def __iter__(self):
         for i in range(len(self)):
@@ -528,6 +521,64 @@ cdef class Schema:
 
     def get_field_index(self, name):
         return self.schema.GetFieldIndex(tobytes(name))
+
+    def append(self, Field field):
+        """
+        Append a field at the end of the schema.
+
+        Parameters
+        ----------
+
+        field: Field
+
+        Returns
+        -------
+        schema: Schema
+        """
+        return self.insert(self.schema.num_fields(), field)
+
+    def insert(self, int i, Field field):
+        """
+        Add a field at position i to the schema.
+
+        Parameters
+        ----------
+        i: int
+        field: Field
+
+        Returns
+        -------
+        schema: Schema
+        """
+        cdef:
+            shared_ptr[CSchema] new_schema
+            shared_ptr[CField] c_field
+
+        c_field = field.sp_field
+
+        with nogil:
+            check_status(self.schema.AddField(i, c_field, &new_schema))
+
+        return pyarrow_wrap_schema(new_schema)
+
+    def remove(self, int i):
+        """
+        Remove the field at index i from the schema.
+
+        Parameters
+        ----------
+        i: int
+
+        Returns
+        -------
+        schema: Schema
+        """
+        cdef shared_ptr[CSchema] new_schema
+
+        with nogil:
+            check_status(self.schema.RemoveField(i, &new_schema))
+
+        return pyarrow_wrap_schema(new_schema)
 
     def add_metadata(self, dict metadata):
         """
@@ -1087,6 +1138,16 @@ def struct(fields):
 def union(children_fields, mode):
     """
     Create UnionType from children fields.
+
+    Parameters
+    ----------
+    fields : sequence of Field values
+    mode : str
+        'dense' or 'sparse'
+
+    Returns
+    -------
+    type : DataType
     """
     cdef:
         Field child_field
@@ -1095,22 +1156,34 @@ def union(children_fields, mode):
         shared_ptr[CDataType] union_type
         int i
 
+    if isinstance(mode, int):
+        if mode not in (_UnionMode_SPARSE, _UnionMode_DENSE):
+            raise ValueError("Invalid union mode {0!r}".format(mode))
+    else:
+        if mode == 'sparse':
+            mode = _UnionMode_SPARSE
+        elif mode == 'dense':
+            mode = _UnionMode_DENSE
+        else:
+            raise ValueError("Invalid union mode {0!r}".format(mode))
+
     for i, child_field in enumerate(children_fields):
         type_codes.push_back(i)
         c_fields.push_back(child_field.sp_field)
 
-        if mode == UnionMode_SPARSE:
-            union_type.reset(new CUnionType(c_fields, type_codes,
-                                            _UnionMode_SPARSE))
-        else:
-            union_type.reset(new CUnionType(c_fields, type_codes,
-                                            _UnionMode_DENSE))
+    if mode == UnionMode_SPARSE:
+        union_type.reset(new CUnionType(c_fields, type_codes,
+                                        _UnionMode_SPARSE))
+    else:
+        union_type.reset(new CUnionType(c_fields, type_codes,
+                                        _UnionMode_DENSE))
 
     return pyarrow_wrap_data_type(union_type)
 
 
 cdef dict _type_aliases = {
     'null': null,
+    'bool': bool_,
     'i1': int8,
     'int8': int8,
     'i2': int16,
@@ -1127,9 +1200,14 @@ cdef dict _type_aliases = {
     'uint32': uint32,
     'u8': uint64,
     'uint64': uint64,
+    'f2': float16,
+    'halffloat': float16,
+    'float16': float16,
     'f4': float32,
+    'float': float32,
     'float32': float32,
     'f8': float64,
+    'double': float64,
     'float64': float64,
     'string': string,
     'str': string,
@@ -1207,6 +1285,7 @@ def from_numpy_dtype(object dtype):
     Convert NumPy dtype to pyarrow.DataType
     """
     cdef shared_ptr[CDataType] c_type
+    dtype = np.dtype(dtype)
     with nogil:
         check_status(NumPyDtypeToArrow(dtype, &c_type))
 

@@ -77,6 +77,50 @@ cdef class ChunkedArray:
         self._check_nullptr()
         return self.chunked_array.null_count()
 
+    def __getitem__(self, key):
+        cdef int64_t item
+        cdef int i
+        self._check_nullptr()
+        if isinstance(key, slice):
+            return _normalize_slice(self, key)
+        elif isinstance(key, six.integer_types):
+            index = _normalize_index(key, self.chunked_array.length())
+            for i in range(self.num_chunks):
+                if index < self.chunked_array.chunk(i).get().length():
+                    return self.chunk(i)[index]
+                else:
+                    index -= self.chunked_array.chunk(i).get().length()
+        else:
+            raise TypeError("key must either be a slice or integer")
+
+    def slice(self, offset=0, length=None):
+        """
+        Compute zero-copy slice of this ChunkedArray
+
+        Parameters
+        ----------
+        offset : int, default 0
+            Offset from start of array to slice
+        length : int, default None
+            Length of slice (default is until end of batch starting from
+            offset)
+
+        Returns
+        -------
+        sliced : ChunkedArray
+        """
+        cdef shared_ptr[CChunkedArray] result
+
+        if offset < 0:
+            raise IndexError('Offset must be non-negative')
+
+        if length is None:
+            result = self.chunked_array.Slice(offset)
+        else:
+            result = self.chunked_array.Slice(offset, length)
+
+        return pyarrow_wrap_chunked_array(result)
+
     @property
     def num_chunks(self):
         """
@@ -271,7 +315,10 @@ cdef class Column:
         casted_data = pyarrow_wrap_chunked_array(out.chunked_array())
         return column(self.name, casted_data)
 
-    def to_pandas(self, strings_to_categorical=False, zero_copy_only=False):
+    def to_pandas(self,
+                  c_bool strings_to_categorical=False,
+                  c_bool zero_copy_only=False,
+                  c_bool integer_object_nulls=False):
         """
         Convert the arrow::Column to a pandas.Series
 
@@ -285,7 +332,8 @@ cdef class Column:
 
         options = PandasOptions(
             strings_to_categorical=strings_to_categorical,
-            zero_copy_only=zero_copy_only)
+            zero_copy_only=zero_copy_only,
+            integer_object_nulls=integer_object_nulls)
 
         with nogil:
             check_status(libarrow.ConvertColumnToPandas(options,
@@ -580,12 +628,10 @@ cdef class RecordBatch:
         return pyarrow_wrap_array(self.batch.column(i))
 
     def __getitem__(self, key):
-        cdef:
-            Py_ssize_t start, stop
         if isinstance(key, slice):
             return _normalize_slice(self, key)
         else:
-            return self.column(key)
+            return self.column(_normalize_index(key, self.num_columns))
 
     def serialize(self, memory_pool=None):
         """
@@ -744,17 +790,22 @@ cdef class RecordBatch:
 
 
 def table_to_blocks(PandasOptions options, Table table, int nthreads,
-                    MemoryPool memory_pool):
+                    MemoryPool memory_pool, categories):
     cdef:
         PyObject* result_obj
         shared_ptr[CTable] c_table = table.sp_table
         CMemoryPool* pool
+        unordered_set[c_string] categorical_columns
+
+    if categories is not None:
+        categorical_columns = {tobytes(cat) for cat in categories}
 
     pool = maybe_unbox_memory_pool(memory_pool)
     with nogil:
         check_status(
             libarrow.ConvertTableToPandas(
-                options, c_table, nthreads, pool, &result_obj
+                options, categorical_columns, c_table, nthreads, pool,
+                &result_obj
             )
         )
 
@@ -920,7 +971,7 @@ cdef class Table:
         columns.reserve(K)
 
         for i in range(K):
-            if isinstance(arrays[i], Array):
+            if isinstance(arrays[i], (Array, list)):
                 columns.push_back(
                     make_shared[CColumn](
                         c_schema.get().field(i),
@@ -948,26 +999,41 @@ cdef class Table:
         return pyarrow_wrap_table(CTable.Make(c_schema, columns))
 
     @staticmethod
-    def from_batches(batches):
+    def from_batches(batches, Schema schema=None):
         """
         Construct a Table from a list of Arrow RecordBatches
 
         Parameters
         ----------
-
         batches: list of RecordBatch
-            RecordBatch list to be converted, schemas must be equal
+            RecordBatch list to be converted, all schemas must be equal
+        schema : Schema, default None
+            If not passed, will be inferred from the first RecordBatch
+
+        Returns
+        -------
+        table : Table
         """
         cdef:
             vector[shared_ptr[CRecordBatch]] c_batches
             shared_ptr[CTable] c_table
+            shared_ptr[CSchema] c_schema
             RecordBatch batch
 
         for batch in batches:
             c_batches.push_back(batch.sp_batch)
 
+        if schema is None:
+            if len(batches) == 0:
+                raise ValueError('Must pass schema, or at least '
+                                 'one RecordBatch')
+            c_schema = c_batches[0].get().schema()
+        else:
+            c_schema = schema.sp_schema
+
         with nogil:
-            check_status(CTable.FromRecordBatches(c_batches, &c_table))
+            check_status(CTable.FromRecordBatches(c_schema, c_batches,
+                                                  &c_table))
 
         return pyarrow_wrap_table(c_table)
 
@@ -1010,7 +1076,8 @@ cdef class Table:
         return result
 
     def to_pandas(self, nthreads=None, strings_to_categorical=False,
-                  memory_pool=None, zero_copy_only=False):
+                  memory_pool=None, zero_copy_only=False, categories=None,
+                  integer_object_nulls=False):
         """
         Convert the arrow::Table to a pandas DataFrame
 
@@ -1027,6 +1094,10 @@ cdef class Table:
         zero_copy_only : boolean, default False
             Raise an ArrowException if this function call would require copying
             the underlying data
+        categories: list, default empty
+            List of columns that should be returned as pandas.Categorical
+        integer_object_nulls : boolean, default False
+            Cast integers with nulls to objects
 
         Returns
         -------
@@ -1034,14 +1105,16 @@ cdef class Table:
         """
         cdef:
             PandasOptions options
+
         options = PandasOptions(
             strings_to_categorical=strings_to_categorical,
-            zero_copy_only=zero_copy_only)
+            zero_copy_only=zero_copy_only,
+            integer_object_nulls=integer_object_nulls)
         self._check_nullptr()
         if nthreads is None:
             nthreads = cpu_count()
         mgr = pdcompat.table_to_blockmanager(options, self, memory_pool,
-                                             nthreads)
+                                             nthreads, categories)
         return pd.DataFrame(mgr)
 
     def to_pydict(self):
@@ -1106,8 +1179,9 @@ cdef class Table:
         column.init(self.table.column(index))
         return column
 
-    def __getitem__(self, int64_t i):
-        return self.column(i)
+    def __getitem__(self, key):
+        cdef int index = <int> _normalize_index(key, self.num_columns)
+        return self.column(index)
 
     def itercolumns(self):
         """

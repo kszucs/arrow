@@ -20,6 +20,8 @@ set -e
 
 source $TRAVIS_BUILD_DIR/ci/travis_env_common.sh
 
+source $TRAVIS_BUILD_DIR/ci/travis_install_conda.sh
+
 export ARROW_HOME=$ARROW_CPP_INSTALL
 export PARQUET_HOME=$ARROW_PYTHON_PARQUET_HOME
 export LD_LIBRARY_PATH=$ARROW_HOME/lib:$PARQUET_HOME/lib:$LD_LIBRARY_PATH
@@ -39,20 +41,19 @@ conda install -y -q pip \
       cloudpickle \
       numpy=1.13.1 \
       pandas \
-      cython \
-      ipython \
-      matplotlib \
-      numpydoc \
-      sphinx \
-      sphinx_bootstrap_theme
+      cython=0.27.3
 
-if [ "$PYTHON_VERSION" != "2.7" ] || [ $TRAVIS_OS_NAME != "osx" ]; then
-  # Install pytorch for torch tensor conversion tests
-  # PyTorch seems to be broken on Python 2.7 on macOS so we skip it
-  conda install -y -q pytorch torchvision -c soumith
-fi
+# ARROW-2093: PyTorch increases the size of our conda dependency stack
+# significantly, and so we have disabled these tests in Travis CI for now
+
+# if [ "$PYTHON_VERSION" != "2.7" ] || [ $TRAVIS_OS_NAME != "osx" ]; then
+#   # Install pytorch for torch tensor conversion tests
+#   # PyTorch seems to be broken on Python 2.7 on macOS so we skip it
+#   conda install -y -q pytorch torchvision -c soumith
+# fi
 
 # Build C++ libraries
+mkdir -p $ARROW_CPP_BUILD_DIR
 pushd $ARROW_CPP_BUILD_DIR
 
 # Clear out prior build files
@@ -77,30 +78,45 @@ popd
 pushd $ARROW_PYTHON_DIR
 
 if [ "$PYTHON_VERSION" == "2.7" ]; then
-  pip install futures
+  pip install -q futures
 fi
 
 export PYARROW_BUILD_TYPE=$ARROW_BUILD_TYPE
 
-pip install -r requirements.txt
+pip install -q -r requirements.txt
 python setup.py build_ext --with-parquet --with-plasma --with-orc\
-       install --single-version-externally-managed --record=record.text
+       install -q --single-version-externally-managed --record=record.text
 popd
 
 python -c "import pyarrow.parquet"
 python -c "import pyarrow.plasma"
 python -c "import pyarrow.orc"
 
-if [ $TRAVIS_OS_NAME == "linux" ]; then
+if [ $ARROW_TRAVIS_VALGRIND == "1" ]; then
   export PLASMA_VALGRIND=1
 fi
 
+# Set up huge pages for plasma test
+if [ $TRAVIS_OS_NAME == "linux" ]; then
+    sudo mkdir -p /mnt/hugepages
+    sudo mount -t hugetlbfs -o uid=`id -u` -o gid=`id -g` none /mnt/hugepages
+    sudo bash -c "echo `id -g` > /proc/sys/vm/hugetlb_shm_group"
+    sudo bash -c "echo 20000 > /proc/sys/vm/nr_hugepages"
+fi
+
 PYARROW_PATH=$CONDA_PREFIX/lib/python$PYTHON_VERSION/site-packages/pyarrow
-python -m pytest -vv -r sxX -s $PYARROW_PATH --parquet
+python -m pytest -vv -r sxX --durations=15 -s $PYARROW_PATH --parquet
 
 if [ "$PYTHON_VERSION" == "3.6" ] && [ $TRAVIS_OS_NAME == "linux" ]; then
   # Build documentation once
+  conda install -y -q \
+        ipython \
+        matplotlib \
+        numpydoc \
+        sphinx \
+        sphinx_bootstrap_theme
+
   pushd $ARROW_PYTHON_DIR/doc
-  sphinx-build -b html -d _build/doctrees -W source _build/html
+  sphinx-build -q -b html -d _build/doctrees -W source _build/html
   popd
 fi

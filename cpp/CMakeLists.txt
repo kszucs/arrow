@@ -48,7 +48,7 @@ set(ARROW_ABI_VERSION "${ARROW_SO_VERSION}.0.0")
 
 set(BUILD_SUPPORT_DIR "${CMAKE_SOURCE_DIR}/build-support")
 
-set(CLANG_FORMAT_VERSION "4.0")
+set(CLANG_FORMAT_VERSION "5.0")
 find_package(ClangTools)
 if ("$ENV{CMAKE_EXPORT_COMPILE_COMMANDS}" STREQUAL "1" OR CLANG_TIDY_FOUND)
   # Generate a Clang compile_commands.json "compilation database" file for use
@@ -127,10 +127,6 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
     "Build the Arrow jemalloc-based allocator"
     OFF)
 
-  option(ARROW_JEMALLOC_USE_SHARED
-    "Rely on jemalloc shared libraries where relevant"
-    ON)
-
   option(ARROW_HDFS
     "Build the Arrow HDFS bridge"
     ON)
@@ -145,6 +141,10 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
 
   option(ARROW_PYTHON
     "Build the Arrow CPython extensions"
+    OFF)
+
+  option(ARROW_FUZZING
+    "Build Arrow Fuzzing executables"
     OFF)
 
   option(ARROW_SSE3
@@ -201,11 +201,15 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
 
   option(ARROW_VERBOSE_THIRDPARTY_BUILD
     "If off, output from ExternalProjects will be logged to files rather than shown"
-    ON)
+    OFF)
 
   if (MSVC)
-    set(BROTLI_MSVC_STATIC_LIB_SUFFIX "_static" CACHE STRING
-      "Brotli static lib suffix used on Windows with MSVC (default _static)")
+    option(ARROW_USE_CLCACHE
+      "Use clcache if available"
+      ON)
+
+    set(BROTLI_MSVC_STATIC_LIB_SUFFIX "-static" CACHE STRING
+      "Brotli static lib suffix used on Windows with MSVC (default -static)")
     set(SNAPPY_MSVC_STATIC_LIB_SUFFIX "_static" CACHE STRING
       "Snappy static lib suffix used on Windows with MSVC (default is empty string)")
     set(ZLIB_MSVC_STATIC_LIB_SUFFIX "libstatic" CACHE STRING
@@ -249,10 +253,23 @@ if(NOT ARROW_BUILD_BENCHMARKS)
   set(NO_BENCHMARKS 1)
 endif()
 
+if (NOT ARROW_FUZZING)
+  set(NO_FUZZING 1)
+endif()
+
 if(ARROW_HDFS)
   set(ARROW_BOOST_HEADER_ONLY 0)
 else()
   set(ARROW_BOOST_HEADER_ONLY 1)
+endif()
+
+if (MSVC AND ARROW_USE_CLCACHE AND
+     (("${CMAKE_GENERATOR}" STREQUAL "NMake Makefiles") OR
+      ("${CMAKE_GENERATOR}" STREQUAL "Ninja")))
+  find_program(CLCACHE_FOUND clcache)
+  if(CLCACHE_FOUND)
+    set(CMAKE_CXX_COMPILER ${CLCACHE_FOUND})
+  endif(CLCACHE_FOUND)
 endif()
 
 ############################################################
@@ -287,8 +304,6 @@ include(ThirdpartyToolchain)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_COMMON_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ARROW_CXXFLAGS}")
 
-message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
-
 if ("${COMPILER_FAMILY}" STREQUAL "clang")
   # Using Clang with ccache causes a bunch of spurious warnings that are
   # purportedly fixed in the next version of ccache. See the following for details:
@@ -300,6 +315,9 @@ if ("${COMPILER_FAMILY}" STREQUAL "clang")
 endif()
 
 # ASAN / TSAN / UBSAN
+if(ARROW_FUZZING)
+  set(ARROW_USE_COVERAGE ON)
+endif()
 include(san-config)
 
 # For any C code, use the same flags.
@@ -325,6 +343,9 @@ if ("${ARROW_GENERATE_COVERAGE}")
     message(SEND_ERROR "Coverage requires the static lib to be built")
   endif()
 endif()
+
+# CMAKE_CXX_FLAGS now fully assembled
+message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 
 # set compile output directory
 string (TOLOWER ${CMAKE_BUILD_TYPE} BUILD_SUBDIR_NAME)
@@ -444,11 +465,14 @@ if (UNIX)
   message(STATUS "Found cpplint executable at ${CPPLINT_BIN}")
 
   # Full lint
-  add_custom_target(lint ${CPPLINT_BIN}
+  # Balancing act: cpplint.py takes a non-trivial time to launch,
+  # so process 12 files per invocation, while still ensuring parallelism
+  add_custom_target(lint echo ${FILTERED_LINT_FILES} | xargs -n12 -P8
+  ${CPPLINT_BIN}
   --verbose=2
   --linelength=90
   --filter=-whitespace/comments,-readability/todo,-build/header_guard,-build/c++11,-runtime/references,-build/include_order
-  ${FILTERED_LINT_FILES})
+  )
 endif (UNIX)
 
 
@@ -563,11 +587,13 @@ set(ARROW_LINK_LIBS
 
 set(ARROW_SHARED_PRIVATE_LINK_LIBS
   ${BOOST_SYSTEM_LIBRARY}
-  ${BOOST_FILESYSTEM_LIBRARY})
+  ${BOOST_FILESYSTEM_LIBRARY}
+  ${BOOST_REGEX_LIBRARY})
 
 set(ARROW_STATIC_PRIVATE_LINK_LIBS
   ${BOOST_SYSTEM_LIBRARY}
-  ${BOOST_FILESYSTEM_LIBRARY})
+  ${BOOST_FILESYSTEM_LIBRARY}
+  ${BOOST_REGEX_LIBRARY})
 
 if (NOT MSVC)
   set(ARROW_LINK_LIBS
@@ -591,44 +617,28 @@ set(ARROW_TEST_LINK_LIBS ${ARROW_MIN_TEST_LIBS})
 
 if (ARROW_JEMALLOC)
   add_definitions(-DARROW_JEMALLOC)
-  # In the case that jemalloc is only available as a shared library also use it to
-  # link it in the static requirements. In contrast to other libraries we try in
-  # most cases to use the system provided version of jemalloc to better align with
-  # other potential users of jemalloc.
-  if (JEMALLOC_STATIC_LIB AND NOT ARROW_JEMALLOC_USE_SHARED)
-    set(ARROW_JEMALLOC_STATIC_LINK_LIBS jemalloc_static)
-  else()
-    set(ARROW_JEMALLOC_STATIC_LINK_LIBS jemalloc_shared)
-  endif()
+  add_definitions(-DARROW_JEMALLOC_INCLUDE_DIR=${JEMALLOC_INCLUDE_DIR})
 
-  if (NOT APPLE)
-      set(ARROW_JEMALLOC_STATIC_LINK_LIBS ${ARROW_JEMALLOC_STATIC_LINK_LIBS} ${PTHREAD_LIBRARY} rt)
-  endif()
-
-  if (ARROW_JEMALLOC_USE_SHARED)
-    set(ARROW_JEMALLOC_SHARED_LINK_LIBS jemalloc_shared)
+  if (CMAKE_COMPILER_IS_GNUCXX)
+    set(ARROW_JEMALLOC_LINK_LIBS
+      jemalloc_static
+      # For glibc <2.17 we need to link to librt.
+      # As we compile with --as-needed by default, the linker will omit this
+      # dependency if not required.
+      ${PTHREAD_LIBRARY}
+      rt
+      )
   else()
-    if (CMAKE_COMPILER_IS_GNUCXX)
-      set(ARROW_JEMALLOC_SHARED_LINK_LIBS
-        jemalloc_static
-        # For glibc <2.17 we need to link to librt.
-        # As we compile with --as-needed by default, the linker will omit this
-        # dependency if not required.
-        ${PTHREAD_LIBRARY}
-        rt
-        )
-    else()
-      set(ARROW_JEMALLOC_SHARED_LINK_LIBS
-        jemalloc_static
-        )
-    endif()
+    set(ARROW_JEMALLOC_LINK_LIBS
+      jemalloc_static
+      )
   endif()
   set(ARROW_SHARED_PRIVATE_LINK_LIBS
     ${ARROW_SHARED_PRIVATE_LINK_LIBS}
-    ${ARROW_JEMALLOC_SHARED_LINK_LIBS})
+    ${ARROW_JEMALLOC_LINK_LIBS})
   set(ARROW_STATIC_LINK_LIBS
     ${ARROW_STATIC_LINK_LIBS}
-    ${ARROW_JEMALLOC_STATIC_LINK_LIBS})
+    ${ARROW_JEMALLOC_LINK_LIBS})
 elseif (NOT MSVC)
   # We need to separate this as otherwise CMake would mess with the library
   # linking order.

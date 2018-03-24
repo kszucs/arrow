@@ -19,6 +19,7 @@
 #define ARROW_UTIL_IO_UTIL_H
 
 #include <iostream>
+#include <memory>
 
 #include "arrow/buffer.h"
 #include "arrow/io/interfaces.h"
@@ -31,7 +32,7 @@ namespace io {
 class StdoutStream : public OutputStream {
  public:
   StdoutStream() : pos_(0) { set_mode(FileMode::WRITE); }
-  virtual ~StdoutStream() {}
+  ~StdoutStream() override {}
 
   Status Close() override { return Status::OK(); }
 
@@ -50,11 +51,34 @@ class StdoutStream : public OutputStream {
   int64_t pos_;
 };
 
+// Output stream that just writes to stderr.
+class StderrStream : public OutputStream {
+ public:
+  StderrStream() : pos_(0) { set_mode(FileMode::WRITE); }
+  ~StderrStream() override {}
+
+  Status Close() override { return Status::OK(); }
+
+  Status Tell(int64_t* position) const override {
+    *position = pos_;
+    return Status::OK();
+  }
+
+  Status Write(const void* data, int64_t nbytes) override {
+    pos_ += nbytes;
+    std::cerr.write(reinterpret_cast<const char*>(data), nbytes);
+    return Status::OK();
+  }
+
+ private:
+  int64_t pos_;
+};
+
 // Input stream that just reads from stdin.
 class StdinStream : public InputStream {
  public:
   StdinStream() : pos_(0) { set_mode(FileMode::READ); }
-  virtual ~StdinStream() {}
+  ~StdinStream() override {}
 
   Status Close() override { return Status::OK(); }
 

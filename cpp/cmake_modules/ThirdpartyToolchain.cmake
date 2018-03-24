@@ -44,8 +44,10 @@ if (NOT ARROW_VERBOSE_THIRDPARTY_BUILD)
     LOG_BUILD 1
     LOG_INSTALL 1
     LOG_DOWNLOAD 1)
+  set(Boost_DEBUG FALSE)
 else()
   set(EP_LOG_OPTIONS)
+  set(Boost_DEBUG TRUE)
 endif()
 
 if (NOT MSVC)
@@ -80,10 +82,6 @@ if (DEFINED ENV{RAPIDJSON_HOME})
   set(RAPIDJSON_HOME "$ENV{RAPIDJSON_HOME}")
 endif()
 
-if (DEFINED ENV{JEMALLOC_HOME})
-  set(JEMALLOC_HOME "$ENV{JEMALLOC_HOME}")
-endif()
-
 if (DEFINED ENV{GFLAGS_HOME})
   set(GFLAGS_HOME "$ENV{GFLAGS_HOME}")
 endif()
@@ -112,6 +110,10 @@ if (DEFINED ENV{GRPC_HOME})
   set(GRPC_HOME "$ENV{GRPC_HOME}")
 endif()
 
+if (DEFINED ENV{PROTOBUF_HOME})
+  set(PROTOBUF_HOME "$ENV{PROTOBUF_HOME}")
+endif()
+
 # Ensure that a default make is set
 if ("${MAKE}" STREQUAL "")
     if (NOT MSVC)
@@ -130,12 +132,12 @@ endif()
 # ----------------------------------------------------------------------
 # Add Boost dependencies (code adapted from Apache Kudu (incubating))
 
-set(Boost_DEBUG TRUE)
 set(Boost_USE_MULTITHREADED ON)
 if (MSVC AND ARROW_USE_STATIC_CRT)
   set(Boost_USE_STATIC_RUNTIME ON)
 endif()
 set(Boost_ADDITIONAL_VERSIONS
+  "1.66.0" "1.66"
   "1.65.0" "1.65"
   "1.64.0" "1.64"
   "1.63.0" "1.63"
@@ -155,8 +157,11 @@ if (ARROW_BOOST_VENDORED)
     "${BOOST_LIB_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}boost_system${CMAKE_STATIC_LIBRARY_SUFFIX}")
   set(BOOST_STATIC_FILESYSTEM_LIBRARY
     "${BOOST_LIB_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}boost_filesystem${CMAKE_STATIC_LIBRARY_SUFFIX}")
+  set(BOOST_STATIC_REGEX_LIBRARY
+    "${BOOST_LIB_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}boost_regex${CMAKE_STATIC_LIBRARY_SUFFIX}")
   set(BOOST_SYSTEM_LIBRARY "${BOOST_STATIC_SYSTEM_LIBRARY}")
   set(BOOST_FILESYSTEM_LIBRARY "${BOOST_STATIC_FILESYSTEM_LIBRARY}")
+  set(BOOST_REGEX_LIBRARY "${BOOST_STATIC_REGEX_LIBRARY}")
   if (ARROW_BOOST_HEADER_ONLY)
     set(BOOST_BUILD_PRODUCTS)
     set(BOOST_CONFIGURE_COMMAND "")
@@ -164,11 +169,12 @@ if (ARROW_BOOST_VENDORED)
   else()
     set(BOOST_BUILD_PRODUCTS
       ${BOOST_SYSTEM_LIBRARY}
-      ${BOOST_FILESYSTEM_LIBRARY})
+      ${BOOST_FILESYSTEM_LIBRARY}
+      ${BOOST_REGEX_LIBRARY})
     set(BOOST_CONFIGURE_COMMAND
       "./bootstrap.sh"
       "--prefix=${BOOST_PREFIX}"
-      "--with-libraries=filesystem,system")
+      "--with-libraries=filesystem,system,regex")
     if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
       set(BOOST_BUILD_VARIANT "debug")
     else()
@@ -192,14 +198,15 @@ if (ARROW_BOOST_VENDORED)
   set(Boost_INCLUDE_DIRS "${BOOST_INCLUDE_DIR}")
   add_dependencies(arrow_dependencies boost_ep)
 else()
+  if (MSVC)
+    # disable autolinking in boost
+    add_definitions(-DBOOST_ALL_NO_LIB)
+  endif()
   if (ARROW_BOOST_USE_SHARED)
     # Find shared Boost libraries.
     set(Boost_USE_STATIC_LIBS OFF)
 
-    if(MSVC)
-      # disable autolinking in boost
-      add_definitions(-DBOOST_ALL_NO_LIB)
-
+    if (MSVC)
       # force all boost libraries to dynamic link
       add_definitions(-DBOOST_ALL_DYN_LINK)
     endif()
@@ -207,16 +214,19 @@ else()
     if (ARROW_BOOST_HEADER_ONLY)
       find_package(Boost REQUIRED)
     else()
-      find_package(Boost COMPONENTS system filesystem REQUIRED)
+      find_package(Boost COMPONENTS system filesystem regex REQUIRED)
       if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
         set(BOOST_SHARED_SYSTEM_LIBRARY ${Boost_SYSTEM_LIBRARY_DEBUG})
         set(BOOST_SHARED_FILESYSTEM_LIBRARY ${Boost_FILESYSTEM_LIBRARY_DEBUG})
+        set(BOOST_SHARED_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_DEBUG})
       else()
         set(BOOST_SHARED_SYSTEM_LIBRARY ${Boost_SYSTEM_LIBRARY_RELEASE})
         set(BOOST_SHARED_FILESYSTEM_LIBRARY ${Boost_FILESYSTEM_LIBRARY_RELEASE})
+        set(BOOST_SHARED_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_RELEASE})
       endif()
       set(BOOST_SYSTEM_LIBRARY boost_system_shared)
       set(BOOST_FILESYSTEM_LIBRARY boost_filesystem_shared)
+      set(BOOST_REGEX_LIBRARY boost_regex_shared)
     endif()
   else()
     # Find static boost headers and libs
@@ -225,16 +235,19 @@ else()
     if (ARROW_BOOST_HEADER_ONLY)
       find_package(Boost REQUIRED)
     else()
-      find_package(Boost COMPONENTS system filesystem REQUIRED)
+      find_package(Boost COMPONENTS system filesystem regex REQUIRED)
       if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
         set(BOOST_STATIC_SYSTEM_LIBRARY ${Boost_SYSTEM_LIBRARY_DEBUG})
         set(BOOST_STATIC_FILESYSTEM_LIBRARY ${Boost_FILESYSTEM_LIBRARY_DEBUG})
+        set(BOOST_STATIC_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_DEBUG})
       else()
         set(BOOST_STATIC_SYSTEM_LIBRARY ${Boost_SYSTEM_LIBRARY_RELEASE})
         set(BOOST_STATIC_FILESYSTEM_LIBRARY ${Boost_FILESYSTEM_LIBRARY_RELEASE})
+        set(BOOST_STATIC_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_RELEASE})
       endif()
       set(BOOST_SYSTEM_LIBRARY boost_system_static)
       set(BOOST_FILESYSTEM_LIBRARY boost_filesystem_static)
+      set(BOOST_REGEX_LIBRARY boost_regex_static)
     endif()
   endif()
 endif()
@@ -251,7 +264,11 @@ if (NOT ARROW_BOOST_HEADER_ONLY)
       STATIC_LIB "${BOOST_STATIC_FILESYSTEM_LIBRARY}"
       SHARED_LIB "${BOOST_SHARED_FILESYSTEM_LIBRARY}")
 
-  SET(ARROW_BOOST_LIBS boost_system boost_filesystem)
+  ADD_THIRDPARTY_LIB(boost_regex
+      STATIC_LIB "${BOOST_STATIC_REGEX_LIBRARY}"
+      SHARED_LIB "${BOOST_SHARED_REGEX_LIBRARY}")
+
+  SET(ARROW_BOOST_LIBS boost_system boost_filesystem boost_regex)
 endif()
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
@@ -471,33 +488,38 @@ if (MSVC)
 endif()
 
 if (ARROW_JEMALLOC)
-  find_package(jemalloc)
+  # We only use a vendored jemalloc as we want to control its version.
+  # Also our build of jemalloc is specially prefixed so that it will not 
+  # conflict with the default allocator as well as other jemalloc
+  # installations.
+  # find_package(jemalloc)
 
-  if(NOT JEMALLOC_FOUND)
-    set(ARROW_JEMALLOC_USE_SHARED OFF)
-    set(JEMALLOC_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/jemalloc_ep-prefix/src/jemalloc_ep/dist/")
-    set(JEMALLOC_HOME "${JEMALLOC_PREFIX}")
-    set(JEMALLOC_INCLUDE_DIR "${JEMALLOC_PREFIX}/include")
-    set(JEMALLOC_SHARED_LIB "${JEMALLOC_PREFIX}/lib/libjemalloc${CMAKE_SHARED_LIBRARY_SUFFIX}")
-    set(JEMALLOC_STATIC_LIB "${JEMALLOC_PREFIX}/lib/libjemalloc_pic${CMAKE_STATIC_LIBRARY_SUFFIX}")
-    set(JEMALLOC_VENDORED 1)
-    ExternalProject_Add(jemalloc_ep
-      URL ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/jemalloc/${JEMALLOC_VERSION}.tar.gz
-      CONFIGURE_COMMAND ./autogen.sh "--prefix=${JEMALLOC_PREFIX}" "--with-jemalloc-prefix=je_arrow_" "--with-private-namespace=je_arrow_private_" && touch doc/jemalloc.html && touch doc/jemalloc.3
-      ${EP_LOG_OPTIONS}
-      BUILD_IN_SOURCE 1
-      BUILD_COMMAND ${MAKE}
-      BUILD_BYPRODUCTS "${JEMALLOC_STATIC_LIB}" "${JEMALLOC_SHARED_LIB}"
-      INSTALL_COMMAND ${MAKE} -j1 install)
-  else()
-    set(JEMALLOC_VENDORED 0)
-  endif()
+  set(ARROW_JEMALLOC_USE_SHARED OFF)
+  set(JEMALLOC_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/jemalloc_ep-prefix/src/jemalloc_ep/dist/")
+  set(JEMALLOC_HOME "${JEMALLOC_PREFIX}")
+  set(JEMALLOC_INCLUDE_DIR "${JEMALLOC_PREFIX}/include")
+  set(JEMALLOC_SHARED_LIB "${JEMALLOC_PREFIX}/lib/libjemalloc${CMAKE_SHARED_LIBRARY_SUFFIX}")
+  set(JEMALLOC_STATIC_LIB "${JEMALLOC_PREFIX}/lib/libjemalloc_pic${CMAKE_STATIC_LIBRARY_SUFFIX}")
+  set(JEMALLOC_VENDORED 1)
+  # We need to disable TLS or otherwise C++ exceptions won't work anymore.
+  ExternalProject_Add(jemalloc_ep
+    URL ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/jemalloc/${JEMALLOC_VERSION}.tar.gz
+    PATCH_COMMAND touch doc/jemalloc.3 doc/jemalloc.html
+    CONFIGURE_COMMAND ./autogen.sh "--prefix=${JEMALLOC_PREFIX}" "--with-jemalloc-prefix=je_arrow_" "--with-private-namespace=je_arrow_private_" "--disable-tls"
+    ${EP_LOG_OPTIONS}
+    BUILD_IN_SOURCE 1
+    BUILD_COMMAND ${MAKE}
+    BUILD_BYPRODUCTS "${JEMALLOC_STATIC_LIB}" "${JEMALLOC_SHARED_LIB}"
+    INSTALL_COMMAND ${MAKE} -j1 install)
 
-  include_directories(SYSTEM ${JEMALLOC_INCLUDE_DIR})
+  # Don't use the include directory directly so that we can point to a path
+  # that is unique to our codebase.
+  include_directories(SYSTEM "${CMAKE_CURRENT_BINARY_DIR}/jemalloc_ep-prefix/src/")
   ADD_THIRDPARTY_LIB(jemalloc
     STATIC_LIB ${JEMALLOC_STATIC_LIB}
     SHARED_LIB ${JEMALLOC_SHARED_LIB}
     DEPS ${PTHREAD_LIBRARY})
+  add_dependencies(jemalloc_static jemalloc_ep)
 endif()
 
 ## Google PerfTools
@@ -847,7 +869,8 @@ if (ARROW_WITH_GRPC)
       BUILD_BYPRODUCTS "${GRPC_STATIC_LIBRARY_GPR}" "${GRPC_STATIC_LIBRARY_GRPC}" "${GRPC_STATIC_LIBRARY_GRPCPP}"
       ${GRPC_BUILD_BYPRODUCTS}
       ${EP_LOG_OPTIONS}
-      CMAKE_ARGS ${GRPC_CMAKE_ARGS})
+      CMAKE_ARGS ${GRPC_CMAKE_ARGS}
+      ${EP_LOG_OPTIONS})
   else()
     find_package(gRPC CONFIG REQUIRED)
     set(GRPC_VENDORED 0)
@@ -882,11 +905,8 @@ if (ARROW_ORC)
       CONFIGURE_COMMAND "./configure" "--disable-shared" "--prefix=${PROTOBUF_PREFIX}" "CXXFLAGS=${EP_CXX_FLAGS}"
       BUILD_IN_SOURCE 1
       URL ${PROTOBUF_SRC_URL}
-      LOG_DOWNLOAD 1
-      LOG_CONFIGURE 1
-      LOG_BUILD 1
-      LOG_INSTALL 1
-      BUILD_BYPRODUCTS "${PROTOBUF_STATIC_LIB}")
+      BUILD_BYPRODUCTS "${PROTOBUF_STATIC_LIB}"
+      ${EP_LOG_OPTIONS})
 
     set (PROTOBUF_VENDORED 1)
   else ()
@@ -908,12 +928,21 @@ if (ARROW_ORC)
   set(ORC_INCLUDE_DIR "${ORC_PREFIX}/include")
   set(ORC_STATIC_LIB "${ORC_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}orc${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
+  if ("${COMPILER_FAMILY}" STREQUAL "clang")
+    if ("${COMPILER_VERSION}" VERSION_GREATER "4.0")
+      set(ORC_CMAKE_CXX_FLAGS " -Wno-zero-as-null-pointer-constant \
+-Wno-inconsistent-missing-destructor-override ")
+    endif()
+  endif()
+
+  set(ORC_CMAKE_CXX_FLAGS "${EP_CXX_FLAGS} ${ORC_CMAKE_CXX_FLAGS}")
+
   # Since LZ4 isn't installed, the header file is in ${LZ4_HOME}/lib instead of
   # ${LZ4_HOME}/include, which forces us to specify the include directory
   # manually as well.
   set (ORC_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                       -DCMAKE_INSTALL_PREFIX=${ORC_PREFIX}
-                      -DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}
+                      -DCMAKE_CXX_FLAGS=${ORC_CMAKE_CXX_FLAGS}
                       -DBUILD_LIBHDFSPP=OFF
                       -DBUILD_JAVA=OFF
                       -DBUILD_TOOLS=OFF
@@ -926,10 +955,10 @@ if (ARROW_ORC)
                       -DZLIB_HOME=${ZLIB_HOME})
 
   ExternalProject_Add(orc_ep
-    GIT_REPOSITORY "https://github.com/apache/orc"
-    GIT_TAG ${ORC_VERSION}
+    URL "https://github.com/apache/orc/archive/${ORC_VERSION}.tar.gz"
     BUILD_BYPRODUCTS ${ORC_STATIC_LIB}
-    CMAKE_ARGS ${ORC_CMAKE_ARGS})
+    CMAKE_ARGS ${ORC_CMAKE_ARGS}
+    ${EP_LOG_OPTIONS})
 
   include_directories(SYSTEM ${ORC_INCLUDE_DIR})
   ADD_THIRDPARTY_LIB(orc

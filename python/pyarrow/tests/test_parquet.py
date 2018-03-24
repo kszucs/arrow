@@ -22,10 +22,11 @@ import decimal
 import io
 import json
 import os
+import sys
 
 import pytest
 
-from pyarrow.compat import guid, u, BytesIO, unichar, frombytes
+from pyarrow.compat import guid, u, BytesIO, unichar
 from pyarrow.tests import util
 from pyarrow.filesystem import LocalFileSystem
 import pyarrow as pa
@@ -215,6 +216,9 @@ def test_pandas_parquet_2_0_rountrip_read_pandas_no_index_written(tmpdir):
     arrow_table = pa.Table.from_pandas(df, preserve_index=False)
     js = json.loads(arrow_table.schema.metadata[b'pandas'].decode('utf8'))
     assert not js['index_columns']
+    # ARROW-2170
+    # While index_columns should be empty, columns needs to be filled still.
+    assert js['columns']
 
     _write_table(arrow_table, filename.strpath, version="2.0",
                  coerce_timestamps='ms')
@@ -258,6 +262,19 @@ def test_pandas_parquet_1_0_rountrip(tmpdir):
     # We pass uint32_t as int64_t if we write Parquet version 1.0
     df['uint32'] = df['uint32'].values.astype(np.int64)
 
+    tm.assert_frame_equal(df, df_read)
+
+
+@parquet
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="need Python 3.6")
+def test_path_objects(tmpdir):
+    # Test compatibility with PEP 519 path-like objects
+    import pathlib
+    p = pathlib.Path(tmpdir) / 'zzz.parquet'
+    df = pd.DataFrame({'x': np.arange(10, dtype=np.int64)})
+    _write_table(df, p)
+    table_read = _read_table(p)
+    df_read = table_read.to_pandas()
     tm.assert_frame_equal(df, df_read)
 
 
@@ -507,20 +524,20 @@ def test_parquet_metadata_api():
 @pytest.mark.parametrize(
     'data, dtype, min_value, max_value, null_count, num_values',
     [
-        ([1, 2, 2, None, 4], np.uint8, u'1', u'4', 1, 4),
-        ([1, 2, 2, None, 4], np.uint16, u'1', u'4', 1, 4),
-        ([1, 2, 2, None, 4], np.uint32, u'1', u'4', 1, 4),
-        ([1, 2, 2, None, 4], np.uint64, u'1', u'4', 1, 4),
-        ([-1, 2, 2, None, 4], np.int16, u'-1', u'4', 1, 4),
-        ([-1, 2, 2, None, 4], np.int32, u'-1', u'4', 1, 4),
-        ([-1, 2, 2, None, 4], np.int64, u'-1', u'4', 1, 4),
-        ([-1.1, 2.2, 2.3, None, 4.4], np.float32, u'-1.1', u'4.4', 1, 4),
-        ([-1.1, 2.2, 2.3, None, 4.4], np.float64, u'-1.1', u'4.4', 1, 4),
+        ([1, 2, 2, None, 4], np.uint8, 1, 4, 1, 4),
+        ([1, 2, 2, None, 4], np.uint16, 1, 4, 1, 4),
+        ([1, 2, 2, None, 4], np.uint32, 1, 4, 1, 4),
+        ([1, 2, 2, None, 4], np.uint64, 1, 4, 1, 4),
+        ([-1, 2, 2, None, 4], np.int16, -1, 4, 1, 4),
+        ([-1, 2, 2, None, 4], np.int32, -1, 4, 1, 4),
+        ([-1, 2, 2, None, 4], np.int64, -1, 4, 1, 4),
+        ([-1.1, 2.2, 2.3, None, 4.4], np.float32, -1.1, 4.4, 1, 4),
+        ([-1.1, 2.2, 2.3, None, 4.4], np.float64, -1.1, 4.4, 1, 4),
         (
             [u'', u'b', unichar(1000), None, u'aaa'],
-            str, u' ', frombytes((unichar(1000) + u' ').encode('utf-8')), 1, 4
+            str, b' ', (unichar(1000) + u' ').encode('utf-8'), 1, 4
         ),
-        ([True, False, False, True, True], np.bool, u'0', u'1', 0, 5),
+        ([True, False, False, True, True], np.bool, False, True, 0, 5),
     ]
 )
 def test_parquet_column_statistics_api(
@@ -746,6 +763,28 @@ def test_sanitized_spark_field_names():
 
     expected_name = 'prohib______'
     assert result.schema[0].name == expected_name
+
+
+def _roundtrip_pandas_dataframe(df, write_kwargs):
+    table = pa.Table.from_pandas(df)
+
+    buf = io.BytesIO()
+    _write_table(table, buf, **write_kwargs)
+
+    buf.seek(0)
+    table1 = _read_table(buf)
+    return table1.to_pandas()
+
+
+@parquet
+def test_spark_flavor_preserves_pandas_metadata():
+    df = _test_dataframe(size=100)
+    df.index = np.arange(0, 10 * len(df), 10)
+    df.index.name = 'foo'
+
+    result = _roundtrip_pandas_dataframe(df, {'version': '2.0',
+                                              'flavor': 'spark'})
+    tm.assert_frame_equal(result, df)
 
 
 @parquet
@@ -1074,12 +1113,12 @@ def _test_read_common_metadata_files(fs, base_path):
     with fs.open(data_path, 'wb') as f:
         _write_table(table, f)
 
-    metadata_path = pjoin(base_path, '_metadata')
+    metadata_path = pjoin(base_path, '_common_metadata')
     with fs.open(metadata_path, 'wb') as f:
         pq.write_metadata(table.schema, f)
 
     dataset = pq.ParquetDataset(base_path, filesystem=fs)
-    assert dataset.metadata_path == metadata_path
+    assert dataset.common_metadata_path == metadata_path
 
     with fs.open(data_path) as f:
         common_schema = pq.read_metadata(f).schema
@@ -1392,7 +1431,21 @@ def _test_write_to_dataset_with_partitions(base_path, filesystem=None):
     output_table = pa.Table.from_pandas(output_df)
     pq.write_to_dataset(output_table, base_path, partition_by,
                         filesystem=filesystem)
-    input_table = pq.ParquetDataset(base_path, filesystem=filesystem).read()
+
+    metadata_path = os.path.join(base_path, '_common_metadata')
+
+    if filesystem is not None:
+        with filesystem.open(metadata_path, 'wb') as f:
+            pq.write_metadata(output_table.schema, f)
+    else:
+        pq.write_metadata(output_table.schema, metadata_path)
+
+    dataset = pq.ParquetDataset(base_path, filesystem=filesystem)
+    # ARROW-2209: Ensure the dataset schema also includes the partition columns
+    dataset_cols = set(dataset.schema.to_arrow_schema().names)
+    assert dataset_cols == set(output_table.schema.names)
+
+    input_table = dataset.read()
     input_df = input_table.to_pandas()
 
     # Read data back in and compare with original DataFrame
@@ -1651,3 +1704,66 @@ def test_decimal_roundtrip_negative_scale(tmpdir):
     result_table = _read_table(string_filename)
     result = result_table.to_pandas()
     tm.assert_frame_equal(result, expected)
+
+
+@parquet
+def test_parquet_writer_context_obj(tmpdir):
+
+    import pyarrow.parquet as pq
+
+    df = _test_dataframe(100)
+    df['unique_id'] = 0
+
+    arrow_table = pa.Table.from_pandas(df, preserve_index=False)
+    out = pa.BufferOutputStream()
+
+    with pq.ParquetWriter(out, arrow_table.schema, version='2.0') as writer:
+
+        frames = []
+        for i in range(10):
+            df['unique_id'] = i
+            arrow_table = pa.Table.from_pandas(df, preserve_index=False)
+            writer.write_table(arrow_table)
+
+            frames.append(df.copy())
+
+    buf = out.get_result()
+    result = _read_table(pa.BufferReader(buf))
+
+    expected = pd.concat(frames, ignore_index=True)
+    tm.assert_frame_equal(result.to_pandas(), expected)
+
+
+@parquet
+def test_parquet_writer_context_obj_with_exception(tmpdir):
+
+    import pyarrow.parquet as pq
+
+    df = _test_dataframe(100)
+    df['unique_id'] = 0
+
+    arrow_table = pa.Table.from_pandas(df, preserve_index=False)
+    out = pa.BufferOutputStream()
+    error_text = 'Artificial Error'
+
+    try:
+        with pq.ParquetWriter(out,
+                              arrow_table.schema,
+                              version='2.0') as writer:
+
+            frames = []
+            for i in range(10):
+                df['unique_id'] = i
+                arrow_table = pa.Table.from_pandas(df, preserve_index=False)
+                writer.write_table(arrow_table)
+                frames.append(df.copy())
+                if i == 5:
+                    raise ValueError(error_text)
+    except Exception as e:
+        assert str(e) == error_text
+
+    buf = out.get_result()
+    result = _read_table(pa.BufferReader(buf))
+
+    expected = pd.concat(frames, ignore_index=True)
+    tm.assert_frame_equal(result.to_pandas(), expected)

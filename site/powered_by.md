@@ -65,6 +65,11 @@ short description of your use case. See the following for some examples.
   Dremio reads data from any source (RDBMS, HDFS, S3, NoSQL) into Arrow
   buffers, and provides fast SQL access via ODBC, JDBC, and REST for BI,
   Python, R, and more (all backed by Apache Arrow).
+* **[Fletcher][20]:** Fletcher is an FPGA acceleration framework that can
+  convert an Arrow schema into an easy-to-use hardware interface. The
+  accelerator can request data from Arrow tables by supplying row indices.
+  In turn, the interface provides streams of data of the types defined
+  through the schema. Furthermore, Arrow alleviates serialization bottlenecks.
 * **[GeoMesa][8]:** A suite of tools that enables large-scale geospatial query
   and analytics on distributed computing systems. GeoMesa supports query
   results in the Arrow IPC format, which can then be used for in-browser
@@ -86,6 +91,7 @@ short description of your use case. See the following for some examples.
 * **[pandas][12]:** data analysis toolkit for Python programmers. pandas
   supports reading and writing Parquet files using pyarrow. Several pandas
   core developers are also contributors to Apache Arrow.
+* **[Perspective][23]:** Perspective is a streaming data visualization engine in JavaScript for building real-time & user-configurable analytics entirely in the browser.
 * **[Quilt Data][13]:** Quilt is a data package manager, designed to make
   managing data as easy as managing code. It supports Parquet format via
   pyarrow for data access.
@@ -100,6 +106,12 @@ short description of your use case. See the following for some examples.
   of Apache Arrow based on Apache Arrow GLib. Red Arrow is a core
   library for it. It also provides many Ruby libraries to integrate
   existing Ruby libraries with Apache Arrow. They use Red Arrow.
+* **[SciDB][21]:** Paradigm4's SciDB is a scalable, scientific
+  database management system that helps researchers integrate and
+  analyze diverse, multi-dimensional, high resolution data - like
+  genomic, clinical, images, sensor, environmental, and IoT data -
+  all in one analytical platform. [SciDB streaming][22] is
+  powered by Apache Arrow.
 * **[Turbodbc][4]:** Python module to access relational databases via the Open
   Database Connectivity (ODBC) interface. It provides the ability to return
   Arrow Tables and RecordBatches in addition to the Python Database API
@@ -124,3 +136,7 @@ short description of your use case. See the following for some examples.
 [17]: https://github.com/red-data-tools/red-arrow/
 [18]: https://www.graphistry.com
 [19]: http://gpuopenanalytics.com
+[20]: https://github.com/johanpel/fletcher
+[21]: https://www.paradigm4.com
+[22]: https://github.com/Paradigm4/stream
+[23]: https://github.com/jpmorganchase/perspective

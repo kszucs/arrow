@@ -20,6 +20,8 @@
 #include <climits>
 #include <sstream>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "arrow/array.h"
 #include "arrow/compare.h"
@@ -35,16 +37,6 @@ std::shared_ptr<Field> Field::AddMetadata(
     const std::shared_ptr<const KeyValueMetadata>& metadata) const {
   return std::make_shared<Field>(name_, type_, nullable_, metadata);
 }
-
-#ifndef ARROW_NO_DEPRECATED_API
-
-Status Field::AddMetadata(const std::shared_ptr<const KeyValueMetadata>& metadata,
-                          std::shared_ptr<Field>* out) const {
-  *out = AddMetadata(metadata);
-  return Status::OK();
-}
-
-#endif
 
 std::shared_ptr<Field> Field::RemoveMetadata() const {
   return std::make_shared<Field>(name_, type_, nullable_);
@@ -291,8 +283,9 @@ int64_t Schema::GetFieldIndex(const std::string& name) const {
 
 Status Schema::AddField(int i, const std::shared_ptr<Field>& field,
                         std::shared_ptr<Schema>* out) const {
-  DCHECK_GE(i, 0);
-  DCHECK_LE(i, this->num_fields());
+  if (i < 0 || i > this->num_fields()) {
+    return Status::Invalid("Invalid column index to add field.");
+  }
 
   *out =
       std::make_shared<Schema>(internal::AddVectorElement(fields_, i, field), metadata_);
@@ -304,16 +297,6 @@ std::shared_ptr<Schema> Schema::AddMetadata(
   return std::make_shared<Schema>(fields_, metadata);
 }
 
-#ifndef ARROW_NO_DEPRECATED_API
-
-Status Schema::AddMetadata(const std::shared_ptr<const KeyValueMetadata>& metadata,
-                           std::shared_ptr<Schema>* out) const {
-  *out = AddMetadata(metadata);
-  return Status::OK();
-}
-
-#endif
-
 std::shared_ptr<const KeyValueMetadata> Schema::metadata() const { return metadata_; }
 
 std::shared_ptr<Schema> Schema::RemoveMetadata() const {
@@ -321,8 +304,9 @@ std::shared_ptr<Schema> Schema::RemoveMetadata() const {
 }
 
 Status Schema::RemoveField(int i, std::shared_ptr<Schema>* out) const {
-  DCHECK_GE(i, 0);
-  DCHECK_LT(i, this->num_fields());
+  if (i < 0 || i >= this->num_fields()) {
+    return Status::Invalid("Invalid column index to remove field.");
+  }
 
   *out = std::make_shared<Schema>(internal::DeleteVectorElement(fields_, i), metadata_);
   return Status::OK();
@@ -360,8 +344,8 @@ std::shared_ptr<Schema> schema(std::vector<std::shared_ptr<Field>>&& fields,
   return std::make_shared<Schema>(std::move(fields), metadata);
 }
 
-// ----------------------------------------------------------------------
-// Visitors and factory functions
+  // ----------------------------------------------------------------------
+  // Visitors and factory functions
 
 #define ACCEPT_VISITOR(TYPE) \
   Status TYPE::Accept(TypeVisitor* visitor) const { return visitor->Visit(*this); }

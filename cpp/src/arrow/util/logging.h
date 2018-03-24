@@ -30,7 +30,7 @@ namespace arrow {
 //
 // Add more as needed.
 
-// Log levels. LOG ignores them, so their values are abitrary.
+// Log levels. LOG ignores them, so their values are arbitrary.
 
 #define ARROW_DEBUG (-1)
 #define ARROW_INFO 0
@@ -52,6 +52,9 @@ namespace arrow {
 
 #define DCHECK(condition)      \
   ARROW_IGNORE_EXPR(condition) \
+  while (false) ::arrow::internal::NullLog()
+#define DCHECK_OK(status)   \
+  ARROW_IGNORE_EXPR(status) \
   while (false) ::arrow::internal::NullLog()
 #define DCHECK_EQ(val1, val2) \
   ARROW_IGNORE_EXPR(val1)     \
@@ -76,6 +79,7 @@ namespace arrow {
 #define ARROW_DFATAL ARROW_FATAL
 
 #define DCHECK(condition) ARROW_CHECK(condition)
+#define DCHECK_OK(status) (ARROW_CHECK((status).ok()) << (status).message())
 #define DCHECK_EQ(val1, val2) ARROW_CHECK((val1) == (val2))
 #define DCHECK_NE(val1, val2) ARROW_CHECK((val1) != (val2))
 #define DCHECK_LE(val1, val2) ARROW_CHECK((val1) <= (val2))
@@ -105,7 +109,7 @@ class CerrLog {
       std::cerr << std::endl;
     }
     if (severity_ == ARROW_FATAL) {
-      std::exit(1);
+      std::abort();
     }
   }
 
@@ -134,7 +138,7 @@ class FatalLog : public CerrLog {
     if (has_logged_) {
       std::cerr << std::endl;
     }
-    std::exit(1);
+    std::abort();
   }
 };
 

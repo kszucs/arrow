@@ -18,6 +18,8 @@
 #ifndef PLASMA_PROTOCOL_H
 #define PLASMA_PROTOCOL_H
 
+#include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "arrow/status.h"
@@ -41,10 +43,10 @@ Status PlasmaReceive(int sock, int64_t message_type, std::vector<uint8_t>* buffe
 /* Plasma Create message functions. */
 
 Status SendCreateRequest(int sock, ObjectID object_id, int64_t data_size,
-                         int64_t metadata_size);
+                         int64_t metadata_size, int device_num);
 
 Status ReadCreateRequest(uint8_t* data, size_t size, ObjectID* object_id,
-                         int64_t* data_size, int64_t* metadata_size);
+                         int64_t* data_size, int64_t* metadata_size, int* device_num);
 
 Status SendCreateReply(int sock, ObjectID object_id, PlasmaObject* object, int error,
                        int64_t mmap_size);

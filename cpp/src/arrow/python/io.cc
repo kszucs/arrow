@@ -19,12 +19,14 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <memory>
 #include <mutex>
 #include <string>
 
 #include "arrow/io/memory.h"
 #include "arrow/memory_pool.h"
 #include "arrow/status.h"
+#include "arrow/util/logging.h"
 
 #include "arrow/python/common.h"
 
@@ -132,12 +134,14 @@ Status PyReadableFile::Tell(int64_t* position) const {
 
 Status PyReadableFile::Read(int64_t nbytes, int64_t* bytes_read, void* out) {
   PyAcquireGIL lock;
-  PyObject* bytes_obj;
+
+  PyObject* bytes_obj = NULL;
   ARROW_RETURN_NOT_OK(file_->Read(nbytes, &bytes_obj));
+  DCHECK(bytes_obj != NULL);
 
   *bytes_read = PyBytes_GET_SIZE(bytes_obj);
   std::memcpy(out, PyBytes_AS_STRING(bytes_obj), *bytes_read);
-  Py_DECREF(bytes_obj);
+  Py_XDECREF(bytes_obj);
 
   return Status::OK();
 }
@@ -145,13 +149,11 @@ Status PyReadableFile::Read(int64_t nbytes, int64_t* bytes_read, void* out) {
 Status PyReadableFile::Read(int64_t nbytes, std::shared_ptr<Buffer>* out) {
   PyAcquireGIL lock;
 
-  PyObject* bytes_obj;
-  ARROW_RETURN_NOT_OK(file_->Read(nbytes, &bytes_obj));
+  OwnedRef bytes_obj;
+  ARROW_RETURN_NOT_OK(file_->Read(nbytes, bytes_obj.ref()));
+  DCHECK(bytes_obj.obj() != NULL);
 
-  *out = std::make_shared<PyBuffer>(bytes_obj);
-  Py_DECREF(bytes_obj);
-
-  return Status::OK();
+  return PyBuffer::FromPyObject(bytes_obj.obj(), out);
 }
 
 Status PyReadableFile::ReadAt(int64_t position, int64_t nbytes, int64_t* bytes_read,
@@ -171,13 +173,13 @@ Status PyReadableFile::ReadAt(int64_t position, int64_t nbytes,
 Status PyReadableFile::GetSize(int64_t* size) {
   PyAcquireGIL lock;
 
-  int64_t current_position;
+  int64_t current_position = -1;
 
   ARROW_RETURN_NOT_OK(file_->Tell(&current_position));
 
   ARROW_RETURN_NOT_OK(file_->Seek(0, 2));
 
-  int64_t file_size;
+  int64_t file_size = -1;
   ARROW_RETURN_NOT_OK(file_->Tell(&file_size));
 
   // Restore previous file position
@@ -215,12 +217,18 @@ Status PyOutputStream::Write(const void* data, int64_t nbytes) {
 }
 
 // ----------------------------------------------------------------------
-// A readable file that is backed by a PyBuffer
+// Foreign buffer
 
-PyBytesReader::PyBytesReader(PyObject* obj)
-    : io::BufferReader(std::make_shared<PyBuffer>(obj)) {}
-
-PyBytesReader::~PyBytesReader() {}
+Status PyForeignBuffer::Make(const uint8_t* data, int64_t size, PyObject* base,
+                             std::shared_ptr<Buffer>* out) {
+  PyForeignBuffer* buf = new PyForeignBuffer(data, size, base);
+  if (buf == NULL) {
+    return Status::OutOfMemory("could not allocate foreign buffer object");
+  } else {
+    *out = std::shared_ptr<Buffer>(buf);
+    return Status::OK();
+  }
+}
 
 }  // namespace py
 }  // namespace arrow

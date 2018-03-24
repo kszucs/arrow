@@ -22,6 +22,7 @@
 #include <limits>
 #include <memory>
 #include <sstream>
+#include <utility>
 
 #include "arrow/array.h"
 #include "arrow/record_batch.h"
@@ -233,14 +234,8 @@ class SimpleTable : public Table {
 
   Status AddColumn(int i, const std::shared_ptr<Column>& col,
                    std::shared_ptr<Table>* out) const override {
-    if (i < 0 || i > num_columns() + 1) {
-      return Status::Invalid("Invalid column index.");
-    }
-    if (col == nullptr) {
-      std::stringstream ss;
-      ss << "Column " << i << " was null";
-      return Status::Invalid(ss.str());
-    }
+    DCHECK(col != nullptr);
+
     if (col->length() != num_rows_) {
       std::stringstream ss;
       ss << "Added column's length must match table's length. Expected length "
@@ -302,14 +297,9 @@ std::shared_ptr<Table> Table::Make(const std::shared_ptr<Schema>& schema,
   return std::make_shared<SimpleTable>(schema, arrays, num_rows);
 }
 
-Status Table::FromRecordBatches(const std::vector<std::shared_ptr<RecordBatch>>& batches,
+Status Table::FromRecordBatches(const std::shared_ptr<Schema>& schema,
+                                const std::vector<std::shared_ptr<RecordBatch>>& batches,
                                 std::shared_ptr<Table>* table) {
-  if (batches.size() == 0) {
-    return Status::Invalid("Must pass at least one record batch");
-  }
-
-  std::shared_ptr<Schema> schema = batches[0]->schema();
-
   const int nbatches = static_cast<int>(batches.size());
   const int ncolumns = static_cast<int>(schema->num_fields());
 
@@ -335,6 +325,15 @@ Status Table::FromRecordBatches(const std::vector<std::shared_ptr<RecordBatch>>&
 
   *table = Table::Make(schema, columns);
   return Status::OK();
+}
+
+Status Table::FromRecordBatches(const std::vector<std::shared_ptr<RecordBatch>>& batches,
+                                std::shared_ptr<Table>* table) {
+  if (batches.size() == 0) {
+    return Status::Invalid("Must pass at least one record batch");
+  }
+
+  return FromRecordBatches(batches[0]->schema(), batches, table);
 }
 
 Status ConcatenateTables(const std::vector<std::shared_ptr<Table>>& tables,
@@ -392,32 +391,6 @@ bool Table::Equals(const Table& other) const {
   }
   return true;
 }
-
-#ifndef ARROW_NO_DEPRECATED_API
-
-Status MakeTable(const std::shared_ptr<Schema>& schema,
-                 const std::vector<std::shared_ptr<Array>>& arrays,
-                 std::shared_ptr<Table>* table) {
-  // Make sure the length of the schema corresponds to the length of the vector
-  if (schema->num_fields() != static_cast<int>(arrays.size())) {
-    std::stringstream ss;
-    ss << "Schema and Array vector have different lengths: " << schema->num_fields()
-       << " != " << arrays.size();
-    return Status::Invalid(ss.str());
-  }
-
-  std::vector<std::shared_ptr<Column>> columns;
-  columns.reserve(schema->num_fields());
-  for (int i = 0; i < schema->num_fields(); i++) {
-    columns.emplace_back(std::make_shared<Column>(schema->field(i), arrays[i]));
-  }
-
-  *table = Table::Make(schema, columns);
-
-  return Status::OK();
-}
-
-#endif  // ARROW_NO_DEPRECATED_API
 
 // ----------------------------------------------------------------------
 // Convert a table to a sequence of record batches

@@ -18,6 +18,7 @@
 #ifndef ARROW_PYTHON_COMMON_H
 #define ARROW_PYTHON_COMMON_H
 
+#include <memory>
 #include <string>
 
 #include "arrow/python/config.h"
@@ -61,64 +62,52 @@ class ARROW_EXPORT PyAcquireGIL {
 
 #define PYARROW_IS_PY2 PY_MAJOR_VERSION <= 2
 
+// A RAII primitive that DECREFs the underlying PyObject* when it
+// goes out of scope.
 class ARROW_EXPORT OwnedRef {
  public:
   OwnedRef() : obj_(NULLPTR) {}
-
+  OwnedRef(OwnedRef&& other) : OwnedRef(other.detach()) {}
   explicit OwnedRef(PyObject* obj) : obj_(obj) {}
 
-  ~OwnedRef() {
-    PyAcquireGIL lock;
-    release();
-  }
-
-  void reset(PyObject* obj) {
-    /// TODO(phillipc): Should we acquire the GIL here? It definitely needs to be
-    /// acquired,
-    /// but callers have probably already acquired it
-    Py_XDECREF(obj_);
-    obj_ = obj;
-  }
-
-  void release() {
-    Py_XDECREF(obj_);
-    obj_ = NULLPTR;
-  }
-
-  PyObject* obj() const { return obj_; }
-
- private:
-  PyObject* obj_;
-};
-
-// This is different from OwnedRef in that it assumes that
-// the GIL is held by the caller and doesn't decrement the
-// reference count when release is called.
-class ARROW_EXPORT ScopedRef {
- public:
-  ScopedRef() : obj_(NULLPTR) {}
-
-  explicit ScopedRef(PyObject* obj) : obj_(obj) {}
-
-  ~ScopedRef() { Py_XDECREF(obj_); }
+  ~OwnedRef() { reset(); }
 
   void reset(PyObject* obj) {
     Py_XDECREF(obj_);
     obj_ = obj;
   }
 
-  PyObject* release() {
+  void reset() { reset(NULLPTR); }
+
+  PyObject* detach() {
     PyObject* result = obj_;
     obj_ = NULLPTR;
     return result;
   }
 
-  PyObject* get() const { return obj_; }
+  PyObject* obj() const { return obj_; }
 
   PyObject** ref() { return &obj_; }
 
  private:
+  ARROW_DISALLOW_COPY_AND_ASSIGN(OwnedRef);
+
   PyObject* obj_;
+};
+
+// Same as OwnedRef, but ensures the GIL is taken when it goes out of scope.
+// This is for situations where the GIL is not always known to be held
+// (e.g. if it is released in the middle of a function for performance reasons)
+class ARROW_EXPORT OwnedRefNoGIL : public OwnedRef {
+ public:
+  OwnedRefNoGIL() : OwnedRef() {}
+  OwnedRefNoGIL(OwnedRefNoGIL&& other) : OwnedRef(other.detach()) {}
+  explicit OwnedRefNoGIL(PyObject* obj) : OwnedRef(obj) {}
+
+  ~OwnedRefNoGIL() {
+    PyAcquireGIL lock;
+    reset();
+  }
 };
 
 struct ARROW_EXPORT PyObjectStringify {
@@ -158,15 +147,17 @@ ARROW_EXPORT MemoryPool* get_memory_pool();
 
 class ARROW_EXPORT PyBuffer : public Buffer {
  public:
-  /// Note that the GIL must be held when calling the PyBuffer constructor.
-  ///
-  /// While memoryview objects support multi-demensional buffers, PyBuffer only supports
+  /// While memoryview objects support multi-dimensional buffers, PyBuffer only supports
   /// one-dimensional byte buffers.
-  explicit PyBuffer(PyObject* obj);
   ~PyBuffer();
 
+  static Status FromPyObject(PyObject* obj, std::shared_ptr<Buffer>* out);
+
  private:
-  PyObject* obj_;
+  PyBuffer();
+  Status Init(PyObject*);
+
+  Py_buffer py_buf_;
 };
 
 }  // namespace py

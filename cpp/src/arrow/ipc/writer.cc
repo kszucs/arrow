@@ -106,7 +106,7 @@ class RecordBatchSerializer : public ArrayVisitor {
     DCHECK_GT(max_recursion_depth, 0);
   }
 
-  virtual ~RecordBatchSerializer() = default;
+  ~RecordBatchSerializer() override = default;
 
   Status VisitArray(const Array& arr) {
     if (max_recursion_depth_ <= 0) {
@@ -376,10 +376,6 @@ class RecordBatchSerializer : public ArrayVisitor {
     --max_recursion_depth_;
     for (int i = 0; i < array.num_fields(); ++i) {
       std::shared_ptr<Array> field = array.field(i);
-      if (array.offset() != 0 || array.length() < field->length()) {
-        // If offset is non-zero, slice the child array
-        field = field->Slice(array.offset(), array.length());
-      }
       RETURN_NOT_OK(VisitArray(*field));
     }
     ++max_recursion_depth_;
@@ -956,17 +952,17 @@ Status RecordBatchFileWriter::Open(io::OutputStream* sink,
                                    std::shared_ptr<RecordBatchWriter>* out) {
   // ctor is private
   auto result = std::shared_ptr<RecordBatchFileWriter>(new RecordBatchFileWriter());
-  result->impl_.reset(new RecordBatchFileWriterImpl(sink, schema));
+  result->file_impl_.reset(new RecordBatchFileWriterImpl(sink, schema));
   *out = result;
   return Status::OK();
 }
 
 Status RecordBatchFileWriter::WriteRecordBatch(const RecordBatch& batch,
                                                bool allow_64bit) {
-  return impl_->WriteRecordBatch(batch, allow_64bit);
+  return file_impl_->WriteRecordBatch(batch, allow_64bit);
 }
 
-Status RecordBatchFileWriter::Close() { return impl_->Close(); }
+Status RecordBatchFileWriter::Close() { return file_impl_->Close(); }
 
 // ----------------------------------------------------------------------
 // Serialization public APIs
