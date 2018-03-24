@@ -186,8 +186,6 @@ primitive!(Float64, f64, "float64"); // Double
 floating!(Float32, Precision::Single);
 floating!(Float64, Precision::Double);
 
-use array::*;
-
 
 impl<T: DataType> DataType for List<T> {
     type Data = ListData<T>;
@@ -205,6 +203,6 @@ impl<T: DataType> DataType for List<T> {
 
 
 
-// impl<T: DataType> ListType for List<T> {
+impl<T: DataType> ListType for List<T> {
     
-// }
+}

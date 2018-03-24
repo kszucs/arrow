@@ -23,21 +23,6 @@ pub struct ListData<T: DataType> {
     values: Array<T>
 }
 
-impl<T> Data<List<T>> for ListData<T> where T: DataType {
-
-    fn empty(dtype: List<T>) -> Self {
-        unimplemented!()
-    }
-
-    fn len(&self) -> usize {
-        unimplemented!()
-    }
-
-    fn push(&mut self, val: Vec<T::Item>) {
-        unimplemented!()
-    }
-}
-
 
 pub struct Array<T: DataType> {
     // atomic stuff etc.
@@ -46,7 +31,7 @@ pub struct Array<T: DataType> {
 }
 
 
-pub trait Data<T: DataType> { // rename to data
+pub trait Data<T: DataType> {
 
     fn empty(dtype: T) -> Self;
 
@@ -81,17 +66,18 @@ impl<T> Data<T> for PrimitiveData<T> where T: PrimitiveType {
         self.len += 1;
     }
 
+
 }
 
 
-impl<T> Data<T> for ListData<T> where T: ListType {
+impl<T> Data<List<T>> for ListData<T> where T: DataType {
 
-    fn empty(dtype: T) -> Self {
+    fn empty(dtype: List<T>) -> Self {
         ListData {
             len: 0,
             nulls: BitMap::new(),
             offsets: Buffer::new(),
-            values: Array::new(dtype)
+            values: Array::new(dtype.0),
         }
     }
 
@@ -99,16 +85,9 @@ impl<T> Data<T> for ListData<T> where T: ListType {
         self.len
     }
 
-    fn push(&mut self, val: T::Item) {    
-        // if self.len == self.values.cap() {
-        //     self.values.double();
-        // }
-        // unsafe {
-        //     ptr::write(self.values.ptr().offset(self.len as isize), val);
-        // }
-        // self.len += 1;
+    fn push(&mut self, val: Vec<T::Item>) {
+        unimplemented!()
     }
-
 }
 
 
@@ -158,8 +137,8 @@ mod tests {
         Array::new(UInt32);
         Array::new(UInt64);
 
-        // Array::new(List(Int64));
-        // Array::new(List(Float64));
+        Array::new(List(Int64));
+        Array::new(List(Float64));
     }
 
     #[test]
@@ -180,8 +159,7 @@ mod tests {
     #[test]
     fn test_list() {
         let mut a = Array::new(List(Int64));
-        //let mut a = ListData::empty(List(Int64));
 
-        //a.push(vec![1,2,3]);
+        // a.push(vec![1,2,3]);
     }
 }
