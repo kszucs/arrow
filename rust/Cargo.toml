@@ -1,0 +1,12 @@
+[package]
+name = "arrow"
+version = "0.1.0"
+authors = ["Krisztián Szűcs <szucs.krisztian@gmail.com>"]
+
+[dependencies]
+libc = "*"
+indexmap = "*"
+
+[dev-dependencies]
+clippy = "*"
+test-case-derive = "*"
