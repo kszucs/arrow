@@ -72,7 +72,7 @@ impl<T> Data<T> for PrimitiveData<T> where T: PrimitiveType {
 
 impl<T> Data<List<T>> for ListData<T> 
     where T: DataType,
-          T::Item: Copy
+          T::Item: Clone
 {
 
     fn empty(dtype: List<T>) -> Self {
@@ -89,6 +89,8 @@ impl<T> Data<List<T>> for ListData<T>
     }
 
     fn push(&mut self, val: Vec<T::Item>) {
+        //let val = val.clone()
+
         if self.len == self.offsets.cap() {
             self.offsets.double();
         }
@@ -175,12 +177,26 @@ mod tests {
     fn test_list() {
         let mut a = Array::new(List(Int64));
 
-        a.push(vec![1,2,3]);
-        a.push(vec![1,2]);
-        a.push(vec![4,5,6,7,8]);
+        a.push(vec![1, 2, 3]);
+        a.push(vec![1, 2]);
+        a.push(vec![4, 5, 6, 7, 8]);
 
         assert_eq!(a.len(), 3);
         assert_eq!(a.data.len(), 3);
         assert_eq!(a.data.values.len(), 10);
     }
+
+    #[test]
+    fn test_nested_list() {
+        let mut a = Array::new(List(List(Int64)));
+
+        a.push(vec![vec![1, 2, 3], vec![3, 4, 5]]);
+        a.push(vec![vec![1, 2, 3], vec![3, 5], vec![4, 6], vec![3]]);
+
+        assert_eq!(a.len(), 2);
+        assert_eq!(a.data.len(), 2);
+        assert_eq!(a.data.values.len(), 6);
+        assert_eq!(a.data.values.data.values.len(), 14);
+    }
+
 }
