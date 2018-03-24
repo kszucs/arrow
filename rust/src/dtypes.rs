@@ -1,7 +1,7 @@
 use std::mem;
 use std::fmt;
 
-use array::{PrimitiveData, ListData, BitMap};
+use array::{PrimitiveData, ListData, BitMap, Data};
 
 
 //TODO: default implementations
@@ -98,16 +98,16 @@ pub struct List<T: DataType>(pub T);
 
 // every datatype mmust have an array type, nested types 
 pub trait DataType : Copy {
-    type Data;
+    type Data: Data<Self>;
+    type Item;
 
     fn name(&self) -> &str;
     fn bits(&self) -> usize;
-    fn empty(&self) -> Self::Data;            
 }
 
 
 pub trait PrimitiveType: DataType {
-    type Item;
+
 }
 
 
@@ -117,7 +117,7 @@ pub trait FloatingType: PrimitiveType {
 
 
 pub trait ListType: DataType {
-
+    
 }
 
 pub trait StructType: DataType {
@@ -130,10 +130,7 @@ macro_rules! primitive {
     ($DT:ty, $T:ty, $name:expr) => (
         impl DataType for $DT {
             type Data = PrimitiveData<$DT>;
-
-            fn empty(&self) -> Self::Data {
-                Self::Data::new()
-            }
+            type Item = $T;
             
             fn name(&self) -> &str {
                 $name
@@ -145,7 +142,7 @@ macro_rules! primitive {
         }
 
         impl PrimitiveType for $DT {
-            type Item = $T;
+
         }
 
         // impl fmt::Display for $DT {
@@ -190,13 +187,10 @@ floating!(Float32, Precision::Single);
 floating!(Float64, Precision::Double);
 
 
-impl<T: DataType + Copy> DataType for List<T> {
+impl<T: DataType> DataType for List<T> {
     type Data = ListData<T>;
+    type Item = Vec<T::Item>;
 
-    fn empty(&self) -> Self::Data {
-        Self::Data::new(self.0)
-    }
-            
     fn name(&self) -> &str {
         "list"
     }
@@ -208,6 +202,6 @@ impl<T: DataType + Copy> DataType for List<T> {
 }
 
 
-impl<T: DataType + Copy> ListType for List<T> {
-
-}
+// impl<T: DataType> ListType for List<T> {
+    
+// }
