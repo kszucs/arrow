@@ -23,6 +23,21 @@ pub struct ListData<T: DataType> {
     values: Array<T>
 }
 
+impl<T> Data<List<T>> for ListData<T> where T: DataType {
+
+    fn empty(dtype: List<T>) -> Self {
+        unimplemented!()
+    }
+
+    fn len(&self) -> usize {
+        unimplemented!()
+    }
+
+    fn push(&mut self, val: Vec<T::Item>) {
+        unimplemented!()
+    }
+}
+
 
 pub struct Array<T: DataType> {
     // atomic stuff etc.
