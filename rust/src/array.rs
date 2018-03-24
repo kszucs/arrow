@@ -40,11 +40,6 @@ impl<T: DataType> ListData<T> {
 }
 
 
-
-struct A<T: DataType> {
-    data: ArrayData<T>
-}
-
 struct Array<T: DataType> {
     // atomic stuff etc.
     len: usize,
@@ -52,9 +47,6 @@ struct Array<T: DataType> {
     nulls: BitMap,
     data: T::Data
 }
-
-
-
 
 
 impl<T> Array<T> where T: DataType + Copy {
