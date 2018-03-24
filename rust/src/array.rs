@@ -26,6 +26,10 @@ impl<T: PrimitiveType> PrimitiveData<T> {
         PrimitiveData { values: Buffer::new() }
     }
 
+    pub fn with_capacity(len: usize) -> Self {
+        PrimitiveData { values: Buffer::with_capacity(len) }
+    }
+
 }
 
 
@@ -35,6 +39,13 @@ impl<T: DataType> ListData<T> {
         ListData {
             offsets: Buffer::new(),
             values: Array::new(dtype)
+        }
+    }
+
+    pub fn with_capacity(dtype: T, len: usize) -> Self {
+        ListData {
+            offsets: Buffer::new(),
+            values: Array::with_capacity(dtype, len)
         }
     }
 }
@@ -52,12 +63,20 @@ struct Array<T: DataType> {
 impl<T> Array<T> where T: DataType + Copy {
 
     fn new(dtype: T) -> Self {
-        let data = dtype.empty();
         Array {
             len: 0,
             dtype: dtype,
             nulls: BitMap::new(),
-            data: data
+            data: dtype.empty()
+        }
+    }
+
+    fn with_capacity(dtype: T, len: usize) -> Self {
+        Array {
+            len: len,
+            dtype: dtype,
+            nulls: BitMap::new(),
+            data: dtype.with_capacity(len)
         }
     }
 
@@ -125,6 +144,26 @@ mod tests {
         for i in 1..100 {
             a.push(i);
         }
+
+        println!("{}", a.len());
+        println!("{}", a.data.values.cap());
+    }
+
+    #[test]
+    fn test_add_two_arrays() {
+        let mut a = Array::with_capacity(Int64, 100);
+        let mut b = Array::with_capacity(Int64, 100);
+        for i in 1..=100 {
+            a.push(i);
+            b.push(i);
+        }
+
+        //TODO: now I want to do this and have it use vectorized operations
+
+        //let mut c = a + b;
+
+        // this should only be possible if a and b have the same type
+
     }
 
 }

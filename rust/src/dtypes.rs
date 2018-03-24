@@ -103,6 +103,7 @@ pub trait DataType : Copy {
     fn name(&self) -> &str;
     fn bits(&self) -> usize;
     fn empty(&self) -> Self::Data;            
+    fn with_capacity(&self, len: usize) -> Self::Data;
 }
 
 
@@ -133,6 +134,10 @@ macro_rules! primitive {
 
             fn empty(&self) -> Self::Data {
                 Self::Data::new()
+            }
+
+            fn with_capacity(&self, len: usize) -> Self::Data {
+                Self::Data::with_capacity(len)
             }
             
             fn name(&self) -> &str {
@@ -196,6 +201,8 @@ impl<T: DataType + Copy> DataType for List<T> {
     fn empty(&self) -> Self::Data {
         Self::Data::new(self.0)
     }
+
+    fn with_capacity(&self, len: usize) -> Self::Data { Self::Data::with_capacity(self.0, len) }
             
     fn name(&self) -> &str {
         "list"
