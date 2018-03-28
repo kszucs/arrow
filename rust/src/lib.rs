@@ -17,7 +17,7 @@ pub mod types;
 pub mod dtypes;
 pub mod mempool;
 pub mod array;
-
+pub mod e;
 
 mod tests {
     #[test]
