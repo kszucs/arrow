@@ -159,7 +159,8 @@ Status BuilderAppend(BinaryBuilder* builder, PyObject* obj, bool* is_full) {
   int32_t length;
   RETURN_NOT_OK(CastSize(view.size, &length));
   // Did we reach the builder size limit?
-  if (ARROW_PREDICT_FALSE(builder->value_data_length() + length > kBinaryMemoryLimit)) {
+  printf("Size: %lld, limit: %lld\n", builder->value_data_length() + length, kBinaryMemoryLimit + 1);
+  if (ARROW_PREDICT_FALSE(builder->value_data_length() + length > (kBinaryMemoryLimit + 1))) {
     if (is_full) {
       *is_full = true;
       return Status::OK();
@@ -187,6 +188,7 @@ Status BuilderAppend(FixedSizeBinaryBuilder* builder, PyObject* obj, bool* is_fu
     return Status::Invalid(ss.str());
   }
   // Did we reach the builder size limit?
+  //printf("Size: %lld, limit: %lld\n", builder->value_data_length() + view.size, kBinaryMemoryLimit);
   if (ARROW_PREDICT_FALSE(builder->value_data_length() + view.size >
                           kBinaryMemoryLimit)) {
     if (is_full) {
@@ -210,6 +212,7 @@ Status BuilderAppend(StringBuilder* builder, PyObject* obj, bool check_valid,
   int32_t length;
   RETURN_NOT_OK(CastSize(view.size, &length));
   // Did we reach the builder size limit?
+  //printf("Size: %lld, limit: %lld\n", builder->value_data_length() + length, kBinaryMemoryLimit);
   if (ARROW_PREDICT_FALSE(builder->value_data_length() + length > kBinaryMemoryLimit)) {
     if (is_full) {
       *is_full = true;

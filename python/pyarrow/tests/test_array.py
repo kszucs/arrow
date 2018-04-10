@@ -110,6 +110,36 @@ def test_to_pandas_zero_copy():
         np_arr.sum()
 
 
+def test_maximum_capacity():
+    v1 = b'x' * 100000000
+    v2 = b'x' * 147483646
+
+    data = [v1] * 20 + [v2] + [b'x']
+
+    # data should sized exactly 2GiB
+    size = sum(map(len, data))
+    assert size == 2**31 - 1
+
+    arr = pa.array(data)
+    assert isinstance(arr, pa.BinaryArray)
+
+    data.append(b'y')
+    # data should sized exactly 2GiB + 1 byte
+    size = sum(map(len, data))
+    assert size == 2**31
+
+    msg = 'Maximum array size reached (2GB)'
+    with pytest.raises(pa.ArrowInvalid, message=msg) as e:
+        pa.array(data)
+
+
+def test_maximum_capacity_integers():
+    data = range(0, 2**28)  # 2**28 number of elements
+
+    arr = pa.array(data, type=pa.int32())
+    assert isinstance(arr, pa.Int32Array)
+
+
 def test_array_getitem():
     arr = pa.array(range(10, 15))
     lst = arr.to_pylist()

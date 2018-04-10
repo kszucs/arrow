@@ -1328,9 +1328,9 @@ Status BinaryBuilder::ReserveData(int64_t elements) {
 
 Status BinaryBuilder::AppendNextOffset() {
   const int64_t num_bytes = value_data_builder_.length();
-  if (ARROW_PREDICT_FALSE(num_bytes > kBinaryMemoryLimit)) {
+  if (ARROW_PREDICT_FALSE(num_bytes > (kBinaryMemoryLimit + 1))) {
     std::stringstream ss;
-    ss << "BinaryArray cannot contain more than " << kBinaryMemoryLimit << " bytes, have "
+    ss << "BinaryArray cannot contain more than " << (kBinaryMemoryLimit + 1) << " bytes, have "
        << num_bytes;
     return Status::Invalid(ss.str());
   }
