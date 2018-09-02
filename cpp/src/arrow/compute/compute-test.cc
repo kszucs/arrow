@@ -286,7 +286,8 @@ TEST_F(TestCast, ToIntDowncastUnsafe) {
 }
 
 TEST_F(TestCast, FloatingPointToInt) {
-  auto options = CastOptions::Safe();
+  CastOptions options;
+  options.allow_float_truncate = false;
 
   vector<bool> is_valid = {true, false, true, true, true};
   vector<bool> all_valid = {true, true, true, true, true};
