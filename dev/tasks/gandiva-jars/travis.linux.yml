@@ -30,8 +30,8 @@ env:
     - PLAT=x86_64
     - TRAVIS_TAG={{ task.tag }}
     - ARROW_TRAVIS_USE_TOOLCHAIN=1
-    - CC=gcc-4.9
-    - CXX=g++-4.9
+    - CC="gcc-4.9"
+    - CXX="g++-4.9"
 
 before_install:
   - ulimit -c unlimited -S
@@ -50,7 +50,6 @@ before_script:
 
 script:
   - mkdir -p dist
-  - source arrow/ci/travis_env_common.sh
   - arrow/dev/tasks/gandiva-jars/build-cpp.sh
   - arrow/dev/tasks/gandiva-jars/build-java.sh
 

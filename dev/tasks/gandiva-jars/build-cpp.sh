@@ -19,6 +19,8 @@
 
 set -e
 
+source arrow/ci/travis_env_common.sh
+
 # Builds arrow + gandiva and tests the same.
 pushd arrow/cpp
   mkdir build
