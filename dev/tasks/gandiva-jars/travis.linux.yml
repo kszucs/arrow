@@ -14,11 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-os: osx
-osx_image: xcode8.3
+os: linux
+dist: trusty
 sudo: required
 language: cpp
-compiler: clang
+compiler: gcc
 services:
   - docker
 
@@ -30,17 +30,28 @@ env:
     - PLAT=x86_64
     - TRAVIS_TAG={{ task.tag }}
     - ARROW_TRAVIS_USE_TOOLCHAIN=1
-    - ARROW_TRAVIS_GANDIVA=1
+    - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9"
 
-before_script:
+before_install:
+  - eval "${MATRIX_EVAL}"
+  - ulimit -c unlimited -S
+  - |
+      sudo bash -c "echo -e 'Acquire::Retries 10; Acquire::http::Timeout \"20\";' > /etc/apt/apt.conf.d/99-travis-retry"
+      sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+      sudo apt-get update -qq
+
+install:
+  - export TRAVIS_BUILD_DIR=$TRAVIS_BUILD_DIR/arrow
+  - arrow/ci/travis_install_linux.sh
+  - arrow/ci/travis_install_clang_tools.sh
+  - arrow/ci/travis_install_toolchain.sh
+
+script:
   - git clone -b {{ arrow.branch }} {{ arrow.remote }} arrow
   - git -C arrow checkout {{ arrow.head }}
   - mkdir -p dist
-  - export TRAVIS_BUILD_DIR=$TRAVIS_BUILD_DIR/arrow
-  - arrow/dev/tasks/gandiva/build_cpp_crossbow.sh
-
-script:
-  - arrow/dev/tasks/gandiva/build_java_crossbow.sh
+  - arrow/dev/tasks/gandiva-jars/build-cpp.sh
+  - arrow/dev/tasks/gandiva-jars/build-java.sh
 
 deploy:
   provider: releases
@@ -49,7 +60,7 @@ deploy:
   file: dist/*.jar
   skip_cleanup: true
   on:
-    tags: true    
+    tags: true
 
 notifications:
   email:

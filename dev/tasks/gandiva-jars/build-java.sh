@@ -19,12 +19,11 @@
 
 set -e
 
-cd $TRAVIS_BUILD_DIR/java
-# build the entire project
-mvn clean install -DskipTests -P gandiva -Dgandiva.cpp.build.dir=../../cpp/build/release
-# test only gandiva
-mvn test -P gandiva -pl gandiva -Dgandiva.cpp.build.dir=../../cpp/build/release
-# copy the jars to distribution folder
-find gandiva/target/ -name "*.jar" -not -name "*tests*" -exec cp  {} ../../dist/ \;
-# setup for upload to github
-cd $TRAVIS_BUILD_DIR/..
+pushd arrow/java
+  # build the entire project
+  mvn clean install -DskipTests -P gandiva -Dgandiva.cpp.build.dir=../cpp/build/release
+  # test only gandiva
+  mvn test -P gandiva -pl gandiva -Dgandiva.cpp.build.dir=../cpp/build/release
+  # copy the jars to distribution folder
+  find gandiva/target/ -name "*.jar" -not -name "*tests*" -exec cp  {} ../../dist/ \;
+popd

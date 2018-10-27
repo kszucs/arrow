@@ -20,14 +20,19 @@
 set -e
 
 # Builds arrow + gandiva and tests the same.
-arrow/ci/travis_install_toolchain.sh
-cd arrow/cpp
-mkdir build
-cd build
 export PATH=$TRAVIS_BUILD_DIR/cpp-toolchain/bin:$PATH
 export BOOST_ROOT=$TRAVIS_BUILD_DIR/cpp-toolchain
 export PROTOBUF_HOME=$TRAVIS_BUILD_DIR/cpp-toolchain
 export LD_LIBRARY_PATH=$TRAVIS_BUILD_DIR/cpp-toolchain/lib:$LD_LIBRARY_PATH
-cmake .. -DCMAKE_BUILD_TYPE=Release -DARROW_GANDIVA=ON -DARROW_BUILD_UTILITIES=OFF
-make -j4
-ctest
+
+pushd arrow/cpp
+  mkdir build
+  pushd build
+    cmake -DCMAKE_BUILD_TYPE=Release \
+          -DARROW_GANDIVA=ON \
+          -DARROW_BUILD_UTILITIES=OFF \
+          ..
+    make -j4
+    ctest
+  popd
+popd
