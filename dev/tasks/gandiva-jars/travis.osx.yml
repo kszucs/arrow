@@ -40,6 +40,7 @@ before_script:
 
 script:
   - mkdir -p dist
+  - source arrow/ci/travis_env_common.sh
   - arrow/dev/tasks/gandiva-jars/build-cpp.sh
   - arrow/dev/tasks/gandiva-jars/build-java.sh
 
