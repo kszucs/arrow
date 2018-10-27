@@ -455,12 +455,12 @@ tasks:
 
   gandiva-jar-trusty:
     platform: linux
-    template: gandiva/travis.linux.yml
+    template: gandiva-jars/travis.linux.yml
     artifacts:
       - arrow-gandiva-{version}-SNAPSHOT.jar
 
   gandiva-jar-osx:
     platform: osx
-    template: gandiva/travis.osx.yml
+    template: gandiva-jars/travis.osx.yml
     artifacts:
       - arrow-gandiva-{version}-SNAPSHOT.jar

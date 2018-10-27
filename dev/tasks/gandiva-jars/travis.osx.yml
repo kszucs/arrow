@@ -32,13 +32,13 @@ env:
     - ARROW_TRAVIS_USE_TOOLCHAIN=1
     - ARROW_TRAVIS_GANDIVA=1
 
-install:
+before_script:
+  - git clone -b {{ arrow.branch }} {{ arrow.remote }} arrow
+  - git -C arrow checkout {{ arrow.head }}
   - export TRAVIS_BUILD_DIR=$TRAVIS_BUILD_DIR/arrow
   - arrow/ci/travis_install_toolchain.sh
 
 script:
-  - git clone -b {{ arrow.branch }} {{ arrow.remote }} arrow
-  - git -C arrow checkout {{ arrow.head }}
   - mkdir -p dist
   - arrow/dev/tasks/gandiva-jars/build-cpp.sh
   - arrow/dev/tasks/gandiva-jars/build-java.sh
