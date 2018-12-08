@@ -13,8 +13,8 @@ Testing/
 *flymake*
 
 # Generated sources
-*.c
-*.cpp
+pyarrow/*.c
+pyarrow/*.cpp
 pyarrow/*_api.h
 pyarrow/_generated_version.py
 
