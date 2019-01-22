@@ -28,7 +28,6 @@
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
-#include <sstream>
 #include <string>
 
 #include <fcntl.h>

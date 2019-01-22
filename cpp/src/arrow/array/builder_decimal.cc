@@ -17,16 +17,7 @@
 
 #include "arrow/array/builder_decimal.h"
 
-#include <algorithm>
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
 #include <memory>
-#include <numeric>
-#include <sstream>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include "arrow/array.h"
 #include "arrow/buffer.h"

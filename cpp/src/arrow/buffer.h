@@ -18,12 +18,10 @@
 #ifndef ARROW_BUFFER_H
 #define ARROW_BUFFER_H
 
-#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <memory>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 #include "arrow/memory_pool.h"

@@ -13,7 +13,6 @@
 #include "arrow/status.h"
 
 #include <assert.h>
-#include <sstream>
 
 namespace arrow {
 

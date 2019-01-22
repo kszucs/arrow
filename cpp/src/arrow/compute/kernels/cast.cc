@@ -19,10 +19,8 @@
 
 #include <cstdint>
 #include <cstring>
-#include <functional>
 #include <limits>
 #include <memory>
-#include <sstream>
 #include <type_traits>
 #include <utility>
 #include <vector>

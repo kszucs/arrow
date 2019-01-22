@@ -20,15 +20,10 @@
 #include "arrow/array/builder_base.h"
 
 #include <algorithm>  // IWYU pragma: keep
-#include <array>
-#include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <iterator>
 #include <limits>
 #include <memory>
-#include <string>
-#include <type_traits>
 #include <vector>
 
 #include "arrow/buffer.h"

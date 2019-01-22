@@ -17,11 +17,8 @@
 
 #include "arrow/csv/converter.h"
 
-#include <cstring>
-#include <sstream>
 #include <string>
 #include <type_traits>
-#include <vector>
 
 #include "arrow/builder.h"
 #include "arrow/csv/parser.h"

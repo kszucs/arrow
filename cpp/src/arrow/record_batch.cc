@@ -20,9 +20,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <memory>
-#include <sstream>
 #include <string>
-#include <utility>
 
 #include "arrow/array.h"
 #include "arrow/status.h"

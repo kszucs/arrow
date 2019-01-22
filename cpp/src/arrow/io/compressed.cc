@@ -21,8 +21,6 @@
 #include <cstring>
 #include <memory>
 #include <mutex>
-#include <string>
-#include <utility>
 
 #include "arrow/buffer.h"
 #include "arrow/memory_pool.h"

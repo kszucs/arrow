@@ -21,7 +21,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <sstream>
 #include <utility>
 
 #include "arrow/buffer.h"

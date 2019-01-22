@@ -19,8 +19,6 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <sstream>
-#include <utility>
 
 #include "arrow/memory_pool.h"
 #include "arrow/status.h"
