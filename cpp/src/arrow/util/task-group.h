@@ -18,7 +18,6 @@
 #ifndef ARROW_UTIL_TASK_GROUP_H
 #define ARROW_UTIL_TASK_GROUP_H
 
-#include <functional>
 #include <memory>
 #include <utility>
 

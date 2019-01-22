@@ -21,7 +21,6 @@
 #define ARROW_IO_COMPRESSED_H
 
 #include <memory>
-#include <string>
 
 #include "arrow/io/interfaces.h"
 #include "arrow/util/visibility.h"

@@ -21,7 +21,6 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
-#include <memory>
 
 #include "arrow/util/macros.h"
 #include "arrow/util/string_view.h"

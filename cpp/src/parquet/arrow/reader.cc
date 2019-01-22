@@ -21,10 +21,7 @@
 #include <climits>
 #include <cstring>
 #include <future>
-#include <ostream>
-#include <string>
 #include <type_traits>
-#include <utility>
 #include <vector>
 
 #include "arrow/api.h"

@@ -31,7 +31,6 @@
   }
 
 #include <memory>
-#include <sstream>
 #include <string>
 
 #include "rapidjson/document.h"      // IWYU pragma: export

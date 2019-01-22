@@ -17,14 +17,9 @@
 
 #include "parquet/file_reader.h"
 
-#include <algorithm>
 #include <cstdint>
-#include <cstdio>
 #include <memory>
-#include <sstream>
 #include <string>
-#include <utility>
-#include <vector>
 
 #include "arrow/io/file.h"
 #include "arrow/util/logging.h"

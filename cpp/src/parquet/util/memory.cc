@@ -19,12 +19,9 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <cstdio>
-#include <string>
-#include <utility>
+#include <cstring>
 
 #include "arrow/status.h"
-#include "arrow/util/bit-util.h"
 
 #include "arrow/util/compression.h"
 #include "arrow/util/logging.h"

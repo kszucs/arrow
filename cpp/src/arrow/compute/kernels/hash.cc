@@ -19,13 +19,9 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <cstring>
 #include <memory>
 #include <mutex>
-#include <sstream>
-#include <string>
 #include <type_traits>
-#include <utility>
 #include <vector>
 
 #include "arrow/array.h"

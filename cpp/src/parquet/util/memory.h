@@ -18,13 +18,8 @@
 #ifndef PARQUET_UTIL_MEMORY_H
 #define PARQUET_UTIL_MEMORY_H
 
-#include <atomic>
 #include <cstdint>
-#include <cstdlib>
-#include <cstring>
 #include <memory>
-#include <string>
-#include <vector>
 
 #include "arrow/buffer.h"
 #include "arrow/io/interfaces.h"

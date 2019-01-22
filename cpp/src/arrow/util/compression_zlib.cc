@@ -22,7 +22,6 @@
 #include <cstring>
 #include <limits>
 #include <memory>
-#include <string>
 
 #include <zconf.h>
 #include <zlib.h>

@@ -18,12 +18,8 @@
 #ifndef PARQUET_FILE_PRINTER_H
 #define PARQUET_FILE_PRINTER_H
 
-#include <cstdint>
 #include <iosfwd>
 #include <list>
-#include <memory>
-#include <string>
-#include <vector>
 
 #include "parquet/file_reader.h"
 

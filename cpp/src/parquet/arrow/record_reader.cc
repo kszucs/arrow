@@ -22,9 +22,7 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
-#include <sstream>
 #include <unordered_map>
-#include <utility>
 
 #include "arrow/buffer.h"
 #include "arrow/builder.h"

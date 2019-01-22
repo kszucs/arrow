@@ -17,7 +17,6 @@
 
 #include "arrow/util/int-util.h"
 
-#include <algorithm>
 #include <cstring>
 #include <limits>
 

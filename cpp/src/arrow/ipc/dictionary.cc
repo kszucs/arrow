@@ -19,7 +19,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <sstream>
 #include <utility>
 
 #include "arrow/status.h"
