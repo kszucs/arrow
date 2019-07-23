@@ -360,6 +360,7 @@ if(PYARROW_BUNDLE_ARROW_CPP)
   if(MSVC)
     bundle_arrow_implib(ARROW_SHARED_IMP_LIB)
     bundle_arrow_implib(ARROW_PYTHON_SHARED_IMP_LIB)
+    bundle_arrow_dependency(zlib zlib.dll)
   endif()
 endif()
 
