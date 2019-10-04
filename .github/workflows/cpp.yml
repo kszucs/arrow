@@ -12,29 +12,31 @@ jobs:
 
     strategy:
       matrix:
-        conda: latest
-        debian: 10
-        ubuntu: 18.04
-        fedora: 29
         service:
           - conda-cpp
           - debian-cpp
           - ubuntu-cpp
           - fedora-cpp
         include:
+          - service: conda-cpp
+            conda: latest
+          - service: debian-cpp
+            debian: 10
           - service: ubuntu-cpp
             ubuntu: 14.04
           - service: ubuntu-cpp
             ubuntu: 16.04
           - service: ubuntu-cpp
             ubuntu: 18.04
+          - service: fedora-cpp
+            fedora: 29
 
     env:
-      ORG: docker.pkg.github.com/kszucs/arrow
-      CONDA: ${{ matrix.conda }}
-      DEBIAN: ${{ matrix.debian }}
-      UBUNTU: ${{ matrix.ubuntu }}
-      FEDORA: ${{ matrix.fedora }}
+      ORG: docker.pkg.github.com/${{ github.repository }}
+      CONDA: ${{ matrix.conda || 'latest' }}
+      DEBIAN: ${{ matrix.debian || '10' }}
+      UBUNTU: ${{ matrix.ubuntu || '18.04' }}
+      FEDORA: ${{ matrix.fedora || '29' }}
 
     steps:
       - name: Checkout Arrow
@@ -48,7 +50,7 @@ jobs:
       - name: Docker Login
         run: |
           docker login docker.pkg.github.com \
-            -u $GITHUB_ACTOR \
+            -u ${{ github.actor }} \
             -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
       - name: Docker Pull
         run: docker-compose pull --ignore-pull-failures ${{ matrix.service }}
