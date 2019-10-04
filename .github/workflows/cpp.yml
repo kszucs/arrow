@@ -6,26 +6,26 @@ on:
   - pull_request
 
 jobs:
-  build:
+  linux:
     name: Linux
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         service: [conda-cpp]
         conda: [latest]
-
     env:
       CONDA: ${{ matrix.conda }}
-
-    steps:
+    steps: &linux-steps
     - name: Checkout Arrow
       uses: actions/checkout@v1
       with:
         submodules: true
-
     - name: Docker Build
       run: docker-compose build ${{ matrix.service }}
-
     - name: Docker Run
       run: docker-compose run ${{ matrix.service }}
+
+  another:
+    name: Another
+    runs-on: ubuntu-latest
+    steps: *linux-steps
