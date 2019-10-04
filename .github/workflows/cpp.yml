@@ -25,9 +25,9 @@ jobs:
       with:
         submodules: true
     - name: Docker Login
-      run: >
-        docker login docker.pkg.github.com
-          -u $GITHUB_ACTOR
+      run: |
+        docker login docker.pkg.github.com \
+          -u $GITHUB_ACTOR \
           -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
     - name: Docker Pull
       run: docker-compose pull --ignore-pull-failures ${{ matrix.service }}
