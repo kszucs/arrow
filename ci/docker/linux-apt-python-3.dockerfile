@@ -33,6 +33,6 @@ COPY requirements.txt \
      /arrow/ci/
 
 RUN pip install \
-    -r arrow/python/requirements.txt \
-    -r arrow/python/requirements-test.txt \
+    -r arrow/ci/requirements.txt \
+    -r arrow/ci/requirements-test.txt \
     cython
