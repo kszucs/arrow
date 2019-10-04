@@ -28,7 +28,7 @@ jobs:
           submodules: true
       - name: Docker Login
         run: |
-          docker login docker.pkg.github.com \
+          docker login \
             -u ${{ github.actor }} \
             -p ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Docker Pull
@@ -61,7 +61,7 @@ jobs:
           submodules: true
       - name: Docker Login
         run: |
-          docker login docker.pkg.github.com \
+          docker login \
             -u ${{ github.actor }} \
             -p ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Docker Pull
@@ -94,7 +94,7 @@ jobs:
           submodules: true
       - name: Docker Login
         run: |
-          docker login docker.pkg.github.com \
+          docker login \
             -u ${{ github.actor }} \
             -p ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Docker Pull
@@ -127,7 +127,7 @@ jobs:
           submodules: true
       - name: Docker Login
         run: |
-          docker login docker.pkg.github.com \
+          docker login \
             -u ${{ github.actor }} \
             -p ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Docker Pull
