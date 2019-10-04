@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        service: conda-cpp
+        service: [conda-cpp]
         conda: [latest]
 
     env:
