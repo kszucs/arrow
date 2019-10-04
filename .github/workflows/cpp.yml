@@ -17,19 +17,30 @@ jobs:
           - debian-cpp
           - ubuntu-cpp
           - fedora-cpp
-        include:
-          - service: conda-cpp
-            conda: latest
-          - service: debian-cpp
-            debian: 10
-          - service: ubuntu-cpp
-            ubuntu: 14.04
-          - service: ubuntu-cpp
-            ubuntu: 16.04
-          - service: ubuntu-cpp
-            ubuntu: 18.04
-          - service: fedora-cpp
-            fedora: 29
+        conda:
+          - latest
+        debian:
+          - 10
+        ubuntu:
+          - 14.04
+          - 16.04
+          - 18.04
+        fedora:
+          - 29
+
+        # include:
+        #   - service: conda-cpp
+        #     conda: latest
+        #   - service: debian-cpp
+        #     debian: 10
+        #   - service: ubuntu-cpp
+        #     ubuntu: 14.04
+        #   - service: ubuntu-cpp
+        #     ubuntu: 16.04
+        #   - service: ubuntu-cpp
+        #     ubuntu: 18.04
+        #   - service: fedora-cpp
+        #     fedora: 29
 
     env:
       ORG: docker.pkg.github.com/${{ github.repository }}
