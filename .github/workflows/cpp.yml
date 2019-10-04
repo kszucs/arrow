@@ -12,28 +12,34 @@ jobs:
 
     strategy:
       matrix:
-        service: [conda-cpp]
-        conda: [latest]
+        service:
+          - conda-cpp
+          - debian-cpp
+          - ubuntu-cpp
+          - fedora-cpp
+        include:
+          - service: ubuntu-cpp
+            ubuntu: [14.04, 16.04, 18.04]
 
     env:
       ORG: docker.pkg.github.com/kszucs/arrow
       CONDA: ${{ matrix.conda }}
 
     steps:
-    - name: Checkout Arrow
-      uses: actions/checkout@v1
-      with:
-        submodules: true
-    - name: Docker Login
-      run: |
-        docker login docker.pkg.github.com \
-          -u $GITHUB_ACTOR \
-          -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
-    - name: Docker Pull
-      run: docker-compose pull --ignore-pull-failures ${{ matrix.service }}
-    - name: Docker Build
-      run: docker-compose build ${{ matrix.service }}
-    - name: Docker Run
-      run: docker-compose run ${{ matrix.service }}
-    - name: Docker Push
-      run: docker-compose push ${{ matrix.service }}
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Docker Login
+        run: |
+          docker login docker.pkg.github.com \
+            -u $GITHUB_ACTOR \
+            -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
+      - name: Docker Pull
+        run: docker-compose pull --ignore-pull-failures ${{ matrix.service }}
+      - name: Docker Build
+        run: docker-compose build ${{ matrix.service }}
+      - name: Docker Run
+        run: docker-compose run ${{ matrix.service }}
+      - name: Docker Push
+        run: docker-compose push ${{ matrix.service }}
