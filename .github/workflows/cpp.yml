@@ -5,6 +5,9 @@ on:
   - push
   - pull_request
 
+env:
+  ORG: docker.pkg.github.com/${{ github.repository }}
+
 jobs:
 
   conda:
@@ -13,9 +16,6 @@ jobs:
     strategy:
       matrix:
         conda: [latest]
-    env:
-      ORG: docker.pkg.github.com/${{ github.repository }}
-      CONDA: ${{ matrix.conda }}
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -46,7 +46,6 @@ jobs:
       matrix:
         debian: [10]
     env:
-      ORG: docker.pkg.github.com/${{ github.repository }}
       DEBIAN: ${{ matrix.debian }}
     steps:
       - name: Checkout Arrow
@@ -78,7 +77,6 @@ jobs:
       matrix:
         ubuntu: [14.04, 16.04, 18.04]
     env:
-      ORG: docker.pkg.github.com/${{ github.repository }}
       UBUNTU: ${{ matrix.ubuntu }}
     steps:
       - name: Checkout Arrow
@@ -110,7 +108,6 @@ jobs:
       matrix:
         fedora: [29]
     env:
-      ORG: docker.pkg.github.com/${{ github.repository }}
       FEDORA: ${{ matrix.fedora }}
     steps:
       - name: Checkout Arrow

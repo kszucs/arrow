@@ -40,17 +40,17 @@ services:
   ################################# C++ #######################################
 
   conda-cpp:
-    image: ${ORG}/${ARCH}-conda-${CONDA}-cpp:latest
+    image: ${ORG}/${ARCH}-conda-latest-cpp:latest
     build:
       context: ci
-      dockerfile: docker/conda-${CONDA}-cpp.dockerfile
+      dockerfile: docker/conda-latest-cpp.dockerfile
       args:
         arch: ${ARCH}
-        conda: ${CONDA}
+        conda: latest
         prefix: /opt/conda
     volumes: &conda-volumes
       - .:/arrow:delegated
-      - conda-${CONDA}-cache:/build:delegated
+      - conda-latest-cache:/build:delegated
     command: &cpp-command >
       /arrow/ci/scripts/cpp_build.sh /arrow /build /usr/local &&
       /arrow/ci/scripts/cpp_test.sh  /arrow /build /usr/local
@@ -107,18 +107,18 @@ services:
   ############################### Python ######################################
 
   conda-python:
-    image: ${ORG}/${ARCH}-conda-${CONDA}-python-${PYTHON}:latest
+    image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}:latest
     depends_on:
       - conda-cpp
     build:
       context: ci
-      dockerfile: docker/conda-${CONDA}-python.dockerfile
+      dockerfile: docker/conda-latest-python.dockerfile
       args:
         org: ${ORG}
         arch: ${ARCH}
-        conda: ${CONDA}
+        conda: latest
         python: ${PYTHON}
-        predix: /opt/conda
+        prefix: /opt/conda
     volumes: *conda-volumes
     command: &python-command >
       /bin/bash -c "
