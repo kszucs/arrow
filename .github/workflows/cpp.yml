@@ -12,24 +12,22 @@ jobs:
 
     strategy:
       matrix:
+        conda: latest
+        debian: 10
+        ubuntu: 18.04
+        fedora: 29
         service:
           - conda-cpp
           - debian-cpp
           - ubuntu-cpp
           - fedora-cpp
         include:
-          - service: conda-cpp
-            conda: latest
-          # - service: debian-cpp
-          #   debian: 10
           - service: ubuntu-cpp
             ubuntu: 14.04
           - service: ubuntu-cpp
             ubuntu: 16.04
           - service: ubuntu-cpp
             ubuntu: 18.04
-          - service: fedora-cpp
-            fedora: 29
 
     env:
       ORG: docker.pkg.github.com/kszucs/arrow
@@ -44,7 +42,9 @@ jobs:
         with:
           submodules: true
       - name: Diagnostics
-        run: env
+        run: |
+          docker version
+          env
       - name: Docker Login
         run: |
           docker login docker.pkg.github.com \
