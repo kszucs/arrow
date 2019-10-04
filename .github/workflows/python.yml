@@ -34,7 +34,9 @@ jobs:
             -u ${{ github.actor }} \
             -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
       - name: Docker Pull
-        run: docker-compose pull --ignore-pull-failures conda-python
+        run: |
+          docker-compose pull --ignore-pull-failures conda-cpp
+          docker-compose pull --ignore-pull-failures conda-python
       - name: Docker Build
         run: |
           docker-compose build conda-cpp
@@ -68,7 +70,9 @@ jobs:
             -u ${{ github.actor }} \
             -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
       - name: Docker Pull
-        run: docker-compose pull --ignore-pull-failures debian-python
+        run: |
+          docker-compose pull --ignore-pull-failures debian-cpp
+          docker-compose pull --ignore-pull-failures debian-python
       - name: Docker Build
         run: |
           docker-compose build debian-cpp
@@ -102,7 +106,9 @@ jobs:
             -u ${{ github.actor }} \
             -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
       - name: Docker Pull
-        run: docker-compose pull --ignore-pull-failures ubuntu-python
+        run: |
+          docker-compose pull --ignore-pull-failures ubuntu-cpp
+          docker-compose pull --ignore-pull-failures ubuntu-python
       - name: Docker Build
         run: |
           docker-compose build ubuntu-cpp
@@ -136,7 +142,9 @@ jobs:
             -u ${{ github.actor }} \
             -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
       - name: Docker Pull
-        run: docker-compose pull --ignore-pull-failures fedora-python
+        run: |
+          docker-compose pull --ignore-pull-failures fedora-cpp
+          docker-compose pull --ignore-pull-failures fedora-python
       - name: Docker Build
         run: |
           docker-compose build fedora-cpp
