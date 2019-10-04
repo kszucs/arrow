@@ -16,7 +16,7 @@ jobs:
         conda: [latest]
 
     env:
-      ORG: docker.pkg.github.com/$GITHUB_REPOSITORY
+      ORG: docker.pkg.github.com/${GITHUB_REPOSITORY}
       CONDA: ${{ matrix.conda }}
 
     steps:
