@@ -44,8 +44,8 @@ services:
     build:
       context: ci
       dockerfile: docker/conda-latest-cpp.dockerfile
-      # cache_from:
-      #   - ${ORG}/${ARCH}-conda-latest-cpp:latest
+      cache_from:
+        - ${ORG}/${ARCH}-conda-latest-cpp:latest
       args:
         arch: ${ARCH}
         conda: latest
