@@ -12,8 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        conda:
-          - latest
+        conda: [latest]
     env:
       ORG: docker.pkg.github.com/${{ github.repository }}
       CONDA: ${{ matrix.conda }}
@@ -45,11 +44,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        debian:
-          - 10
+        debian: [10]
     env:
       ORG: docker.pkg.github.com/${{ github.repository }}
-      CONDA: ${{ matrix.conda }}
+      DEBIAN: ${{ matrix.debian }}
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -78,13 +76,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        debian:
-          - 14.04
-          - 16.04
-          - 18.04
+        ubuntu: [14.04, 16.04, 18.04]
     env:
       ORG: docker.pkg.github.com/${{ github.repository }}
-      CONDA: ${{ matrix.conda }}
+      UBUNTU: ${{ matrix.ubuntu }}
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -108,3 +103,34 @@ jobs:
       - name: Docker Push
         run: docker-compose push ubuntu-cpp
 
+  fedora:
+    name: Fedora
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        fedora: [29]
+    env:
+      ORG: docker.pkg.github.com/${{ github.repository }}
+      FEDORA: ${{ matrix.fedora }}
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Diagnostics
+        run: |
+          docker version
+          env
+      - name: Docker Login
+        run: |
+          docker login docker.pkg.github.com \
+            -u ${{ github.actor }} \
+            -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
+      - name: Docker Pull
+        run: docker-compose pull --ignore-pull-failures ubuntu-cpp
+      - name: Docker Build
+        run: docker-compose build fedora-cpp
+      - name: Docker Run
+        run: docker-compose run fedora-cpp
+      - name: Docker Push
+        run: docker-compose push fedora-cpp
