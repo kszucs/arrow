@@ -24,12 +24,15 @@ jobs:
     env:
       ORG: docker.pkg.github.com/kszucs/arrow
       CONDA: ${{ matrix.conda }}
+      UBUNTU: ${{ matrix.ubuntu }}
 
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
         with:
           submodules: true
+      - name: Diagnostics
+        run: cat .env
       - name: Docker Login
         run: |
           docker login docker.pkg.github.com \
