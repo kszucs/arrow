@@ -1,4 +1,4 @@
-name: C++
+name: Python
 
 # TODO: add file patterns with recursive glob **
 on:
@@ -16,6 +16,9 @@ jobs:
     strategy:
       matrix:
         conda: [latest]
+        python: [2.7, 3.6, 3.7]
+    env:
+      PYTHON: ${{ matrix.python }}
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -31,13 +34,15 @@ jobs:
             -u ${{ github.actor }} \
             -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
       - name: Docker Pull
-        run: docker-compose pull --ignore-pull-failures conda-cpp
+        run: docker-compose pull --ignore-pull-failures conda-python
       - name: Docker Build
-        run: docker-compose build conda-cpp
+        run: |
+          docker-compose build conda-cpp
+          docker-compose build conda-python
       - name: Docker Run
-        run: docker-compose run conda-cpp
+        run: docker-compose run conda-python
       - name: Docker Push
-        run: docker-compose push conda-cpp
+        run: docker-compose push conda-python
 
   debian:
     name: Debian
@@ -45,6 +50,7 @@ jobs:
     strategy:
       matrix:
         debian: [10]
+        python: [3]
     env:
       DEBIAN: ${{ matrix.debian }}
     steps:
@@ -62,13 +68,15 @@ jobs:
             -u ${{ github.actor }} \
             -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
       - name: Docker Pull
-        run: docker-compose pull --ignore-pull-failures debian-cpp
+        run: docker-compose pull --ignore-pull-failures debian-python
       - name: Docker Build
-        run: docker-compose build debian-cpp
+        run: |
+          docker-compose build debian-cpp
+          docker-compose build debian-python
       - name: Docker Run
-        run: docker-compose run debian-cpp
+        run: docker-compose run debian-python
       - name: Docker Push
-        run: docker-compose push debian-cpp
+        run: docker-compose push debian-python
 
   ubuntu:
     name: Ubuntu
@@ -76,6 +84,7 @@ jobs:
     strategy:
       matrix:
         ubuntu: [16.04, 18.04]
+        python: [3]
     env:
       UBUNTU: ${{ matrix.ubuntu }}
     steps:
@@ -93,13 +102,15 @@ jobs:
             -u ${{ github.actor }} \
             -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
       - name: Docker Pull
-        run: docker-compose pull --ignore-pull-failures ubuntu-cpp
+        run: docker-compose pull --ignore-pull-failures ubuntu-python
       - name: Docker Build
-        run: docker-compose build ubuntu-cpp
+        run: |
+          docker-compose build ubuntu-cpp
+          docker-compose build ubuntu-python
       - name: Docker Run
-        run: docker-compose run ubuntu-cpp
+        run: docker-compose run ubuntu-python
       - name: Docker Push
-        run: docker-compose push ubuntu-cpp
+        run: docker-compose push ubuntu-python
 
   fedora:
     name: Fedora
@@ -107,6 +118,7 @@ jobs:
     strategy:
       matrix:
         fedora: [29]
+        python: [3]
     env:
       FEDORA: ${{ matrix.fedora }}
     steps:
@@ -124,10 +136,12 @@ jobs:
             -u ${{ github.actor }} \
             -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
       - name: Docker Pull
-        run: docker-compose pull --ignore-pull-failures fedora-cpp
+        run: docker-compose pull --ignore-pull-failures fedora-python
       - name: Docker Build
-        run: docker-compose build fedora-cpp
+        run: |
+          docker-compose build fedora-cpp
+          docker-compose build fedora-python
       - name: Docker Run
-        run: docker-compose run fedora-cpp
+        run: docker-compose run fedora-python
       - name: Docker Push
-        run: docker-compose push fedora-cpp
+        run: docker-compose push fedora-python
