@@ -37,10 +37,10 @@ jobs:
         run: |
           docker-compose build conda-cpp
           docker-compose build conda-python
-      - name: Docker Run
-        run: docker-compose run conda-python
       - name: Docker Push
         run: docker-compose push conda-python
+      - name: Docker Run
+        run: docker-compose run conda-python
 
   debian:
     name: Debian
@@ -69,10 +69,10 @@ jobs:
         run: |
           docker-compose build debian-cpp
           docker-compose build debian-python
-      - name: Docker Run
-        run: docker-compose run debian-python
       - name: Docker Push
         run: docker-compose push debian-python
+      - name: Docker Run
+        run: docker-compose run debian-python
 
   ubuntu:
     name: Ubuntu
@@ -101,10 +101,10 @@ jobs:
         run: |
           docker-compose build ubuntu-cpp
           docker-compose build ubuntu-python
-      - name: Docker Run
-        run: docker-compose run ubuntu-python
       - name: Docker Push
         run: docker-compose push ubuntu-python
+      - name: Docker Run
+        run: docker-compose run ubuntu-python
 
   fedora:
     name: Fedora
@@ -133,7 +133,7 @@ jobs:
         run: |
           docker-compose build fedora-cpp
           docker-compose build fedora-python
-      - name: Docker Run
-        run: docker-compose run fedora-python
       - name: Docker Push
         run: docker-compose push fedora-python
+      - name: Docker Run
+        run: docker-compose run fedora-python

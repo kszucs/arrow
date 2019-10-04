@@ -30,10 +30,10 @@ jobs:
         run: docker-compose pull --ignore-pull-failures conda-cpp
       - name: Docker Build
         run: docker-compose build conda-cpp
-      - name: Docker Run
-        run: docker-compose run conda-cpp
       - name: Docker Push
         run: docker-compose push conda-cpp
+      - name: Docker Run
+        run: docker-compose run conda-cpp
 
   debian:
     name: Debian
@@ -57,10 +57,10 @@ jobs:
         run: docker-compose pull --ignore-pull-failures debian-cpp
       - name: Docker Build
         run: docker-compose build debian-cpp
-      - name: Docker Run
-        run: docker-compose run debian-cpp
       - name: Docker Push
         run: docker-compose push debian-cpp
+      - name: Docker Run
+        run: docker-compose run debian-cpp
 
   ubuntu:
     name: Ubuntu
@@ -84,10 +84,10 @@ jobs:
         run: docker-compose pull --ignore-pull-failures ubuntu-cpp
       - name: Docker Build
         run: docker-compose build ubuntu-cpp
-      - name: Docker Run
-        run: docker-compose run ubuntu-cpp
       - name: Docker Push
         run: docker-compose push ubuntu-cpp
+      - name: Docker Run
+        run: docker-compose run ubuntu-cpp
 
   fedora:
     name: Fedora
@@ -111,7 +111,7 @@ jobs:
         run: docker-compose pull --ignore-pull-failures fedora-cpp
       - name: Docker Build
         run: docker-compose build fedora-cpp
-      - name: Docker Run
-        run: docker-compose run fedora-cpp
       - name: Docker Push
         run: docker-compose push fedora-cpp
+      - name: Docker Run
+        run: docker-compose run fedora-cpp
