@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,23 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM rust:1.38.0-buster
-RUN rustup show
+set -e
 
-# Install stable rustfmt
-RUN rustup install stable
-RUN rustup component add rustfmt
+source_dir=${1}
 
-# Install the specific version of Rust nightly that we need so that we don't need to download it for every CI run
-COPY rust/rust-toolchain /tmp
-RUN rustup install "$(cat /tmp/rust-toolchain)"
-RUN rustup default "$(cat /tmp/rust-toolchain)"
+export ARROW_TEST_DATA=${source_dir}/testing/data
+export PARQUET_TEST_DATA=${source_dir}/cpp/submodules/parquet-testing/data
 
-# Enable stable rustfmt for nightly Rust
-RUN rustup component add rustfmt --toolchain stable-x86_64-unknown-linux-gnu
-
-# Set environment variables for location of test data required by unit and integration tests
-ENV ARROW_TEST_DATA=/arrow/testing/data
-ENV PARQUET_TEST_DATA=/arrow/cpp/submodules/parquet-testing/data
-
-CMD ["/bin/bash", "-c", "arrow/ci/docker_build_rust.sh"]
+pushd ${source_dir}/rust
+cargo test
+popd

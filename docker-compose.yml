@@ -183,3 +183,23 @@ services:
         base: ${ORG}/${ARCH}-fedora-${FEDORA}-cpp:latest
     volumes: *fedora-volumes
     command: *python-command
+
+  ################################## R ########################################
+
+  ################################ Rust #######################################
+
+  debian-rust:
+    image: ${ORG}/${ARCH}-debian-10-rust-${RUST}:latest
+    build:
+      context: ci
+      dockerfile: docker/debian-10-rust.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-fedora-${FEDORA}-python-3:latest
+      args:
+        rust: ${RUST}
+        base: ${ORG}/${ARCH}-debian-10-${RUST}:latest
+    volumes: *debian-volumes
+    command: &rust-command >
+      /bin/bash -c "
+        /arrow/ci/scripts/rust_build.sh /arrow /build/rust &&
+        /arrow/ci/scripts/rust_test.sh /arrow"
