@@ -6,49 +6,17 @@ on:
   - pull_request
 
 jobs:
-  build:
-    name: Linux
-    runs-on: ubuntu-latest
 
+  conda:
+    name: Conda
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        service:
-          - conda-cpp
-          - debian-cpp
-          - ubuntu-cpp
-          - fedora-cpp
         conda:
           - latest
-        debian:
-          - 10
-        ubuntu:
-          - 14.04
-          - 16.04
-          - 18.04
-        fedora:
-          - 29
-
-        # include:
-        #   - service: conda-cpp
-        #     conda: latest
-        #   - service: debian-cpp
-        #     debian: 10
-        #   - service: ubuntu-cpp
-        #     ubuntu: 14.04
-        #   - service: ubuntu-cpp
-        #     ubuntu: 16.04
-        #   - service: ubuntu-cpp
-        #     ubuntu: 18.04
-        #   - service: fedora-cpp
-        #     fedora: 29
-
     env:
       ORG: docker.pkg.github.com/${{ github.repository }}
-      CONDA: ${{ matrix.conda || 'latest' }}
-      DEBIAN: ${{ matrix.debian || '10' }}
-      UBUNTU: ${{ matrix.ubuntu || '18.04' }}
-      FEDORA: ${{ matrix.fedora || '29' }}
-
+      CONDA: ${{ matrix.conda }}
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -64,10 +32,79 @@ jobs:
             -u ${{ github.actor }} \
             -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
       - name: Docker Pull
-        run: docker-compose pull --ignore-pull-failures ${{ matrix.service }}
+        run: docker-compose pull --ignore-pull-failures conda-cpp
       - name: Docker Build
-        run: docker-compose build ${{ matrix.service }}
+        run: docker-compose build conda-cpp
       - name: Docker Run
-        run: docker-compose run ${{ matrix.service }}
+        run: docker-compose run conda-cpp
       - name: Docker Push
-        run: docker-compose push ${{ matrix.service }}
+        run: docker-compose push conda-cpp
+
+  debian:
+    name: Debian
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        debian:
+          - 10
+    env:
+      ORG: docker.pkg.github.com/${{ github.repository }}
+      CONDA: ${{ matrix.conda }}
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Diagnostics
+        run: |
+          docker version
+          env
+      - name: Docker Login
+        run: |
+          docker login docker.pkg.github.com \
+            -u ${{ github.actor }} \
+            -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
+      - name: Docker Pull
+        run: docker-compose pull --ignore-pull-failures debian-cpp
+      - name: Docker Build
+        run: docker-compose build debian-cpp
+      - name: Docker Run
+        run: docker-compose run debian-cpp
+      - name: Docker Push
+        run: docker-compose push debian-cpp
+
+  ubuntu:
+    name: Ubuntu
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        debian:
+          - 14.04
+          - 16.04
+          - 18.04
+    env:
+      ORG: docker.pkg.github.com/${{ github.repository }}
+      CONDA: ${{ matrix.conda }}
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Diagnostics
+        run: |
+          docker version
+          env
+      - name: Docker Login
+        run: |
+          docker login docker.pkg.github.com \
+            -u ${{ github.actor }} \
+            -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
+      - name: Docker Pull
+        run: docker-compose pull --ignore-pull-failures ubuntu-cpp
+      - name: Docker Build
+        run: docker-compose build ubuntu-cpp
+      - name: Docker Run
+        run: docker-compose run ubuntu-cpp
+      - name: Docker Push
+        run: docker-compose push ubuntu-cpp
+
