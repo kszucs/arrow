@@ -24,6 +24,10 @@ jobs:
       uses: actions/checkout@v1
       with:
         submodules: true
+    - name: Diagnostics
+      run: |
+        echo $ORG
+        echo $CONDA
     - name: Docker Login
       run: |
         docker login docker.pkg.github.com \
