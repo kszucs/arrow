@@ -63,6 +63,8 @@ services:
     build:
       context: ci
       dockerfile: docker/cuda-${CUDA}-cpp.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-cuda-${CUDA}-cpp:latest
     volumes: &cuda-volumes
       - .:/arrow:delegated
       - cuda-${CUDA}-cache:/build:delegated
@@ -73,6 +75,8 @@ services:
     build:
       context: ci
       dockerfile: docker/debian-${DEBIAN}-cpp.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-debian-${DEBIAN}-cpp:latest
       args:
         arch: ${ARCH}
     volumes: &debian-volumes
@@ -87,6 +91,8 @@ services:
     build:
       context: ci
       dockerfile: docker/ubuntu-${UBUNTU}-cpp.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-ubuntu-${UBUNTU}-cpp:latest
       args:
         arch: ${ARCH}
     volumes: &ubuntu-volumes
@@ -115,6 +121,8 @@ services:
     build:
       context: ci
       dockerfile: docker/conda-latest-python.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-conda-latest-python-${PYTHON}:latest
       args:
         org: ${ORG}
         arch: ${ARCH}
@@ -133,6 +141,8 @@ services:
     build:
       context: ci
       dockerfile: docker/linux-apt-python-3.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-cuda-${CUDA}-python-3:latest
       args:
         base: ${ORG}/${ARCH}-cuda-${CUDA}-cpp:latest
     volumes: *cuda-volumes
@@ -143,6 +153,8 @@ services:
     build:
       context: ci
       dockerfile: docker/linux-apt-python-3.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-debian-${DEBIAN}-python-3:latest
       args:
         base: ${ORG}/${ARCH}-debian-${DEBIAN}-cpp:latest
     volumes: *debian-volumes
@@ -153,6 +165,8 @@ services:
     build:
       context: ci
       dockerfile: docker/linux-apt-python-3.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-ubuntu-${UBUNTU}-python-3:latest
       args:
         base: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-cpp:latest
     volumes: *ubuntu-volumes
@@ -163,6 +177,8 @@ services:
     build:
       context: ci
       dockerfile: docker/linux-dnf-python-3.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-fedora-${FEDORA}-python-3:latest
       args:
         base: ${ORG}/${ARCH}-fedora-${FEDORA}-cpp:latest
     volumes: *fedora-volumes
