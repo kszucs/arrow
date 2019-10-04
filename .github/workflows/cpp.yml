@@ -32,7 +32,9 @@ jobs:
             -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
       - name: Docker Pull
         run: docker-compose pull --ignore-pull-failures conda-cpp
-      - run: |
+
+      - name: Diagnostics
+        run: |
           docker image ls
           docker-compose images
       - name: Docker Build
