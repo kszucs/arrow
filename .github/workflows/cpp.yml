@@ -19,9 +19,9 @@ jobs:
           - fedora-cpp
         include:
           - service: conda-cpp
-            ubuntu: latest
+            conda: latest
           - service: debian-cpp
-            ubuntu: 10
+            debian: 10
           - service: ubuntu-cpp
             ubuntu: 14.04
           - service: ubuntu-cpp
