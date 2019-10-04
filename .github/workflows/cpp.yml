@@ -16,6 +16,7 @@ jobs:
         conda: [latest]
 
     env:
+      ORG: docker.pkg.github.com/$GITHUB_REPOSITORY
       CONDA: ${{ matrix.conda }}
 
     steps:
@@ -23,7 +24,16 @@ jobs:
       uses: actions/checkout@v1
       with:
         submodules: true
+    - name: Docker Login
+      run: >
+        docker login docker.pkg.github.com
+          -u $GITHUB_ACTOR
+          -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
+    - name: Docker Pull
+      run: docker-compose pull --ignore-pull-failures ${{ matrix.service }}
     - name: Docker Build
       run: docker-compose build ${{ matrix.service }}
     - name: Docker Run
       run: docker-compose run ${{ matrix.service }}
+    - name: Docker Push
+      run: docker-compose push ${{ matrix.service }}
