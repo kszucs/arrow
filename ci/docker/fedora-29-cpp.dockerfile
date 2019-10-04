@@ -15,7 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM fedora:29
+ARG arch
+FROM ${arch}/fedora:29
 
 # install dependencies
 RUN dnf update -y && \
@@ -58,20 +59,19 @@ RUN dnf update -y && \
 # * c-ares cmake config is not installed on Fedora but gRPC needs it
 #   when built via ExternalProject: https://bugzilla.redhat.com/show_bug.cgi?id=1687844
 # * protobuf libraries in Fedora 29 are too old for gRPC
-ENV CC=gcc \
-     CXX=g++ \
-     ARROW_ORC=ON \
-     ARROW_DEPENDENCY_SOURCE=SYSTEM \
-     ARROW_PARQUET=ON \
-     ARROW_FLIGHT=ON \
-     ARROW_GANDIVA=ON \
-     ARROW_GANDIVA_JAVA=ON \
-     ARROW_BUILD_TESTS=ON \
-     ARROW_HOME=/usr/local \
-     CMAKE_ARGS="\
+ENV CMAKE_ARGS="\
 -Dc-ares_SOURCE=BUNDLED \
 -DgRPC_SOURCE=BUNDLED \
 -DORC_SOURCE=BUNDLED \
 -DProtobuf_SOURCE=BUNDLED"
 
-CMD ["arrow/ci/docker_build_and_test_cpp.sh"]
+ENV CC=gcc \
+    CXX=g++ \
+    ARROW_ORC=ON \
+    ARROW_DEPENDENCY_SOURCE=SYSTEM \
+    ARROW_PARQUET=ON \
+    ARROW_FLIGHT=ON \
+    ARROW_GANDIVA=ON \
+    ARROW_GANDIVA_JAVA=ON \
+    ARROW_BUILD_TESTS=ON \
+    ARROW_HOME=/usr/local

@@ -15,7 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM ubuntu:bionic
+ARG arch=amd64
+FROM ${arch}/ubuntu:18.04
 
 # pipefail is enabled for proper error detection in the `wget | apt-key add`
 # step
@@ -33,19 +34,16 @@ RUN apt-get update -y -q && \
 # Note that this is installed before the base packages to improve iteration
 # while debugging package list with docker build due to slow download speed of
 # llvm compared to ubuntu apt mirrors.
-ARG LLVM_VERSION=7
-# Args are only exposed in the "build" step, this ensure that LLVM_VERSION is
-# found in the "run" step.
-ENV LLVM_VERSION=${LLVM_VERSION}
-ARG LLVM_APT_URL="http://apt.llvm.org/bionic/"
-ARG LLVM_APT_ARCH="llvm-toolchain-bionic-${LLVM_VERSION}"
+ARG llvm_version=7
+ARG llvm_apt_url="http://apt.llvm.org/bionic/"
+ARG llvm_apt_arch="llvm-toolchain-bionic-${llvm_version}"
 RUN wget -q -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
-    apt-add-repository -y --update "deb ${LLVM_APT_URL} ${LLVM_APT_ARCH} main" && \
+    apt-add-repository -y --update "deb ${llvm_apt_url} ${llvm_apt_arch} main" && \
     apt-get install -y -q --no-install-recommends \
-      clang-${LLVM_VERSION} \
-      clang-format-${LLVM_VERSION} \
-      clang-tidy-${LLVM_VERSION} \
-      llvm-${LLVM_VERSION}-dev && \
+      clang-${llvm_version} \
+      clang-format-${llvm_version} \
+      clang-tidy-${llvm_version} \
+      llvm-${llvm_version}-dev && \
       apt-get clean && rm -rf /var/lib/apt/lists*
 
 # Installs C++ toolchain and dependencies
@@ -111,7 +109,6 @@ ENV ARROW_DEPENDENCY_SOURCE=SYSTEM \
     ARROW_WITH_BZ2=ON \
     ARROW_WITH_ZSTD=ON
 
-ENV CC=clang-${LLVM_VERSION} \
-    CXX=clang++-${LLVM_VERSION}
-
-CMD ["arrow/ci/docker_build_and_test_cpp.sh"]
+ENV CC=clang-${llvm_version} \
+    CXX=clang++-${llvm_version} \
+    LLVM_VERSION=${llvm_version}

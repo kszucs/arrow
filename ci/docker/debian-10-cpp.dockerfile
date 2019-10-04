@@ -15,7 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM debian:testing
+ARG arch=amd64
+FROM ${arch}/debian:10
 
 # install build essentials
 RUN export DEBIAN_FRONTEND=noninteractive && \
@@ -57,22 +58,21 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
         rapidjson-dev \
         thrift-compiler \
         tzdata \
-        wget \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+        wget && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-ENV CC=gcc \
-     CXX=g++ \
-     ARROW_BUILD_TESTS=ON \
-     ARROW_DEPENDENCY_SOURCE=SYSTEM \
-     ARROW_FLIGHT=ON \
-     ARROW_GANDIVA=ON \
-     ARROW_GANDIVA_JAVA=ON \
-     ARROW_HOME=/usr \
-     JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 \
-     CMAKE_ARGS="-Dc-ares_SOURCE=BUNDLED \
+ENV CMAKE_ARGS="-DFlatbuffers_SOURCE=BUNDLED \
+-Dc-ares_SOURCE=BUNDLED \
 -DgRPC_SOURCE=BUNDLED \
 -DORC_SOURCE=BUNDLED"
 
-# build and test
-CMD ["arrow/ci/docker_build_and_test_cpp.sh"]
+ENV CC=gcc \
+    CXX=g++ \
+    ARROW_BUILD_TESTS=ON \
+    ARROW_DEPENDENCY_SOURCE=SYSTEM \
+    ARROW_FLIGHT=ON \
+    ARROW_GANDIVA=ON \
+    ARROW_GANDIVA_JAVA=ON \
+    ARROW_HOME=/usr \
+    JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
