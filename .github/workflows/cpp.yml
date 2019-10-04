@@ -20,8 +20,8 @@ jobs:
         include:
           - service: conda-cpp
             conda: latest
-          - service: debian-cpp
-            debian: 10
+          # - service: debian-cpp
+          #   debian: 10
           - service: ubuntu-cpp
             ubuntu: 14.04
           - service: ubuntu-cpp
