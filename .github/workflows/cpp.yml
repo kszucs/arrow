@@ -21,10 +21,6 @@ jobs:
         uses: actions/checkout@v1
         with:
           submodules: true
-      - name: Diagnostics
-        run: |
-          docker version
-          env
       - name: Docker Login
         run: |
           docker login docker.pkg.github.com \
@@ -32,11 +28,6 @@ jobs:
             -p ${{ secrets.GITHUB_PACKAGES_TOKEN }}
       - name: Docker Pull
         run: docker-compose pull --ignore-pull-failures conda-cpp
-
-      - name: Diagnostics
-        run: |
-          docker image ls
-          docker-compose images
       - name: Docker Build
         run: docker-compose build conda-cpp
       - name: Docker Run
@@ -57,10 +48,6 @@ jobs:
         uses: actions/checkout@v1
         with:
           submodules: true
-      - name: Diagnostics
-        run: |
-          docker version
-          env
       - name: Docker Login
         run: |
           docker login docker.pkg.github.com \
@@ -88,10 +75,6 @@ jobs:
         uses: actions/checkout@v1
         with:
           submodules: true
-      - name: Diagnostics
-        run: |
-          docker version
-          env
       - name: Docker Login
         run: |
           docker login docker.pkg.github.com \
@@ -119,10 +102,6 @@ jobs:
         uses: actions/checkout@v1
         with:
           submodules: true
-      - name: Diagnostics
-        run: |
-          docker version
-          env
       - name: Docker Login
         run: |
           docker login docker.pkg.github.com \
