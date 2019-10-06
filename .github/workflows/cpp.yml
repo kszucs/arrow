@@ -17,34 +17,37 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build:
-          - conda-latest-cpp
-          - debian-10-cpp
-          - ubuntu-16.04-cpp
-          - ubuntu-18.04-cpp
-          - fedora-29-cpp
+        image:
+          - amd64-conda-latest-cpp
+          - amd64-debian-10-cpp
+          - amd64-ubuntu-16.04-cpp
+          - amd64-ubuntu-18.04-cpp
+          - amd64-fedora-29-cpp
         include:
-          - build: conda-latest-cpp
-            name: Conda (latest)
+          - name: AMD64 Conda C++
+            image: amd64-conda-latest-cpp
+            platform: conda
             env:
-            img: conda
-          - service: debian-cpp
-            build: debian-10-cpp
-            name: Debian (10)
-            env: DEBIAN=10
-            img: debian
-          - build: ubuntu-16.04-cpp
-            name: Ubuntu (16.04)
-            env: UBUNTU=16.04
-            img: ubuntu
-          - build: ubuntu-18.04-cpp
-            name: Ubuntu (18.04)
-            env: UBUNTU=18.04
-            img: ubuntu
-          - build: fedora-29-cpp
-            name: Fedora (29)
-            env: FEDORA=29
-            img: fedora
+          - name: AMD64 Debian 10 C++
+            image: amd64-debian-10-cpp
+            service: debian-cpp
+            debian: 10
+          - name: AMD64 Ubuntu 16.04 C++
+            image: amd64-ubuntu-16.04-cpp
+            platform: ubuntu
+            ubuntu: 16.04
+          - name: AMD64 Ubuntu 18.04 C++
+            image: amd64-ubuntu-18.04-cpp
+            platform: ubuntu
+            ubuntu: 18.04
+          - name: AMD64 Fedora 29 C++
+            image: amd64-fedora-29-cpp
+            platform: fedora
+            fedora: 29
+    env:
+      DEBIAN: ${{ matrix.debian }}
+      UBUNTU: ${{ matrix.ubuntu }}
+      FEDORA: ${{ matrix.fedora }}
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -58,15 +61,13 @@ jobs:
       - name: Docker Pull
         shell: bash
         run: |
-          ${{ matrix.env }} docker-compose pull \
-            --ignore-pull-failures \
-            ${{ matrix.img }}-cpp
+          docker-compose pull --ignore-pull-failures ${{ matrix.platform }}-cpp
       - name: Docker Build
         shell: bash
-        run: ${{ matrix.env }} docker-compose build ${{ matrix.img }}-cpp
+        run: docker-compose build ${{ matrix.platform }}-cpp
       - name: Docker Push
         shell: bash
-        run: ${{ matrix.env }} docker-compose push ${{ matrix.img }}-cpp
+        run: docker-compose push ${{ matrix.platform }}-cpp
       - name: Docker Run
         shell: bash
-        run: ${{ matrix.env }} docker-compose run ${{ matrix.img }}-cpp
+        run: docker-compose run ${{ matrix.platform }}-cpp

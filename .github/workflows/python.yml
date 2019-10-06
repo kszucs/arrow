@@ -11,114 +11,57 @@ env:
 
 jobs:
 
-  conda:
-    name: Conda
+  docker:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        conda: [latest]
-        python: [2.7, 3.6, 3.7]
+        image:
+          - amd64-conda-latest-python-2.7
+          - amd64-conda-latest-python-3.6
+          - amd64-conda-latest-python-3.7
+          - amd64-debian-10-python-3
+          - amd64-ubuntu-16.04-python-3
+          - amd64-ubuntu-18.04-python-3
+          - amd64-fedora-29-python-3
+        include:
+          - name: AMD64 Conda Python 2.7
+            image: amd64-conda-latest-python-2.7
+            platform: conda
+            python: 2.7
+          - name: AMD64 Conda Python 3.6
+            image: amd64-conda-latest-python-3.6
+            platform: conda
+            python: 3.6
+          - name: AMD64 Conda Python 3.7
+            image: amd64-conda-latest-python-3.7
+            platform: conda
+            python: 3.7
+          - name: AMD64 Debian 10 Python 3
+            image: amd64-debian-10-python-3
+            platform: debian
+            debian: 10
+            python: 3
+          - name: AMD64 Ubuntu 16.04 Python 3
+            image: amd64-ubuntu-16.04-python-3
+            platform: ubuntu
+            ubuntu: 16.04
+            python: 3
+          - name: AMD64 Ubuntu 18.04 Python 3
+            image: amd64-ubuntu-18.04-python-3
+            platform: ubuntu
+            ubuntu: 18.04
+            python: 3
+          - name: AMD64 Fedora 29 Python 3
+            image: amd64-fedora-29-python-3
+            platform: fedora
+            fedora: 29
+            python: 3
     env:
       PYTHON: ${{ matrix.python }}
-    steps:
-      - name: Checkout Arrow
-        uses: actions/checkout@v1
-        with:
-          submodules: true
-      - name: Docker Login
-        run: |
-          docker login \
-            -u ${{ github.actor }} \
-            -p ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Docker Pull
-        run: |
-          docker-compose pull --ignore-pull-failures conda-cpp
-          docker-compose pull --ignore-pull-failures conda-python
-      - name: Docker Build
-        run: |
-          docker-compose build conda-cpp
-          docker-compose build conda-python
-      - name: Docker Push
-        run: docker-compose push conda-python
-      - name: Docker Run
-        run: docker-compose run conda-python
-
-  debian:
-    name: Debian
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        debian: [10]
-        python: [3]
-    env:
       DEBIAN: ${{ matrix.debian }}
-    steps:
-      - name: Checkout Arrow
-        uses: actions/checkout@v1
-        with:
-          submodules: true
-      - name: Docker Login
-        run: |
-          docker login \
-            -u ${{ github.actor }} \
-            -p ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Docker Pull
-        run: |
-          docker-compose pull --ignore-pull-failures debian-cpp
-          docker-compose pull --ignore-pull-failures debian-python
-      - name: Docker Build
-        run: |
-          docker-compose build debian-cpp
-          docker-compose build debian-python
-      - name: Docker Push
-        run: docker-compose push debian-python
-      - name: Docker Run
-        run: docker-compose run debian-python
-
-  ubuntu:
-    name: Ubuntu
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        ubuntu: [16.04, 18.04]
-        python: [3]
-    env:
       UBUNTU: ${{ matrix.ubuntu }}
-    steps:
-      - name: Checkout Arrow
-        uses: actions/checkout@v1
-        with:
-          submodules: true
-      - name: Docker Login
-        run: |
-          docker login \
-            -u ${{ github.actor }} \
-            -p ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Docker Pull
-        run: |
-          docker-compose pull --ignore-pull-failures ubuntu-cpp
-          docker-compose pull --ignore-pull-failures ubuntu-python
-      - name: Docker Build
-        run: |
-          docker-compose build ubuntu-cpp
-          docker-compose build ubuntu-python
-      - name: Docker Push
-        run: docker-compose push ubuntu-python
-      - name: Docker Run
-        run: docker-compose run ubuntu-python
-
-  fedora:
-    name: Fedora
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        fedora: [29]
-        python: [3]
-    env:
       FEDORA: ${{ matrix.fedora }}
     steps:
       - name: Checkout Arrow
@@ -131,14 +74,18 @@ jobs:
             -u ${{ github.actor }} \
             -p ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Docker Pull
+        shell: bash
         run: |
-          docker-compose pull --ignore-pull-failures fedora-cpp
-          docker-compose pull --ignore-pull-failures fedora-python
+          docker-compose pull --ignore-pull-failures ${{ matrix.platform }}-cpp
+          docker-compose pull --ignore-pull-failures ${{ matrix.platform }}-python
       - name: Docker Build
+        shell: bash
         run: |
-          docker-compose build fedora-cpp
-          docker-compose build fedora-python
+          docker-compose build ${{ matrix.platform }}-cpp
+          docker-compose build ${{ matrix.platform }}-python
       - name: Docker Push
-        run: docker-compose push fedora-python
+        shell: bash
+        run: docker-compose push ${{ matrix.platform }}-python
       - name: Docker Run
-        run: docker-compose run fedora-python
+        shell: bash
+        run: docker-compose run ${{ matrix.platform }}-python

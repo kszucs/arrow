@@ -38,7 +38,7 @@ jobs:
       - name: Docker Run
         run: docker-compose run debian-rust
 
-  nonlinux:
+  macwin:
     name: ${{ matrix.name }} (${{ matrix.rust }})
     runs-on: ${{ matrix.os }}
     strategy:
