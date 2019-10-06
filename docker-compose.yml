@@ -105,6 +105,8 @@ services:
     build:
       context: ci
       dockerfile: docker/fedora-${FEDORA}-cpp.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-fedora-${FEDORA}-cpp:latest
       args:
         arch: ${ARCH}
     volumes: &fedora-volumes

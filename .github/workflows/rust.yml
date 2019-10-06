@@ -10,8 +10,7 @@ env:
   ORG: kszucs
 
 jobs:
-
-  debian:
+  docker:
     name: Debian
     runs-on: ubuntu-latest
     strategy:
@@ -39,8 +38,8 @@ jobs:
       - name: Docker Run
         run: docker-compose run debian-rust
 
-  macos:
-    name: ${{ matrix.os }}
+  nonlinux:
+    name: ${{ matrix.name }} (${{ matrix.rust }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -66,7 +65,7 @@ jobs:
         with:
           submodules: true
       - name: Build
-        run: ci/rust_build.sh
+        run: ci/scripts/rust_build.sh
       - name: Test
-        run: ci/rust_test.sh
+        run: ci/scripts/rust_test.sh
 
