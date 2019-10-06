@@ -65,6 +65,8 @@ jobs:
         with:
           submodules: true
       - name: Build
+        shell: bash
         run: ci/scripts/rust_build.sh . rust/target
       - name: Test
+        shell: bash
         run: ci/scripts/rust_test.sh .

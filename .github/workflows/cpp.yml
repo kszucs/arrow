@@ -56,13 +56,17 @@ jobs:
             -u ${{ github.actor }} \
             -p ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Docker Pull
+        shell: bash
         run: |
           ${{ matrix.env }} docker-compose pull \
             --ignore-pull-failures \
             ${{ matrix.img }}-cpp
       - name: Docker Build
+        shell: bash
         run: ${{ matrix.env }} docker-compose build ${{ matrix.img }}-cpp
       - name: Docker Push
+        shell: bash
         run: ${{ matrix.env }} docker-compose push ${{ matrix.img }}-cpp
       - name: Docker Run
+        shell: bash
         run: ${{ matrix.env }} docker-compose run ${{ matrix.img }}-cpp
