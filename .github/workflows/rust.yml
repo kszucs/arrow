@@ -48,11 +48,11 @@ jobs:
           - macos-latest
           - windows-latest
         include:
-          - os: macos-latest
-            name: MacOS
+          - os: macos-10.14
+            name: MacOS 10.14
             rust: nightly-2019-09-25
-          - os: windows-latest
-            name: Windows
+          - os: windows-2019
+            name: Windows 2019
             rust: nightly-2019-09-25
     steps:
       - name: Install Rust

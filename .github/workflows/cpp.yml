@@ -74,8 +74,8 @@ jobs:
         run: docker-compose run ${{ matrix.platform }}-cpp
 
   macos:
-    name: MacOS C++
-    runs-on: macos-latest
+    name: AMD64 MacOS 10.14 C++
+    runs-on: macos-10.14
     strategy:
       fail-fast: false
     steps:
@@ -94,8 +94,8 @@ jobs:
         run: ci/scripts/cpp_test.sh . cpp/build /usr/local
 
   windows:
-    name: Windows C++
-    runs-on: windows-latest
+    name: AMD64 Windows 2019 C++
+    runs-on: windows-2019
     strategy:
       fail-fast: false
     steps:
