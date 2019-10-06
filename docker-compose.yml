@@ -54,8 +54,9 @@ services:
       - .:/arrow:delegated
       - conda-latest-cache:/build:delegated
     command: &cpp-command >
-      /arrow/ci/scripts/cpp_build.sh /arrow /build /usr/local &&
-      /arrow/ci/scripts/cpp_test.sh  /arrow /build /usr/local
+      /bin/bash -c "
+        /arrow/ci/scripts/cpp_build.sh /arrow /build /usr/local &&
+        /arrow/ci/scripts/cpp_test.sh  /arrow /build /usr/local"
 
   cuda-cpp:
     # only amd64 is supported
