@@ -38,3 +38,35 @@ jobs:
         run: docker-compose push debian-rust
       - name: Docker Run
         run: docker-compose run debian-rust
+
+  macos:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - windows-latest
+        include:
+          - os: macos-latest
+            name: MacOS
+            rust: nightly-2019-09-25
+          - os: windows-latest
+            name: Windows
+            rust: nightly-2019-09-25
+    steps:
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: ${{ matrix.rust }}
+            override: true
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Build
+        run: ci/rust_build.sh
+      - name: Test
+        run: ci/rust_test.sh
+
