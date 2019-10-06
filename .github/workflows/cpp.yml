@@ -27,15 +27,24 @@ jobs:
           - build: conda-latest-cpp
             name: Conda (latest)
             env:
-          - build: debian-10-cpp
+            img: conda
+          - service: debian-cpp
+            build: debian-10-cpp
             name: Debian (10)
             env: DEBIAN=10
+            img: debian
           - build: ubuntu-16.04-cpp
             name: Ubuntu (16.04)
             env: UBUNTU=16.04
+            img: ubuntu
           - build: ubuntu-18.04-cpp
             name: Ubuntu (18.04)
             env: UBUNTU=18.04
+            img: ubuntu
+          - build: fedora-29-cpp
+            name: Fedora (29)
+            env: FEDORA=29
+            img: fedora
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -47,10 +56,13 @@ jobs:
             -u ${{ github.actor }} \
             -p ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Docker Pull
-        run: ${{ env }} docker-compose pull --ignore-pull-failures conda-cpp
+        run: |
+          ${{ matrix.env }} docker-compose pull \
+            --ignore-pull-failures \
+            ${{ matrix.img }}-cpp
       - name: Docker Build
-        run: ${{ env }} docker-compose build conda-cpp
+        run: ${{ matrix.env }} docker-compose build ${{ matrix.img }}-cpp
       - name: Docker Push
-        run: ${{ env }} docker-compose push conda-cpp
+        run: ${{ matrix.env }} docker-compose push ${{ matrix.img }}-cpp
       - name: Docker Run
-        run: ${{ env }} docker-compose run conda-cpp
+        run: ${{ matrix.env }} docker-compose run ${{ matrix.img }}-cpp
