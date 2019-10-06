@@ -31,6 +31,7 @@ jobs:
           - name: AMD64 Debian 10 C++
             image: amd64-debian-10-cpp
             service: debian-cpp
+            platform: debian
             debian: 10
           - name: AMD64 Ubuntu 16.04 C++
             image: amd64-ubuntu-16.04-cpp

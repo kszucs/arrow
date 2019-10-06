@@ -11,7 +11,7 @@ env:
 
 jobs:
   docker:
-    name: Debian
+    name: Debian Rust ${{ matrix.rust }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -39,7 +39,7 @@ jobs:
         run: docker-compose run debian-rust
 
   macwin:
-    name: ${{ matrix.name }} (${{ matrix.rust }})
+    name: ${{ matrix.name }} Rust ${{ matrix.rust }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
