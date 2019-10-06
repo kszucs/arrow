@@ -59,10 +59,10 @@ jobs:
             fedora: 29
             python: 3
     env:
-      PYTHON: ${{ matrix.python or 3.6 }}
-      DEBIAN: ${{ matrix.debian or 10 }}
-      UBUNTU: ${{ matrix.ubuntu or 18.04 }}
-      FEDORA: ${{ matrix.fedora or 29 }}
+      PYTHON: ${{ matrix.python || 3.6 }}
+      DEBIAN: ${{ matrix.debian || 10 }}
+      UBUNTU: ${{ matrix.ubuntu || 18.04 }}
+      FEDORA: ${{ matrix.fedora || 29 }}
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
