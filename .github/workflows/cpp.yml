@@ -72,3 +72,40 @@ jobs:
       - name: Docker Run
         shell: bash
         run: docker-compose run ${{ matrix.platform }}-cpp
+
+  macos:
+    name: MacOS C++
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Install Dependencies
+        shell: bash
+        run: brew bundle --file cpp/Brewfile
+      - name: Build
+        shell: bash
+        run: ci/scripts/cpp_build.sh . cpp/build /usr/local
+      - name: Test
+        shell: bash
+        run: ci/scripts/cpp_test.sh . cpp/build /usr/local
+
+  windows:
+    name: Windows C++
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Build
+        shell: bash
+        run: ci/scripts/cpp_build.sh . cpp/build /usr/local
+      - name: Test
+        shell: bash
+        run: ci/scripts/cpp_test.sh . cpp/build /usr/local
