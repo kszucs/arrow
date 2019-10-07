@@ -97,10 +97,23 @@ jobs:
         run: ci/scripts/cpp_test.sh $(pwd) $(pwd)/cpp/build /usr/local
 
   windows:
-    name: AMD64 Windows 2019 C++
-    runs-on: windows-2019
+    name: AMD64 ${{ matrix.name }} C++
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      matrix:
+        os:
+          - windows-2019
+          - windows-2016
+        include:
+          - os: windows-2019
+            name: Windows 2019
+            generator: Visual Studio 16 2019
+          - os: windows-2016
+            name: Windows 2016
+            generator: Visual Studio 15 2017
+    env:
+      CMAKE_GENERATOR: ${{ matrix.generator }}
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1

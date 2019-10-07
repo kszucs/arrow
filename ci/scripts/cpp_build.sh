@@ -33,7 +33,7 @@ install_dir=${3:-${ARROW_HOME}}
 mkdir -p ${build_dir}
 pushd ${build_dir}
 
-cmake -GNinja \
+cmake -G "${CMAKE_GENERATOR:-Ninja}" \
       -DCMAKE_INSTALL_PREFIX=${install_dir} \
       -DCMAKE_INSTALL_LIBDIR=lib \
       -DCMAKE_BUILD_TYPE=${ARROW_BUILD_TYPE:-debug} \
@@ -73,7 +73,7 @@ cmake -GNinja \
       ${CMAKE_ARGS} \
       ${source_dir}/cpp
 
-ninja
-ninja install
+cmake --build .
+cmake --install .
 
 popd
