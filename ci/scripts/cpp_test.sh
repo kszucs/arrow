@@ -28,13 +28,6 @@ export PARQUET_TEST_DATA=${source_dir}/submodules/parquet-testing/data
 
 pushd ${build_dir}
 
-# TODO(kszucs): revisit
-# ARROW-5653 after install target, RPATH is modified on linux. Add this such
-# that libraries are found with conda.
-# if [[ ! -z "${CONDA_PREFIX}" ]]; then
-#   export LD_LIBRARY_PATH=${CONDA_PREFIX}/lib
-# fi
-
-ninja unittest
+ctest --output-on-failure -j2
 
 popd

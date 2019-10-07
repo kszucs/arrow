@@ -85,7 +85,6 @@ cmake -G "${CMAKE_GENERATOR:-Ninja}" \
       ${CMAKE_ARGS} \
       ${source_dir}
 
-cmake --build .
-cmake --install .
+cmake --build . --target install
 
 popd
