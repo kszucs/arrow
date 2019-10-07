@@ -1,0 +1,74 @@
+name: NodeJS
+
+on:
+  push:
+    # paths:
+    #   - 'js/**'
+  pull_request:
+    # paths:
+    #   - 'js/**'
+
+env:
+  # ORG: docker.pkg.github.com/${{ github.repository }}
+  ORG: kszucs
+
+jobs:
+  docker:
+    name: Debian NodeJS ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [11]
+    env:
+      NODE: ${{ matrix.node }}
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Docker Login
+        run: |
+          docker login \
+            -u ${{ github.actor }} \
+            -p ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Docker Pull
+        run: docker-compose pull --ignore-pull-failures debian-js
+      - name: Docker Build
+        run: docker-compose build debian-js
+      - name: Docker Push
+        run: docker-compose push debian-js
+      - name: Docker Run
+        run: docker-compose run debian-js
+
+  macos-windows:
+    name: ${{ matrix.name }} NodeJS ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-10.14
+          - windows-2019
+        include:
+          - os: macos-10.14
+            name: MacOS 10.14
+            node: 11
+          - os: windows-2019
+            name: Windows 2019
+            node: 11
+    steps:
+      - name: Install NodeJS
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Build
+        shell: bash
+        run: ci/scripts/js_build.sh .
+      - name: Test
+        shell: bash
+        run: ci/scripts/js_test.sh .

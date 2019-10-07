@@ -208,19 +208,6 @@ services:
       PARQUET_TEST_DATA: /arrow/cpp/submodules/parquet-testing/data
     volumes: *alpine-volumes
 
-  cpp-fedora:
-    # Usage:
-    #   docker-compose build cpp-fedora
-    #   docker-compose run cpp-fedora
-    image: arrow:cpp-fedora
-    shm_size: 2G
-    build:
-      context: .
-      dockerfile: cpp/Dockerfile.fedora
-    environment:
-      PARQUET_TEST_DATA: /arrow/cpp/submodules/parquet-testing/data
-    volumes: *fedora-volumes
-
   cpp-debian-testing:
     # Usage:
     #   docker-compose build cpp-debian-testing
@@ -233,32 +220,6 @@ services:
     environment:
       PARQUET_TEST_DATA: /arrow/cpp/submodules/parquet-testing/data
     volumes: *debian-testing-volumes
-
-  cpp-ubuntu-trusty:
-    # Usage:
-    #   docker-compose build cpp-ubuntu-trusty
-    #   docker-compose run cpp-ubuntu-trusty
-    image: arrow:cpp-ubuntu-trusty
-    shm_size: 2G
-    build:
-      context: .
-      dockerfile: cpp/Dockerfile.ubuntu-trusty
-    environment:
-      PARQUET_TEST_DATA: /arrow/cpp/submodules/parquet-testing/data
-    volumes: *ubuntu-trusty-volumes
-
-  cpp-ubuntu-xenial:
-    # Usage:
-    #   docker-compose build cpp-ubuntu-xenial
-    #   docker-compose run cpp-ubuntu-xenial
-    image: arrow:cpp-ubuntu-xenial
-    shm_size: 2G
-    build:
-      context: .
-      dockerfile: cpp/Dockerfile.ubuntu-xenial
-    environment:
-      PARQUET_TEST_DATA: /arrow/cpp/submodules/parquet-testing/data
-    volumes: *ubuntu-xenial-volumes
 
   cpp-minimum-boost-version:
     # Ubuntu Xenial 16.04 has Boost 1.58, our minimum version
@@ -276,29 +237,6 @@ services:
       ARROW_BOOST_SOURCE: "SYSTEM"
       ARROW_FLIGHT: "OFF"
     volumes: *ubuntu-xenial-volumes
-
-  cpp-ubuntu-bionic:
-    # Usage:
-    #   docker-compose build cpp-ubuntu-bionic
-    #   docker-compose run cpp-ubuntu-bionic
-    image: arrow:cpp-ubuntu-bionic
-    shm_size: 2G
-    build:
-      context: .
-      dockerfile: cpp/Dockerfile.ubuntu-bionic
-    environment:
-      PARQUET_TEST_DATA: /arrow/cpp/submodules/parquet-testing/data
-    volumes: *ubuntu-bionic-volumes
-
-  go:
-    # Usage:
-    #   docker-compose build go
-    #   docker-compose run go
-    image: arrow:go
-    build:
-      context: .
-      dockerfile: go/Dockerfile
-    volumes: *ubuntu-volumes
 
   java:
     # Usage:
@@ -324,27 +262,6 @@ services:
       - .:/arrow:ro  # ensures that docker won't contaminate the host directory
       - maven-cache:/root/.m2:delegated
 
-  js:
-    image: arrow:js
-    build:
-      context: .
-      dockerfile: js/Dockerfile
-
-  python:
-    # Usage:
-    #   export PYTHON_VERSION=2.7|3.6|3.7
-    #   docker-compose build cpp
-    #   docker-compose build python
-    #   docker-compose run python
-    image: arrow:python-${PYTHON_VERSION:-3.6}
-    shm_size: 2G
-    build:
-      context: .
-      dockerfile: python/Dockerfile
-      args:
-        PYTHON_VERSION: ${PYTHON_VERSION:-3.6}
-    volumes: *ubuntu-volumes
-
   python-alpine:
     # Usage:
     #   export PYTHON_VERSION=2.7|3.6 (minor version is ignored)
@@ -359,34 +276,6 @@ services:
       args:
         PYTHON_VERSION: ${PYTHON_VERSION:-3.6}
     volumes: *alpine-volumes
-
-  python-nopandas:
-    # Usage:
-    #   export PYTHON_VERSION=2.7|3.6|3.7
-    #   docker-compose build cpp
-    #   docker-compose build python
-    #   docker-compose build python-nopandas
-    #   docker-compose run python-nopandas
-    image: arrow:python-${PYTHON_VERSION:-3.6}-nopandas
-    shm_size: 2G
-    build:
-      context: .
-      dockerfile: python/Dockerfile.nopandas
-      args:
-        PYTHON_VERSION: ${PYTHON_VERSION:-3.6}
-    volumes: *ubuntu-volumes
-
-  rust:
-    # Usage:
-    #   docker-compose build rust
-    #   docker-compose run rust
-    image: arrow:rust
-    build:
-      context: .
-      dockerfile: rust/Dockerfile
-    environment:
-      PARQUET_TEST_DATA: /arrow/cpp/submodules/parquet-testing/data
-    volumes: *ubuntu-volumes
 
   r:
     # Usage:

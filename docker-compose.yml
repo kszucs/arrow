@@ -35,6 +35,9 @@ volumes:
   ubuntu-14.04-cache:
   fedora-29-cache:
 
+# TODO(kszucs): set shared memory size
+# shm_size: 2G
+
 services:
 
   ################################# C++ #######################################
@@ -240,3 +243,21 @@ services:
       /bin/bash -c "
         /arrow/ci/scripts/go_build.sh /arrow &&
         /arrow/ci/scripts/go_test.sh /arrow"
+
+  ############################# JavaScript ####################################
+
+  debian-js:
+    image: ${ORG}/${ARCH}-debian-10-js-${NODE}:latest
+    build:
+      context: ci
+      dockerfile: docker/debian-10-js.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-debian-10-js-${NODE}:latest
+      args:
+        arch: ${ARCH}
+        node: ${NODE}
+    volumes: *debian-volumes
+    command: &js-command >
+      /bin/bash -c "
+        /arrow/ci/scripts/js_build.sh /arrow &&
+        /arrow/ci/scripts/js_test.sh /arrow"
