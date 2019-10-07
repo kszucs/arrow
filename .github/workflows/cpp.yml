@@ -1,9 +1,12 @@
 name: C++
 
-# TODO: add file patterns with recursive glob **
 on:
-  - push
-  - pull_request
+  push:
+    paths:
+      - 'cpp/**'
+  pull_request:
+    paths:
+      - 'cpp/**'
 
 env:
   # ORG: docker.pkg.github.com/${{ github.repository }}
@@ -88,10 +91,10 @@ jobs:
         run: brew bundle --file=cpp/Brewfile
       - name: Build
         shell: bash
-        run: ci/scripts/cpp_build.sh . cpp/build /usr/local
+        run: ci/scripts/cpp_build.sh $(pwd) $(pwd)/cpp/build /usr/local
       - name: Test
         shell: bash
-        run: ci/scripts/cpp_test.sh . cpp/build /usr/local
+        run: ci/scripts/cpp_test.sh $(pwd) $(pwd)/cpp/build /usr/local
 
   windows:
     name: AMD64 Windows 2019 C++
@@ -105,7 +108,7 @@ jobs:
           submodules: true
       - name: Build
         shell: bash
-        run: ci/scripts/cpp_build.sh . cpp/build /usr/local
+        run: ci/scripts/cpp_build.sh $(pwd) $(pwd)/cpp/build /usr/local
       - name: Test
         shell: bash
-        run: ci/scripts/cpp_test.sh . cpp/build /usr/local
+        run: ci/scripts/cpp_test.sh $(pwd) $(pwd)/cpp/build /usr/local

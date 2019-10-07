@@ -1,9 +1,12 @@
 name: Rust
 
-# TODO: add file patterns with recursive glob **
 on:
-  - push
-  - pull_request
+  push:
+    paths:
+      - 'rust/**'
+  pull_request:
+    paths:
+      - 'rust/**'
 
 env:
   # ORG: docker.pkg.github.com/${{ github.repository }}
