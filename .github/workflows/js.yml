@@ -58,14 +58,17 @@ jobs:
             name: Windows 2019
             node: 11
     steps:
-      - name: Install NodeJS
-        uses: actions/setup-node@v1
-        with:
-          node-version: ${{ matrix.node }}
       - name: Checkout Arrow
         uses: actions/checkout@v1
         with:
           submodules: true
+      - name: Install NodeJS
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Update NPM
+        shell: bash
+        run: npm install -g npm
       - name: Build
         shell: bash
         run: ci/scripts/js_build.sh $(pwd)
