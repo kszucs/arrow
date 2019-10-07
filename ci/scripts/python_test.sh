@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+set -ex
+
 source_dir=${1}
 install_dir=${3:-${ARROW_HOME}}
 
