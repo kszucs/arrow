@@ -33,7 +33,6 @@ install_dir=${3:-${ARROW_HOME}}
 mkdir -p ${build_dir}
 pushd ${build_dir}
 
-
 cmake -G "${CMAKE_GENERATOR:-Ninja}" \
       -DCMAKE_INSTALL_PREFIX=${install_dir} \
       -DCMAKE_INSTALL_LIBDIR=lib \
