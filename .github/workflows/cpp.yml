@@ -30,7 +30,6 @@ jobs:
           - name: AMD64 Conda C++
             image: amd64-conda-latest-cpp
             platform: conda
-            env:
           - name: AMD64 Debian 10 C++
             image: amd64-debian-10-cpp
             service: debian-cpp
@@ -119,7 +118,6 @@ jobs:
             generator: Visual Studio 15 2017
     env:
       CMAKE_GENERATOR: ${{ matrix.generator }}
-      ARROW_FLIGHT: OFF
       ARROW_MIMALLOC: OFF
       ARROW_WITH_LZ4: OFF
       ARROW_CXXFLAGS: /MP
