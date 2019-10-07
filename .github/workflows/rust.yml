@@ -2,11 +2,11 @@ name: Rust
 
 on:
   push:
-    paths:
-      - 'rust/**'
+    # paths:
+    #   - 'rust/**'
   pull_request:
-    paths:
-      - 'rust/**'
+    # paths:
+    #   - 'rust/**'
 
 env:
   # ORG: docker.pkg.github.com/${{ github.repository }}
@@ -69,7 +69,7 @@ jobs:
           submodules: true
       - name: Build
         shell: bash
-        run: ci/scripts/rust_build.sh $(pwd) $(pwd)/target
+        run: ci/scripts/rust_build.sh $(pwd) $(pwd)/rust/target
       - name: Test
         shell: bash
         run: ci/scripts/rust_test.sh $(pwd)

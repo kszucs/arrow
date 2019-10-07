@@ -14,6 +14,20 @@ env:
 
 jobs:
 
+  docker-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Docker info
+        run: docker info
+      - name: try amd64
+        run: docker run amd64/busybox echo 1
+      - name: try arm64v8
+        run: docker run arm64v8/busybox echo 1
+      - name: try arm32v7
+        run: docker run arm32v7/busybox echo 1
+      - name: try ppc64le
+        run: docker run ppc64le/busybox echo 1
+
   docker:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest

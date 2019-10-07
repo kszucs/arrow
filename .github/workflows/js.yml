@@ -5,11 +5,11 @@ name: NodeJS
 # windows fails
 on:
   push:
-    paths:
-      - 'js/**'
+    # paths:
+    #   - 'js/**'
   pull_request:
-    paths:
-      - 'js/**'
+    # paths:
+    #   - 'js/**'
 
 env:
   # ORG: docker.pkg.github.com/${{ github.repository }}
