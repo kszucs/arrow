@@ -2,11 +2,11 @@ name: C++
 
 on:
   push:
-    paths:
-      - 'cpp/**'
+    # paths:
+    #  - 'cpp/**'
   pull_request:
-    paths:
-      - 'cpp/**'
+    # paths:
+    #   - 'cpp/**'
 
 env:
   # ORG: docker.pkg.github.com/${{ github.repository }}
