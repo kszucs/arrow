@@ -213,12 +213,28 @@ services:
       context: ci
       dockerfile: docker/debian-10-rust.dockerfile
       cache_from:
-        - ${ORG}/${ARCH}-fedora-${FEDORA}-python-3:latest
+        - ${ORG}/${ARCH}-debian-10-rust-${RUST}:latest
       args:
         rust: ${RUST}
-        base: ${ORG}/${ARCH}-debian-10-${RUST}:latest
     volumes: *debian-volumes
     command: &rust-command >
       /bin/bash -c "
         /arrow/ci/scripts/rust_build.sh /arrow /build/rust &&
         /arrow/ci/scripts/rust_test.sh /arrow"
+
+  ################################# Go ########################################
+
+  debian-go:
+    image: ${ORG}/${ARCH}-debian-10-go-${GO}:latest
+    build:
+      context: ci
+      dockerfile: docker/debian-10-go.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-debian-10-go-${GO}:latest
+      args:
+        go: ${GO}
+    volumes: *debian-volumes
+    command: &go-command >
+      /bin/bash -c "
+        /arrow/ci/scripts/go_build.sh /arrow &&
+        /arrow/ci/scripts/go_test.sh /arrow"

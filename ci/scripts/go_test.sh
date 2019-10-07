@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,13 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM golang:1.12
+set -e
 
-COPY go/arrow/Gopkg.lock \
-     go/arrow/Gopkg.toml \
-     /arrow/go/arrow/
-WORKDIR /arrow/go/arrow
+source_dir=${1}
 
-RUN go get -d -t -v ./...
+pushd ${source_dir}/go/arrow
 
-CMD ["/bin/bash", "-c", "go install -v ./... && for d in $(go list ./... | grep -v vendor); do go test $d; done"]
+for d in $(go list ./... | grep -v vendor); do
+    go test $d
+done
+
+popd
