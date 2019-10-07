@@ -117,6 +117,7 @@ jobs:
     env:
       CMAKE_GENERATOR: ${{ matrix.generator }}
       ARROW_FLIGHT: OFF
+      ARROW_WITH_LZ4: OFF
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -124,7 +125,7 @@ jobs:
           submodules: true
       - name: Install Dependencies
         shell: bash
-        run: choco install openssl
+        run: choco install openssl bzip2 zstandard thrift
       - name: Build
         shell: bash
         run: ci/scripts/cpp_build.sh $(pwd) $(pwd)/cpp/build /usr/local
