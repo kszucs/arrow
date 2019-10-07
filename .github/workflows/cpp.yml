@@ -123,6 +123,9 @@ jobs:
       ARROW_MIMALLOC: OFF
       ARROW_WITH_LZ4: OFF
       ARROW_BUILD_TESTS: ON
+      ARROW_USE_STATIC_CRT: ON
+      ARROW_CXXFLAGS: /MP
+      ARROW_TEST_LINKAGE: static
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
