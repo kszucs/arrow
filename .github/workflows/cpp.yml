@@ -127,7 +127,7 @@ jobs:
           submodules: true
       - name: Install Dependencies
         shell: bash
-        run: choco install openssl bzip2 zstandard thrift
+        run: choco install openssl bzip2 zstandard thrift boost-msvc-14.1
       - name: Build
         shell: bash
         run: ci/scripts/cpp_build.sh $(pwd) $(pwd)/cpp/build /usr/local
