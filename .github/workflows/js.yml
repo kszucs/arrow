@@ -69,9 +69,6 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node }}
-      - name: Update NPM
-        shell: bash
-        run: npm install -g npm
       - name: Build
         shell: bash
         run: ci/scripts/js_build.sh $(pwd)
