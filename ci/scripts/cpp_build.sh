@@ -19,8 +19,8 @@
 
 set -ex
 
-source_dir=${1}
-build_dir=${2}
+source_dir=${1}/cpp
+build_dir=${2:-${source_dir}/build}
 
 # export CCACHE_COMPRESS=1
 # export CCACHE_COMPRESSLEVEL=5
@@ -83,7 +83,7 @@ cmake -G "${CMAKE_GENERATOR:-Ninja}" \
       -DARROW_FUZZING=${ARROW_FUZZING:-OFF} \
       -DARROW_USE_ASAN=${ARROW_USE_ASAN:-OFF} \
       ${CMAKE_ARGS} \
-      ${source_dir}/cpp
+      ${source_dir}
 
 cmake --build .
 cmake --install .

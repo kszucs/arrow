@@ -19,9 +19,9 @@
 
 set -ex
 
-source_dir=${1}
+source_dir=${1}/go
 
-pushd ${source_dir}/go/arrow
+pushd ${source_dir}/arrow
 
 for d in $(go list ./... | grep -v vendor); do
     go test $d

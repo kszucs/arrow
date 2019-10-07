@@ -19,9 +19,9 @@
 
 set -ex
 
-source_dir=${1}
+source_dir=${1}/js
 
-pushd ${source_dir}/js
+pushd ${source_dir}
 
 npm run lint
 npm run test

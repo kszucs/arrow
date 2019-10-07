@@ -19,11 +19,14 @@
 
 set -ex
 
-source_dir=${1}
+arrow_dir=${1}
+source_dir=${1}/rust
+build_dir=${2:-${source_dir}/target}
 
-export ARROW_TEST_DATA=${source_dir}/testing/data
-export PARQUET_TEST_DATA=${source_dir}/cpp/submodules/parquet-testing/data
+export ARROW_TEST_DATA=${arrow_dir}/testing/data
+export PARQUET_TEST_DATA=${arrow_dir}/cpp/submodules/parquet-testing/data
+export CARGO_TARGET_DIR=${build_dir}
 
-pushd ${source_dir}/rust
+pushd ${source_dir}
 cargo test
 popd

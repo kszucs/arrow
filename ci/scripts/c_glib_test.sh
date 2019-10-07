@@ -19,12 +19,7 @@
 
 set -ex
 
-source_dir=${1}/go
+source_dir=${1}/c_glib
+build_dir=${2:-${source_dir}/build}
 
-pushd ${source_dir}/arrow
-
-for d in $(go list ./... | grep -v vendor); do
-    go test $d
-done
-
-popd
+ruby ${source_dir}/test/run-test.rb

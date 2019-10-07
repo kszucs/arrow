@@ -58,8 +58,8 @@ services:
       - conda-latest-cache:/build:delegated
     command: &cpp-command >
       /bin/bash -c "
-        /arrow/ci/scripts/cpp_build.sh /arrow /build /usr/local &&
-        /arrow/ci/scripts/cpp_test.sh  /arrow /build /usr/local"
+        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/cpp_test.sh  /arrow /build/cpp "
 
   cuda-cpp:
     # only amd64 is supported
@@ -132,9 +132,9 @@ services:
     volumes: *ubuntu-volumes
     command: &c-glib-command >
       /bin/bash -c "
-        /arrow/ci/scripts/cpp_build.sh /arrow /build &&
-        /arrow/ci/scripts/c_glib_build.sh /arrow &&
-        /arrow/ci/scripts/c_glib_test.sh /arrow"
+        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/c_glib_build.sh /arrow /build/c_glib &&
+        /arrow/ci/scripts/c_glib_test.sh /arrow /build/c_glib"
 
   ############################### Python ######################################
 
@@ -244,7 +244,7 @@ services:
     command: &rust-command >
       /bin/bash -c "
         /arrow/ci/scripts/rust_build.sh /arrow /build/rust &&
-        /arrow/ci/scripts/rust_test.sh /arrow"
+        /arrow/ci/scripts/rust_test.sh /arrow /build/rust"
 
   ################################# Go ########################################
 

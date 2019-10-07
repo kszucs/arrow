@@ -19,12 +19,23 @@
 
 set -ex
 
-source_dir=${1}/go
+source_dir=${1}/c_glib
+build_dir=${2:-${source_dir}/build}
 
-pushd ${source_dir}/arrow
+# export ARROW_C_GLIB_HOME=$CONDA_PREFIX
 
-for d in $(go list ./... | grep -v vendor); do
-    go test $d
-done
+export CFLAGS="-DARROW_NO_DEPRECATED_API"
+export CXXFLAGS="-DARROW_NO_DEPRECATED_API"
 
+mkdir -p ${build_dir}
+
+# Build with Meson
+meson --prefix=$ARROW_HOME \
+      --libdir=lib \
+      ${build_dir} \
+      ${source_dir}
+
+pushd ${build_dir}
+ninja
+ninja install
 popd

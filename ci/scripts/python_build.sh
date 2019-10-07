@@ -19,8 +19,7 @@
 
 set -ex
 
-source_dir=${1}
-install_dir=${3:-${ARROW_HOME}}
+source_dir=${1}/python
 
 # export ARROW_HOME=${CMAKE_INSTALL_PREFIX}
 export PYARROW_CMAKE_GENERATOR=${CMAKE_GENERATOR:-Ninja}
@@ -33,7 +32,7 @@ export PYARROW_WITH_PLASMA=${ARROW_PLASMA:-OFF}
 export PYARROW_WITH_GANDIVA=${ARROW_GANDIVA:-OFF}
 export PYARROW_WITH_PARQUET=${ARROW_PARQUET:-OFF}
 
-pushd ${source_dir}/python
+pushd ${source_dir}
 
 python setup.py develop
 

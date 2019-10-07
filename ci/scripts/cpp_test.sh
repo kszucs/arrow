@@ -19,12 +19,12 @@
 
 set -ex
 
-source_dir=${1}
-build_dir=${2}
-install_dir=${3:-${ARROW_HOME}}
+arrow_dir=${1}
+source_dir=${1}/cpp
+build_dir=${2:-${source_dir}/build}
 
-export ARROW_TEST_DATA=${source_dir}/testing/data
-export PARQUET_TEST_DATA=${source_dir}/cpp/submodules/parquet-testing/data
+export ARROW_TEST_DATA=${arrow_dir}/testing/data
+export PARQUET_TEST_DATA=${source_dir}/submodules/parquet-testing/data
 
 pushd ${build_dir}
 

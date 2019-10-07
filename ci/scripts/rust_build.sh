@@ -19,11 +19,12 @@
 
 set -ex
 
-source_dir=${1}
-build_dir=${2}
+source_dir=${1}/rust
+build_dir=${2:-${source_dir}/target}
 
+mkdir -p ${build_dir}
 export CARGO_TARGET_DIR=${build_dir}
 
-pushd ${source_dir}/rust
+pushd ${source_dir}
 cargo build
 popd
