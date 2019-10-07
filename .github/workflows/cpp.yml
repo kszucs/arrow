@@ -84,6 +84,7 @@ jobs:
     env:
       ARROW_JEMALLOC: OFF
       ARROW_ORC: OFF
+      ARROW_BUILD_TESTS: ON
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -120,6 +121,7 @@ jobs:
       ARROW_FLIGHT: OFF
       ARROW_MIMALLOC: OFF
       ARROW_WITH_LZ4: OFF
+      ARROW_BUILD_TESTS: ON
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
