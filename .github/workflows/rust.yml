@@ -45,8 +45,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-latest
-          - windows-latest
+          - macos-10.14
+          - windows-2019
         include:
           - os: macos-10.14
             name: MacOS 10.14
