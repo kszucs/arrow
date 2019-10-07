@@ -21,8 +21,7 @@ set -ex
 
 source_dir=${1}/python
 
-# install_dir=${2:-${ARROW_HOME}}
-# export LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX)/${CMAKE_INSTALL_LIBDIR}
+export LD_LIBRARY_PATH=${ARROW_HOME}:${LD_LIBRARY_PATH}
 
 pushd ${source_dir}
 
