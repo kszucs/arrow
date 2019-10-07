@@ -21,7 +21,7 @@ set -ex
 
 source_dir=${1}/python
 
-export LD_LIBRARY_PATH=${ARROW_HOME}:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=${ARROW_HOME}/lib:${LD_LIBRARY_PATH}
 
 pushd ${source_dir}
 
