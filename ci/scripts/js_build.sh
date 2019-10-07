@@ -23,6 +23,7 @@ source_dir=${1}
 
 pushd ${source_dir}/js
 
+npm install
 npm run build
 
 popd

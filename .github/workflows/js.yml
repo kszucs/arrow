@@ -68,7 +68,7 @@ jobs:
           submodules: true
       - name: Build
         shell: bash
-        run: ci/scripts/js_build.sh .
+        run: ci/scripts/js_build.sh $(pwd)
       - name: Test
         shell: bash
-        run: ci/scripts/js_test.sh .
+        run: ci/scripts/js_test.sh $(pwd)
