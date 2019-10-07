@@ -20,13 +20,12 @@
 set -ex
 
 source_dir=${1}
-install_dir=${3:-${ARROW_HOME}}
 
-#export LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX)/${CMAKE_INSTALL_LIBDIR}
+# install_dir=${2:-${ARROW_HOME}}
+# export LD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX)/${CMAKE_INSTALL_LIBDIR}
 
 pushd ${source_dir}/python
 
 pytest -sv pyarrow
 
-    env={'LD_LIBRARY_PATH': ld_library_path}
 popd
