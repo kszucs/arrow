@@ -1,0 +1,59 @@
+name: C GLib
+
+on:
+  push:
+    # paths:
+    #   - 'cpp/**'
+    #   - 'c_glib/**'
+  pull_request:
+    # paths:
+    #   - 'cpp/**'
+    #   - 'c_glib/**'
+
+env:
+  # ORG: docker.pkg.github.com/${{ github.repository }}
+  ORG: kszucs
+
+jobs:
+
+  docker:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - amd64-ubuntu-18.04-c-glib
+        include:
+          - name: AMD64 Ubuntu 18.04 C GLib
+            image: amd64-ubuntu-18.04-c-glib
+            ubuntu: 18.04
+            platform: ubuntu
+    env:
+      UBUNTU: ${{ matrix.ubuntu || 18.04 }}
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Docker Login
+        run: |
+          docker login \
+            -u ${{ github.actor }} \
+            -p ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Docker Pull
+        shell: bash
+        run: |
+          docker-compose pull --ignore-pull-failures ${{ matrix.platform }}-cpp
+          docker-compose pull --ignore-pull-failures ${{ matrix.platform }}-c-glib
+      - name: Docker Build
+        shell: bash
+        run: |
+          docker-compose build ${{ matrix.platform }}-cpp
+          docker-compose build ${{ matrix.platform }}-c-glib
+      - name: Docker Push
+        shell: bash
+        run: docker-compose push ${{ matrix.platform }}-c-glib
+      - name: Docker Run
+        shell: bash
+        run: docker-compose run ${{ matrix.platform }}-c-glib
