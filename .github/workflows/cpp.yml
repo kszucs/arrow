@@ -83,6 +83,7 @@ jobs:
       fail-fast: false
     env:
       ARROW_JEMALLOC: OFF
+      ARROW_ORC: OFF
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -117,6 +118,7 @@ jobs:
     env:
       CMAKE_GENERATOR: ${{ matrix.generator }}
       ARROW_FLIGHT: OFF
+      ARROW_MIMALLOC: OFF
       ARROW_WITH_LZ4: OFF
     steps:
       - name: Checkout Arrow
