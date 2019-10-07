@@ -116,6 +116,7 @@ jobs:
             generator: Visual Studio 15 2017
     env:
       CMAKE_GENERATOR: ${{ matrix.generator }}
+      ARROW_FLIGHT: OFF
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
