@@ -119,8 +119,6 @@ services:
 
   conda-python:
     image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}:latest
-    depends_on:
-      - conda-cpp
     build:
       context: ci
       dockerfile: docker/conda-latest-python.dockerfile
@@ -185,6 +183,24 @@ services:
       args:
         base: ${ORG}/${ARCH}-fedora-${FEDORA}-cpp:latest
     volumes: *fedora-volumes
+    command: *python-command
+
+  ############################# Python Pandas #################################
+
+  conda-python-pandas:
+    image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-pandas-${PANDAS}:latest
+    build:
+      context: ci
+      dockerfile: docker/conda-latest-python-pandas.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-pandas-${PANDAS}:latest
+      args:
+        org: ${ORG}
+        arch: ${ARCH}
+        conda: latest
+        python: ${PYTHON}
+        pandas: ${PANDAS}
+    volumes: *conda-volumes
     command: *python-command
 
   ################################## R ########################################

@@ -15,13 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-cython=0.29.7
-cloudpickle
-hypothesis
-numpy>=1.14
-pytest
-pytest-faulthandler
-pytest-lazy-fixture
-pytz
-setuptools
-setuptools_scm=3.2.0
+ARG org
+ARG arch=amd64
+ARG conda=latest
+ARG python=3.6
+FROM ${org}/${arch}-conda-${conda}-python-${python}:latest
+
+ARG pandas=0.25
+RUN conda install -q pandas=${pandas} && conda clean --all

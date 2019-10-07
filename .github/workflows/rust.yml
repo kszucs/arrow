@@ -38,8 +38,8 @@ jobs:
       - name: Docker Run
         run: docker-compose run debian-rust
 
-  macwin:
-    name: ${{ matrix.name }} Rust ${{ matrix.rust }})
+  macos-windows:
+    name: ${{ matrix.name }} Rust ${{ matrix.rust }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

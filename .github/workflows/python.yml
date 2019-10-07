@@ -89,3 +89,61 @@ jobs:
       - name: Docker Run
         shell: bash
         run: docker-compose run ${{ matrix.platform }}-python
+
+  docker-pandas:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - amd64-conda-latest-python-2.7-pandas-0.25
+          - amd64-conda-latest-python-3.6-pandas-0.25
+          - amd64-conda-latest-python-3.7-pandas-0.25
+        include:
+          - name: AMD64 Conda Python 2.7 Pandas 0.25
+            image: amd64-conda-latest-python-2.7-pandas-0.25
+            platform: conda
+            python: 2.7
+            pandas: 0.25
+          - name: AMD64 Conda Python 3.6 Pandas 0.25
+            image: amd64-conda-latest-python-3.6-pandas-0.25
+            platform: conda
+            python: 3.6
+            pandas: 0.25
+          - name: AMD64 Conda Python 3.7 Pandas 0.25
+            image: amd64-conda-latest-python-3.7-pandas-0.25
+            platform: conda
+            python: 3.7
+            pandas: 0.25
+    env:
+      PYTHON: ${{ matrix.python || 3.6 }}
+      PANDAS: ${{ matrix.pandas || 0.25 }}
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Docker Login
+        run: |
+          docker login \
+            -u ${{ github.actor }} \
+            -p ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Docker Pull
+        shell: bash
+        run: |
+          docker-compose pull --ignore-pull-failures ${{ matrix.platform }}-cpp
+          docker-compose pull --ignore-pull-failures ${{ matrix.platform }}-python
+          docker-compose pull --ignore-pull-failures ${{ matrix.platform }}-python-pandas
+      - name: Docker Build
+        shell: bash
+        run: |
+          docker-compose build ${{ matrix.platform }}-cpp
+          docker-compose build ${{ matrix.platform }}-python
+          docker-compose build ${{ matrix.platform }}-python-pandas
+      - name: Docker Push
+        shell: bash
+        run: docker-compose push ${{ matrix.platform }}-python-pandas
+      - name: Docker Run
+        shell: bash
+        run: docker-compose run ${{ matrix.platform }}-python-pandas
