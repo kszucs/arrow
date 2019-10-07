@@ -26,8 +26,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update -y -q && \
     apt-get install -y -q --no-install-recommends \
-      wget software-properties-common gpg-agent && \
-      apt-get clean && rm -rf /var/lib/apt/lists*
+        wget \
+        software-properties-common \
+        gpg-agent && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists*
 
 # Installs LLVM toolchain, for gandiva and testing other compilers
 #
@@ -40,48 +43,50 @@ ARG llvm_apt_arch="llvm-toolchain-bionic-${llvm_version}"
 RUN wget -q -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
     apt-add-repository -y --update "deb ${llvm_apt_url} ${llvm_apt_arch} main" && \
     apt-get install -y -q --no-install-recommends \
-      clang-${llvm_version} \
-      clang-format-${llvm_version} \
-      clang-tidy-${llvm_version} \
-      llvm-${llvm_version}-dev && \
-      apt-get clean && rm -rf /var/lib/apt/lists*
+        clang-${llvm_version} \
+        clang-format-${llvm_version} \
+        clang-tidy-${llvm_version} \
+        llvm-${llvm_version}-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists*
 
 # Installs C++ toolchain and dependencies
 RUN apt-get update -y -q && \
     apt-get install -y -q --no-install-recommends \
-      autoconf \
-      bison \
-      ca-certificates \
-      ccache \
-      cmake \
-      flex \
-      g++ \
-      gcc \
-      git \
-      libbenchmark-dev \
-      libboost-filesystem-dev \
-      libboost-regex-dev \
-      libboost-system-dev \
-      libbrotli-dev \
-      libbz2-dev \
-      libdouble-conversion-dev \
-      libgflags-dev \
-      libgoogle-glog-dev \
-      liblz4-dev \
-      liblzma-dev \
-      libprotobuf-dev \
-      libprotoc-dev \
-      libre2-dev \
-      libsnappy-dev \
-      libssl-dev \
-      libzstd-dev \
-      ninja-build \
-      pkg-config \
-      protobuf-compiler \
-      rapidjson-dev \
-      thrift-compiler \
-      tzdata && \
-      apt-get clean && rm -rf /var/lib/apt/lists*
+        autoconf \
+        bison \
+        ca-certificates \
+        ccache \
+        cmake \
+        flex \
+        g++ \
+        gcc \
+        git \
+        libbenchmark-dev \
+        libboost-filesystem-dev \
+        libboost-regex-dev \
+        libboost-system-dev \
+        libbrotli-dev \
+        libbz2-dev \
+        libdouble-conversion-dev \
+        libgflags-dev \
+        libgoogle-glog-dev \
+        liblz4-dev \
+        liblzma-dev \
+        libprotobuf-dev \
+        libprotoc-dev \
+        libre2-dev \
+        libsnappy-dev \
+        libssl-dev \
+        libzstd-dev \
+        ninja-build \
+        pkg-config \
+        protobuf-compiler \
+        rapidjson-dev \
+        thrift-compiler \
+        tzdata && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists*
 
 # The following dependencies will be downloaded due to missing/invalid packages
 # provided by the distribution:
@@ -108,7 +113,8 @@ ENV ARROW_DEPENDENCY_SOURCE=SYSTEM \
     ARROW_NO_DEPRECATED_API=ON \
     ARROW_INSTALL_NAME_RPATH=OFF \
     ARROW_WITH_BZ2=ON \
-    ARROW_WITH_ZSTD=ON
+    ARROW_WITH_ZSTD=ON \
+    ARROW_HOME=/usr/local
 
 ENV CC=clang-${llvm_version} \
     CXX=clang++-${llvm_version} \

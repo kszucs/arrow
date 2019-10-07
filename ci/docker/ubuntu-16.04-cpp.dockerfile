@@ -52,7 +52,7 @@ RUN apt-get update -y -q && \
         ninja-build \
         pkg-config \
         protobuf-compiler \
-        python \
+        python3 \
         tzdata && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -83,5 +83,5 @@ ENV CC=gcc \
     ARROW_GANDIVA=ON \
     ARROW_GANDIVA_JAVA=OFF \
     ARROW_PARQUET=ON \
-    ARROW_HOME=/usr \
+    ARROW_HOME=/usr/local \
     ARROW_WITH_ZSTD=OFF

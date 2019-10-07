@@ -21,7 +21,6 @@ set -ex
 
 source_dir=${1}
 build_dir=${2}
-install_dir=${3:-${ARROW_HOME}}
 
 # export CCACHE_COMPRESS=1
 # export CCACHE_COMPRESSLEVEL=5
@@ -34,8 +33,8 @@ mkdir -p ${build_dir}
 pushd ${build_dir}
 
 cmake -G "${CMAKE_GENERATOR:-Ninja}" \
-      -DCMAKE_INSTALL_PREFIX=${install_dir} \
-      -DCMAKE_INSTALL_LIBDIR=lib \
+      -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX:-${ARROW_HOME}} \
+      -DCMAKE_INSTALL_LIBDIR=${CMAKE_INSTALL_LIBDIR:-lib} \
       -DCMAKE_BUILD_TYPE=${ARROW_BUILD_TYPE:-debug} \
       -DCMAKE_CXX_FLAGS=${CXXFLAGS:-} \
       -DARROW_DEPENDENCY_SOURCE=${ARROW_DEPENDENCY_SOURCE:-AUTO} \

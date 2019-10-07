@@ -105,17 +105,6 @@ services:
       dockerfile: c_glib/Dockerfile
     volumes: *ubuntu-volumes
 
-  cpp:
-    # Usage:
-    #   docker-compose build cpp
-    #   docker-compose run cpp
-    image: arrow:cpp
-    shm_size: 2G
-    build:
-      context: .
-      dockerfile: cpp/Dockerfile
-    volumes: *ubuntu-volumes
-
   cpp-system-deps:
     # Usage:
     #   docker-compose build cpp-system-deps

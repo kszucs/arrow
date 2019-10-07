@@ -21,18 +21,22 @@ FROM ${base}
 RUN apt-get update -y -q && \
     apt-get install -y -q \
         python3 \
-        python3-pip && \
+        python3-pip \
+        gtk-doc-tools \
+        libgirepository1.0-dev \
+        libglib2.0-doc \
+        pkg-config \
+        ruby-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN ln -s /usr/bin/python3 /usr/local/bin/python && \
-    ln -s /usr/bin/pip3 /usr/local/bin/pip
+RUN pip3 install meson && \
+    gem install bundler
 
-COPY requirements.txt \
-     requirements-test.txt \
-     /arrow/ci/
-
-RUN pip install \
-    -r arrow/ci/requirements.txt \
-    -r arrow/ci/requirements-test.txt \
-    cython setuptools
+# ARROW_BUILD_TESTS=OFF \
+# ARROW_BUILD_UTILITIES=OFF \
+# ARROW_INSTALL_NAME_RPATH=OFF \
+# LD_LIBRARY_PATH="${CONDA_PREFIX}/lib" \
+# PKG_CONFIG=/usr/bin/pkg-config \
+# PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig" \
+# GI_TYPELIB_PATH="${CONDA_PREFIX}/lib/girepository-1.0"

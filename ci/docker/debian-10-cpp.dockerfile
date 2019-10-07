@@ -75,4 +75,5 @@ ENV CC=gcc \
     ARROW_GANDIVA=ON \
     ARROW_GANDIVA_JAVA=ON \
     ARROW_HOME=/usr \
-    JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+    JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 \
+    CMAKE_INSTALL_PREFIX=/usr/local
