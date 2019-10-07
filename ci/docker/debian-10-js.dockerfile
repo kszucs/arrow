@@ -18,5 +18,3 @@
 ARG arch=amd64
 ARG node=11
 FROM ${arch}/node:${node}
-
-RUN npm install -g npm@latest
