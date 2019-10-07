@@ -15,11 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
+ARG arch=amd64
 ARG go=1.12
-FROM golang:${go}
-
-COPY ci/Gopkg.lock \
-     ci/Gopkg.toml \
-     /arrow/ci/
-
-RUN cd /arrow/ci && go get -d -t -v ./...
+FROM ${arch}/golang:${go}

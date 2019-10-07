@@ -215,6 +215,7 @@ services:
       cache_from:
         - ${ORG}/${ARCH}-debian-10-rust-${RUST}:latest
       args:
+        arch: ${ARCH}
         rust: ${RUST}
     volumes: *debian-volumes
     command: &rust-command >
@@ -232,6 +233,7 @@ services:
       cache_from:
         - ${ORG}/${ARCH}-debian-10-go-${GO}:latest
       args:
+        arch: ${ARCH}
         go: ${GO}
     volumes: *debian-volumes
     command: &go-command >
