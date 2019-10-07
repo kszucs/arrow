@@ -82,8 +82,9 @@ jobs:
     strategy:
       fail-fast: false
     env:
-      ARROW_JEMALLOC: OFF
+      ARROW_HOME: /usr/local
       ARROW_ORC: OFF
+      ARROW_JEMALLOC: OFF
       ARROW_BUILD_TESTS: ON
     steps:
       - name: Checkout Arrow
@@ -95,10 +96,10 @@ jobs:
         run: brew bundle --file=cpp/Brewfile
       - name: Build
         shell: bash
-        run: ci/scripts/cpp_build.sh $(pwd) $(pwd)/cpp/build /usr/local
+        run: ci/scripts/cpp_build.sh $(pwd) $(pwd)/cpp/build
       - name: Test
         shell: bash
-        run: ci/scripts/cpp_test.sh $(pwd) $(pwd)/cpp/build /usr/local
+        run: ci/scripts/cpp_test.sh $(pwd) $(pwd)/cpp/build
 
   windows:
     name: AMD64 ${{ matrix.name }} C++
@@ -132,7 +133,7 @@ jobs:
         run: choco install openssl bzip2 zstandard thrift boost-msvc-14.1
       - name: Build
         shell: bash
-        run: ci/scripts/cpp_build.sh $(pwd) $(pwd)/cpp/build /usr/local
+        run: ci/scripts/cpp_build.sh $(pwd) $(pwd)/cpp/build
       - name: Test
         shell: bash
-        run: ci/scripts/cpp_test.sh $(pwd) $(pwd)/cpp/build /usr/local
+        run: ci/scripts/cpp_test.sh $(pwd) $(pwd)/cpp/build
