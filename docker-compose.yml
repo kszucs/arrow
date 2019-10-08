@@ -53,13 +53,14 @@ services:
         arch: ${ARCH}
         conda: latest
         prefix: /opt/conda
+    shm_size: &shm-size 2G
     volumes: &conda-volumes
       - .:/arrow:delegated
       - conda-latest-cache:/build:delegated
     command: &cpp-command >
       /bin/bash -c "
         /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
-        /arrow/ci/scripts/cpp_test.sh  /arrow /build/cpp "
+        /arrow/ci/scripts/cpp_test.sh  /arrow /build/cpp"
 
   cuda-cpp:
     # only amd64 is supported
@@ -69,6 +70,7 @@ services:
       dockerfile: docker/cuda-${CUDA}-cpp.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-cuda-${CUDA}-cpp:latest
+    shm_size: *shm-size
     volumes: &cuda-volumes
       - .:/arrow:delegated
       - cuda-${CUDA}-cache:/build:delegated
@@ -83,6 +85,7 @@ services:
         - ${ORG}/${ARCH}-debian-${DEBIAN}-cpp:latest
       args:
         arch: ${ARCH}
+    shm_size: *shm-size
     volumes: &debian-volumes
       - .:/arrow:delegated
       - debian-${DEBIAN}-cache:/build:delegated
@@ -99,6 +102,7 @@ services:
         - ${ORG}/${ARCH}-ubuntu-${UBUNTU}-cpp:latest
       args:
         arch: ${ARCH}
+    shm_size: *shm-size
     volumes: &ubuntu-volumes
       - .:/arrow:delegated
       - ubuntu-${UBUNTU}-cache:/build:delegated
@@ -113,6 +117,7 @@ services:
         - ${ORG}/${ARCH}-fedora-${FEDORA}-cpp:latest
       args:
         arch: ${ARCH}
+    shm_size: *shm-size
     volumes: &fedora-volumes
       - .:/arrow:delegated
       - fedora-${FEDORA}-cache:/build:delegated
@@ -129,6 +134,7 @@ services:
         - ${ORG}/${ARCH}-ubuntu-${UBUNTU}-c-glib:latest
       args:
         base: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-cpp:latest
+    shm_size: *shm-size
     volumes: *ubuntu-volumes
     command: &c-glib-command >
       /bin/bash -c "
@@ -151,10 +157,11 @@ services:
         conda: latest
         python: ${PYTHON}
         prefix: /opt/conda
+    shm_size: *shm-size
     volumes: *conda-volumes
     command: &python-command >
       /bin/bash -c "
-        /arrow/ci/scripts/cpp_build.sh /arrow /build &&
+        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
         /arrow/ci/scripts/python_test.sh /arrow"
 
@@ -167,6 +174,7 @@ services:
         - ${ORG}/${ARCH}-cuda-${CUDA}-python-3:latest
       args:
         base: ${ORG}/${ARCH}-cuda-${CUDA}-cpp:latest
+    shm_size: *shm-size
     volumes: *cuda-volumes
     command: *python-command
 
@@ -179,6 +187,7 @@ services:
         - ${ORG}/${ARCH}-debian-${DEBIAN}-python-3:latest
       args:
         base: ${ORG}/${ARCH}-debian-${DEBIAN}-cpp:latest
+    shm_size: *shm-size
     volumes: *debian-volumes
     command: *python-command
 
@@ -191,6 +200,7 @@ services:
         - ${ORG}/${ARCH}-ubuntu-${UBUNTU}-python-3:latest
       args:
         base: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-cpp:latest
+    shm_size: *shm-size
     volumes: *ubuntu-volumes
     command: *python-command
 
@@ -203,6 +213,7 @@ services:
         - ${ORG}/${ARCH}-fedora-${FEDORA}-python-3:latest
       args:
         base: ${ORG}/${ARCH}-fedora-${FEDORA}-cpp:latest
+    shm_size: *shm-size
     volumes: *fedora-volumes
     command: *python-command
 
@@ -221,6 +232,7 @@ services:
         conda: latest
         python: ${PYTHON}
         pandas: ${PANDAS}
+    shm_size: *shm-size
     volumes: *conda-volumes
     command: *python-command
 
@@ -240,6 +252,7 @@ services:
       args:
         arch: ${ARCH}
         rust: ${RUST}
+    shm_size: *shm-size
     volumes: *debian-volumes
     command: &rust-command >
       /bin/bash -c "
@@ -258,6 +271,7 @@ services:
       args:
         arch: ${ARCH}
         go: ${GO}
+    shm_size: *shm-size
     volumes: *debian-volumes
     command: &go-command >
       /bin/bash -c "
@@ -276,6 +290,7 @@ services:
       args:
         arch: ${ARCH}
         node: ${NODE}
+    shm_size: *shm-size
     volumes: *debian-volumes
     command: &js-command >
       /bin/bash -c "
