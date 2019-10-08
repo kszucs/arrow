@@ -115,15 +115,14 @@ jobs:
             generator: Visual Studio 16 2019
           - os: windows-2016
             name: Windows 2016
-            generator: Ninja
+            generator: Visual Studio 15 2017
     env:
       CMAKE_GENERATOR: ${{ matrix.generator }}
       ARROW_WITH_LZ4: OFF
       ARROW_WITH_ZLIB: OFF
-      # ARROW_CXXFLAGS: /MP
       ARROW_BUILD_TESTS: OFF
-      ARROW_VERBOSE_THIRDPARTY_BUILD: ON
       ARROW_USE_GLOG: OFF
+      ARROW_VERBOSE_THIRDPARTY_BUILD: ON
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -141,9 +140,6 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=install ^
             -S cpp ^
             -B cpp\build
-      # - name: Install
-      #   run: |
-      #     cmake --build cpp\build --config Debug --target Install
       # - name: Install Dependencies
       #   shell: bash
       #   run: choco install openssl bzip2 zstandard thrift boost-msvc-14.1
