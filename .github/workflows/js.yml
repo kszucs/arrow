@@ -1,15 +1,12 @@
 name: NodeJS
 
-# docker passes locally fails on actions
-# macos passes
-# windows fails
 on:
   push:
-    # paths:
-    #   - 'js/**'
+  #   paths:
+  #     - 'js/**'
   pull_request:
-    # paths:
-    #   - 'js/**'
+  #   paths:
+  #     - 'js/**'
 
 env:
   # ORG: docker.pkg.github.com/${{ github.repository }}
@@ -70,7 +67,8 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: Cleaning
-        shell: |
+        shell: bash
+        run: |
           npm cache clean --force
           rm -rf js/node_modules
           rm js/package-lock.json

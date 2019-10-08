@@ -1,12 +1,12 @@
 name: Go
 
 on:
-  push:
-    # paths:
-    #   - 'go/**'
-  pull_request:
-    # paths:
-    #   - 'go/**'
+  # push:
+  #   paths:
+  #     - 'go/**'
+  # pull_request:
+  #   paths:
+  #     - 'go/**'
 
 env:
   # ORG: docker.pkg.github.com/${{ github.repository }}
