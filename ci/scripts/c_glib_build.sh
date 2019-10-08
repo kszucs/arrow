@@ -22,8 +22,6 @@ set -ex
 source_dir=${1}/c_glib
 build_dir=${2:-${source_dir}/build}
 
-# export ARROW_C_GLIB_HOME=$CONDA_PREFIX
-
 export CFLAGS="-DARROW_NO_DEPRECATED_API"
 export CXXFLAGS="-DARROW_NO_DEPRECATED_API"
 
