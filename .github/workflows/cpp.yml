@@ -115,7 +115,7 @@ jobs:
             generator: Visual Studio 16 2019
           - os: windows-2016
             name: Windows 2016
-            generator: Visual Studio 15 2017
+            generator: Ninja
     env:
       CMAKE_GENERATOR: ${{ matrix.generator }}
       ARROW_MIMALLOC: OFF
@@ -130,7 +130,7 @@ jobs:
           submodules: true
       - name: CMake
         run: |
-          mkdir build\cpp
+          mkdir cpp\build
           cmake ^
             -G "${{ matrix.cmake-generator }}" ^
             -A x64 ^
@@ -139,10 +139,10 @@ jobs:
             -DARROW_WITH_ZLIB=OFF ^
             -DCMAKE_INSTALL_PREFIX=install ^
             -S cpp ^
-            -B build\cpp
+            -B cpp\build
       - name: Install
         run: |
-          cmake --build build\cpp --config Debug --target Install
+          cmake --build cpp\build --config Debug --target Install
       - name: Install Dependencies
         shell: bash
         run: choco install openssl bzip2 zstandard thrift boost-msvc-14.1
