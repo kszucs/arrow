@@ -38,4 +38,6 @@ RUN pip install \
     -r arrow/ci/requirements-test.txt \
     cython setuptools
 
-ENV ARROW_PYTHON=ON
+ENV ARROW_PYTHON=ON \
+    ARROW_BUILD_TESTS=OFF
+
