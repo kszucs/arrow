@@ -132,7 +132,7 @@ jobs:
         run: |
           mkdir cpp\build
           cmake ^
-            -G "${{ matrix.cmake-generator }}" ^
+            -G "${{ matrix.generator }}" ^
             -A x64 ^
             -DARROW_USE_GLOG=OFF ^
             -DARROW_WITH_LZ4=OFF ^
