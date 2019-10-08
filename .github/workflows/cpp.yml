@@ -118,11 +118,12 @@ jobs:
             generator: Ninja
     env:
       CMAKE_GENERATOR: ${{ matrix.generator }}
-      ARROW_MIMALLOC: OFF
       ARROW_WITH_LZ4: OFF
-      ARROW_CXXFLAGS: /MP
+      ARROW_WITH_ZLIB: OFF
+      # ARROW_CXXFLAGS: /MP
       ARROW_BUILD_TESTS: OFF
       ARROW_VERBOSE_THIRDPARTY_BUILD: ON
+      ARROW_USE_GLOG: OFF
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -143,9 +144,9 @@ jobs:
       - name: Install
         run: |
           cmake --build cpp\build --config Debug --target Install
-      - name: Install Dependencies
-        shell: bash
-        run: choco install openssl bzip2 zstandard thrift boost-msvc-14.1
+      # - name: Install Dependencies
+      #   shell: bash
+      #   run: choco install openssl bzip2 zstandard thrift boost-msvc-14.1
       - name: Build
         shell: bash
         run: ci/scripts/cpp_build.sh $(pwd) $(pwd)/cpp/build

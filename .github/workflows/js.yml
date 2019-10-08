@@ -69,6 +69,11 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node }}
+      - name: Cleaning
+        shell: |
+          npm cache clean --force
+          rm -rf js/node_modules
+          rm js/package-lock.json
       - name: Build
         shell: bash
         run: ci/scripts/js_build.sh $(pwd)
