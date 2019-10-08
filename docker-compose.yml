@@ -296,3 +296,23 @@ services:
       /bin/bash -c "
         /arrow/ci/scripts/js_build.sh /arrow &&
         /arrow/ci/scripts/js_test.sh /arrow"
+
+  ################################ Java #######################################
+
+  debian-java:
+    image: ${ORG}/${ARCH}-debian-10-java-${JDK}-maven-${MAVEN}:latest
+    build:
+      context: ci
+      dockerfile: docker/debian-10-java.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-debian-10-java-${JDK}-maven-${MAVEN}:latest
+      args:
+        arch: ${ARCH}
+        jdk: ${JDK}
+        maven: ${MAVEN}
+    shm_size: *shm-size
+    volumes: *debian-volumes
+    command: &java-command >
+      /bin/bash -c "
+        /arrow/ci/scripts/java_build.sh /arrow &&
+        /arrow/ci/scripts/java_test.sh /arrow"
