@@ -1,10 +1,10 @@
 name: NodeJS
 
 on:
-  # push:
+  push:
   #   paths:
   #     - 'js/**'
-  # pull_request:
+  pull_request:
   #   paths:
   #     - 'js/**'
 
