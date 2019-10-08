@@ -1,10 +1,10 @@
 name: NodeJS
 
 on:
-  push:
+  # push:
   #   paths:
   #     - 'js/**'
-  pull_request:
+  # pull_request:
   #   paths:
   #     - 'js/**'
 
@@ -49,14 +49,14 @@ jobs:
       matrix:
         os:
           - macos-10.14
-          - windows-2019
+          # - windows-2019
         include:
           - os: macos-10.14
             name: MacOS 10.14
             node: 11
-          - os: windows-2019
-            name: Windows 2019
-            node: 11
+          # - os: windows-2019
+          #   name: Windows 2019
+          #   node: 11
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -66,12 +66,6 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node }}
-      - name: Cleaning
-        shell: bash
-        run: |
-          npm cache clean --force
-          rm -rf js/node_modules
-          rm js/package-lock.json
       - name: Build
         shell: bash
         run: ci/scripts/js_build.sh $(pwd)

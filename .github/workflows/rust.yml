@@ -1,12 +1,12 @@
 name: Rust
 
 on:
-#   push:
-#     paths:
-#       - 'rust/**'
-#   pull_request:
-#     paths:
-#       - 'rust/**'
+  # push:
+  #   paths:
+  #     - 'rust/**'
+  # pull_request:
+  #   paths:
+  #     - 'rust/**'
 
 env:
   # ORG: docker.pkg.github.com/${{ github.repository }}
