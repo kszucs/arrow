@@ -20,7 +20,8 @@ FROM ${base}
 
 RUN dnf install -y \
         python3 \
-        python3-pip
+        python3-pip \
+        python3-devel
 
 RUN ln -s /usr/bin/python3 /usr/local/bin/python && \
     ln -s /usr/bin/pip3 /usr/local/bin/pip
