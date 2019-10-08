@@ -118,6 +118,7 @@ jobs:
             generator: Visual Studio 15 2017
     env:
       CMAKE_GENERATOR: ${{ matrix.generator }}
+      CMAKE_ARGS: '-A x64'
       ARROW_WITH_LZ4: OFF
       ARROW_WITH_ZLIB: OFF
       ARROW_BUILD_TESTS: OFF
