@@ -121,7 +121,7 @@ jobs:
       ARROW_MIMALLOC: OFF
       ARROW_WITH_LZ4: OFF
       ARROW_CXXFLAGS: /MP
-      ARROW_BUILD_TESTS: ON
+      ARROW_BUILD_TESTS: OFF
       ARROW_VERBOSE_THIRDPARTY_BUILD: ON
     steps:
       - name: Checkout Arrow
@@ -134,6 +134,6 @@ jobs:
       - name: Build
         shell: bash
         run: ci/scripts/cpp_build.sh $(pwd) $(pwd)/cpp/build
-      - name: Test
-        shell: bash
-        run: ci/scripts/cpp_test.sh $(pwd) $(pwd)/cpp/build
+      # - name: Test
+      #   shell: bash
+      #   run: ci/scripts/cpp_test.sh $(pwd) $(pwd)/cpp/build
