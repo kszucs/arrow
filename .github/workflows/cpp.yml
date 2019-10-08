@@ -141,9 +141,9 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=install ^
             -S cpp ^
             -B cpp\build
-      - name: Install
-        run: |
-          cmake --build cpp\build --config Debug --target Install
+      # - name: Install
+      #   run: |
+      #     cmake --build cpp\build --config Debug --target Install
       # - name: Install Dependencies
       #   shell: bash
       #   run: choco install openssl bzip2 zstandard thrift boost-msvc-14.1
