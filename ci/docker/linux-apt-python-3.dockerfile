@@ -36,3 +36,5 @@ RUN pip install \
     -r arrow/ci/requirements.txt \
     -r arrow/ci/requirements-test.txt \
     cython setuptools
+
+ENV ARROW_PYTHON=ON

@@ -14,7 +14,7 @@ env:
 
 jobs:
   docker:
-    name: Debian Go ${{ matrix.go }}
+    name: AMD64 Debian Go ${{ matrix.go }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -42,7 +42,7 @@ jobs:
         run: docker-compose run debian-go
 
   macos-windows:
-    name: ${{ matrix.name }} Go ${{ matrix.go }}
+    name: AMD64 ${{ matrix.name }} Go ${{ matrix.go }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
