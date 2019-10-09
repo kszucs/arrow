@@ -34,6 +34,7 @@ volumes:
   ubuntu-16.04-cache:
   ubuntu-14.04-cache:
   fedora-29-cache:
+  maven-cache:
 
 services:
 
