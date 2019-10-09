@@ -264,7 +264,7 @@ services:
         pandas: ${PANDAS}
     shm_size: *shm-size
     volumes: *conda-volumes
-    command: *python-command
+    command: *python-conda-command
 
   ########################## Python Wheels ####################################
 
