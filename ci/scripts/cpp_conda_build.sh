@@ -19,8 +19,10 @@
 
 set -ex
 
-export CMAKE_AR=${AR}
-export CMAKE_RANLIB=${RUNLIB}
-export ARROW_GANDIVA_PC_CXX_FLAGS=$(echo | ${CXX} -E -Wp,-v -xc++ - 2>&1 | grep '^ ' | awk '{print "-isystem;" substr($1, 1)}' | tr '\n' ';')
+export SYSTEM_INCLUDES=$(echo | ${CXX} -E -Wp,-v -xc++ - 2>&1 | grep '^ ' | awk '{print "-isystem;" substr($1, 1)}' | tr '\n' ';')
+export CMAKE_ARGS="${CMAKE_ARGS} \
+-DCMAKE_AR=${AR} \
+-DCMAKE_RANLIB=${RANLIB} \
+-DARROW_GANDIVA_PC_CXX_FLAGS=${SYSTEM_INCLUDES}"
 
 $(dirname $0)/cpp_build.sh "$@"
