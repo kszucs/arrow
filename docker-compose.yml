@@ -153,11 +153,7 @@ services:
         base: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-cpp:latest
     shm_size: *shm-size
     volumes: *ubuntu-volumes
-    command: &c-glib-command >
-      /bin/bash -c "
-        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
-        /arrow/ci/scripts/c_glib_build.sh /arrow /build/c_glib &&
-        /arrow/ci/scripts/c_glib_test.sh /arrow /build/c_glib"
+    command: *c-glib-command
 
   ############################### Python ######################################
 
