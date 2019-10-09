@@ -125,6 +125,23 @@ services:
 
   ############################### C GLib ######################################
 
+  debian-c-glib:
+    image: ${ORG}/${ARCH}-debian-${DEBIAN}-c-glib:latest
+    build:
+      context: ci
+      dockerfile: docker/linux-apt-c-glib.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-debian-${DEBIAN}-c-glib:latest
+      args:
+        base: ${ORG}/${ARCH}-debian-${DEBIAN}-cpp:latest
+    shm_size: *shm-size
+    volumes: *debian-volumes
+    command: &c-glib-command >
+      /bin/bash -c "
+        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/c_glib_build.sh /arrow /build/c_glib &&
+        /arrow/ci/scripts/c_glib_test.sh /arrow /build/c_glib"
+
   ubuntu-c-glib:
     image: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-c-glib:latest
     build:
