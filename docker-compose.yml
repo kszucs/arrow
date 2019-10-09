@@ -430,7 +430,7 @@ services:
 
   ################################# Lint ######################################
 
-  linter:
+  lint:
     image: ${ORG}/${ARCH}-debian-${DEBIAN}-lint:latest
     build:
       context: ci
