@@ -87,7 +87,7 @@ services:
       - cuda-${CUDA}-cache:/build:delegated
     command: &cpp-command >
       /bin/bash -c "
-        /arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/cpp_test.sh /arrow /build/cpp"
 
   debian-cpp:
