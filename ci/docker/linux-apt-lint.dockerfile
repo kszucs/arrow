@@ -15,35 +15,29 @@
 # specific language governing permissions and limitations
 # under the License.
 
+ARG base
 FROM hadolint/hadolint:v1.17.2 AS hadolint
-
-FROM ubuntu:18.04
-
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+FROM ${base}
 
 RUN apt-get update && \
-      apt-get install -y -q \
-      build-essential \
-      clang-7 \
-      clang-format-7 \
-      clang-tidy-7 \
-      clang-tools-7 \
-      cmake \
-      curl \
-      git \
-      libclang-7-dev \
-      ninja-build \
-      openjdk-11-jdk-headless \
-      python3 \
-      python3-dev \
-      python3-pip \
-      ruby \
+    apt-get install -y -q \
+        clang-7 \
+        clang-format-7 \
+        clang-tidy-7 \
+        clang-tools-7 \
+        cmake \
+        curl \
+        libclang-7-dev \
+        openjdk-11-jdk-headless \
+        python3 \
+        python3-dev \
+        python3-pip \
+        ruby \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Use python3 by default in scripts
-RUN ln -s /usr/bin/python3 /usr/local/bin/python
-RUN pip3 install flake8 cmake_format==0.5.2
+# Docker linter
+COPY --from=hadolint /bin/hadolint /usr/bin/hadolint
 
 # Rust linter
 RUN curl https://sh.rustup.rs -sSf | \
@@ -51,7 +45,10 @@ RUN curl https://sh.rustup.rs -sSf | \
 ENV PATH /root/.cargo/bin:$PATH
 RUN rustup component add rustfmt
 
-# Docker linter
-COPY --from=hadolint /bin/hadolint /usr/bin/hadolint
+# Use python3 by default in scripts
+RUN ln -s /usr/bin/python3 /usr/local/bin/python && \
+    ln -s /usr/bin/pip3 /usr/local/bin/pip
+RUN pip install flake8 cmake_format==0.5.2 click
 
-CMD ["/arrow/ci/docker/lint.sh"]
+ENV LC_ALL=C.UTF-8 \
+    LANG=C.UTF-8

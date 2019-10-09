@@ -421,10 +421,26 @@ services:
         arch: ${ARCH}
         conda: latest
         python: ${PYTHON}
-    shm_size: *shm-size
     volumes: *conda-volumes
     command: &docs-command >
       /bin/bash -c "
         /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
         /arrow/ci/scripts/docs_build.sh /arrow"
+
+  ################################# Lint ######################################
+
+  linter:
+    image: ${ORG}/${ARCH}-debian-${DEBIAN}-lint:latest
+    build:
+      context: ci
+      dockerfile: docker/linux-apt-lint.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-debian-${DEBIAN}-lint:latest
+      args:
+        base: ${ORG}/${ARCH}-debian-${DEBIAN}-cpp:latest
+    volumes: *debian-volumes
+    command: >
+      /bin/bash -c "
+        pip install -e /arrow/dev/archery &&
+        archery lint"
