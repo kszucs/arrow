@@ -18,6 +18,11 @@
 ARG arch=amd64
 FROM ${arch}/ubuntu:18.04
 
+ARG arch=amd64
+ARG conda=latest
+ARG minio=latest
+ARG prefix=/opt/conda
+
 # install build essentials
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update -y -q && \
@@ -34,17 +39,15 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# install conda
-# TODO(kszucs): change the env files' extention to .txt
 # arch is unset after the FROM statement, so need to define it again
-ARG arch=amd64
-ARG conda=latest
-ARG prefix=/opt/conda
 ENV PATH=${prefix}/bin:$PATH \
     CONDA_PREFIX=${prefix}
-COPY scripts/install_conda.sh /arrow/ci/scripts/
-RUN /arrow/ci/scripts/install_conda.sh \
-    ${arch} linux ${conda} ${prefix}
+# install conda and minio
+COPY scripts/install_conda.sh \
+     scripts/install_minio.sh \
+     /arrow/ci/scripts/
+RUN /arrow/ci/scripts/install_conda.sh ${arch} linux ${minio} ${prefix} && \
+    /arrow/ci/scripts/install_minio.sh ${arch} linux ${conda} ${prefix}
 
 # install the required conda packages
 COPY conda_env_cpp.yml \
@@ -59,6 +62,7 @@ RUN conda install -q \
 
 ENV CC=gcc \
     CXX=g++ \
+    ARROW_S3=ON \
     ARROW_GANDIVA=ON \
     ARROW_BUILD_TESTS=ON \
     ARROW_DEPENDENCY_SOURCE=CONDA \

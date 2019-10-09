@@ -57,9 +57,10 @@ jobs:
           - os: macos-10.14
             name: MacOS 10.14
             jdk: 11
-          - os: windows-2019
-            name: Windows 2019
-            jdk: 11
+          # missing flatc package
+          # - os: windows-2019
+          #   name: Windows 2019
+          #   jdk: 11
     env:
       ARROW_JAVA_RUN_TESTS: 1
     steps:
