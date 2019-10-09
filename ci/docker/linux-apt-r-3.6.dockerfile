@@ -49,11 +49,6 @@ RUN apt-get update -y && \
 RUN echo "options(Ncpus = parallel::detectCores(), repos = 'https://demo.rstudiopm.com/all/__linux__/bionic/latest')" >> /etc/R/Rprofile.site && \
     echo "MAKEFLAGS=-j8" >> /usr/lib/R/etc/Makeconf
 
-# Install R package dependencies
-RUN R -e "install.packages(c('remotes', 'dplyr', 'glue'))" && \
-    R -e "remotes::install_deps(dependencies = TRUE)" && \
-    R -e "remotes::install_github('romainfrancois/decor')"
-
 ENV ARROW_BUILD_TESTS=OFF \
     # So that arrowExports.* files are generated
     ARROW_R_DEV=TRUE
