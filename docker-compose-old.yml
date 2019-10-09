@@ -73,17 +73,6 @@ services:
       PARQUET_TEST_DATA: /arrow/cpp/submodules/parquet-testing/data
     volumes: *debian-testing-volumes
 
-  r:
-    # Usage:
-    #   docker-compose build cpp
-    #   docker-compose build r
-    #   docker-compose run r
-    image: arrow:r
-    build:
-      context: .
-      dockerfile: r/Dockerfile
-    volumes: *ubuntu-volumes
-
   r-sanitizer:
     # Usage:
     #   docker-compose build r-sanitizer
@@ -159,18 +148,6 @@ services:
     #   docker-compose run clang-tidy
     image: arrow:lint
     command: arrow/dev/lint/run_clang_tidy.sh
-    volumes: *ubuntu-volumes
-
-  docs:
-    # Usage:
-    #   docker-compose build cpp
-    #   docker-compose build python
-    #   docker-compose build docs
-    #   docker-compose run docs
-    image: arrow:docs
-    build:
-      context: .
-      dockerfile: docs/Dockerfile
     volumes: *ubuntu-volumes
 
   ######################### Package Builder ###################################

@@ -16,34 +16,11 @@
 # under the License.
 
 ARG org
-ARG arch
-ARG conda
-FROM ${org}/${arch}-conda-${conda}-cpp:latest
+ARG arch=amd64
+ARG conda=latest
+ARG python=3.6
+FROM ${org}/${arch}-conda-${conda}-python-${python}:latest
 
-# install R specific packages
-ARG r=3.6.1
-COPY conda_env_r.yml /arrow/ci/
-RUN conda install -q \
-        --file arrow/ci/conda_env_r.yml \
-        r-base=$r \
-        nomkl && \
+COPY conda_env_docs.yml /arrow/ci/
+RUN conda install -q --file arrow/ci/conda_env_docs.yml && \
     conda clean --all
-
-# Ensure parallel compilation of each individual package
-RUN printf "\nMAKEFLAGS=-j8\n" >> /opt/conda/lib/R/etc/Makeconf
-
-ENV MAKEFLAGS=-j8 \
-    R_CONDA=1
-
-# Arrow build flags
-ENV ARROW_FLIGHT=OFF \
-    ARROW_GANDIVA=OFF \
-    ARROW_HDFS=OFF \
-    ARROW_ORC=OFF \
-    ARROW_PARQUET=ON \
-    ARROW_PLASMA=OFF \
-    ARROW_USE_ASAN=OFF \
-    ARROW_USE_UBSAN=OFF \
-    ARROW_NO_DEPRECATED_API=ON \
-    ARROW_R_DEV=TRUE \
-    ARROW_BUILD_TESTS=ON

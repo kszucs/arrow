@@ -372,3 +372,25 @@ services:
       /bin/bash -c "
         /arrow/ci/scripts/java_build.sh /arrow &&
         /arrow/ci/scripts/java_test.sh /arrow"
+
+  ################################ Docs #######################################
+
+  conda-docs:
+    image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-docs:latest
+    build:
+      context: ci
+      dockerfile: docker/conda-latest-python-docs.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-docs:latest
+      args:
+        org: ${ORG}
+        arch: ${ARCH}
+        conda: latest
+        python: ${PYTHON}
+    shm_size: *shm-size
+    volumes: *conda-volumes
+    command: &docs-command >
+      /bin/bash -c "
+        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/python_build.sh /arrow &&
+        /arrow/ci/scripts/docs_build.sh /arrow"

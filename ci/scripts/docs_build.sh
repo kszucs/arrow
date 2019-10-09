@@ -18,12 +18,12 @@
 
 set -ex
 
-pushd /arrow/cpp/apidoc
+arrow_dir=${1}
+source_dir=${1}/docs
+build_dir=${2:-${source_dir}/_build}
+
+pushd ${arrow_dir}/cpp/apidoc
 doxygen
 popd
 
-sphinx-build -b html /arrow/docs/source /arrow/docs/_build/html
-
-git clone -b asf-site https://github.com/apache/arrow-site /arrow/site
-mkdir -p /arrow/site/docs/latest
-rsync -r /arrow/docs/_build/html/ /arrow/site/docs/latest/
+sphinx-build -b html ${source_dir}/source ${build_dir}/html
