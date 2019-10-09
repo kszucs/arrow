@@ -34,14 +34,14 @@ jobs:
       matrix:
         image:
           - amd64-debian-10-java-8-maven-3.5.2
-          - amd64-debian-10-java-11-maven-3.5.2
+          - amd64-debian-10-java-11-maven-3.6.2
         include:
           - image: amd64-debian-10-java-8-maven-3.5.2
             jdk: 8
             maven: 3.5.2
-          - image: amd64-debian-10-java-11-maven-3.5.2
+          - image: amd64-debian-10-java-11-maven-3.6.2
             jdk: 11
-            maven: 3.5.2
+            maven: 3.6.2
     env:
       JDK: ${{ matrix.jdk }}
       MAVEN: ${{ matrix.maven }}

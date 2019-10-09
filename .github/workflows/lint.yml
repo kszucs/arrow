@@ -15,13 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+name: Lint
+
 on:
   push:
   pull_request:
 
 jobs:
   docker:
-    name: Lint
+    name: C++, Python, R, Rust, Docker, RAT
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Arrow
