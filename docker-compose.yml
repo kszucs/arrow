@@ -259,6 +259,40 @@ services:
     volumes: *conda-volumes
     command: *python-command
 
+  ########################## Python Wheels ####################################
+
+  centos-python-manylinux1:
+    image: ${ORG}/amd64-centos-python-manylinux1:latest
+    build:
+      context: python/manylinux1
+      dockerfile: Dockerfile-x86_64_base
+      cache_from:
+        - ${ORG}/amd64-centos-python-manylinux1:latest
+    shm_size: *shm-size
+    environment:
+      PYARROW_PARALLEL: 3
+      PYTHON_VERSION: ${PYTHON_VERSION:-3.6}
+      UNICODE_WIDTH: ${UNICODE_WIDTH:-16}
+    volumes: &manylinux-volumes
+      - .:/arrow:delegated
+      - ./python/manylinux1:/io:delegated
+    command: &manylinux-command /io/build_arrow.sh
+
+  centos-python-manylinux2010:
+    image: ${ORG}/amd64-centos-python-manylinux2010:latest
+    build:
+      context: python/manylinux2010
+      dockerfile: Dockerfile-x86_64_base
+      cache_from:
+        - ${ORG}/amd64-centos-python-manylinux2010:latest
+    shm_size: *shm-size
+    environment:
+      PYARROW_PARALLEL: 3
+      PYTHON_VERSION: ${PYTHON_VERSION:-3.6}
+      UNICODE_WIDTH: ${UNICODE_WIDTH:-16}
+    volumes: *manylinux-volumes
+    command: *manylinux-command
+
   ################################## R ########################################
 
   conda-r:
