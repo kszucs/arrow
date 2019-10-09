@@ -20,18 +20,14 @@ set -ex
 
 source_dir=${1}/r
 
-
-# Tell R where it can find the source code for arrow
-# ENV PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:/build/cpp/src/arrow:/opt/conda/lib/pkgconfig
-# ENV LD_LIBRARY_PATH=/opt/conda/lib/:/build/cpp/src/arrow:/arrow/r/src
-
 # ARROW-6171: Because lz4 is installed in the base Ubuntu image, there's an
 # issue of which library is loaded at runtime. R by default will override
 # LD_LIBRARY_PATH at runtime by concatenating (in that order)
 # R_LD_LIBRARY_PATH, R_JAVA_LD_LIBRARY_PATH and LD_LIBRARY_PATH. If
 # R_LD_LIBRARY_PATH is not set, it'll default to a list of directories which
 # contains /usr/lib/x86_64-linux-gnu.
-# ENV R_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=${ARROW_HOME}/lib:${LD_LIBRARY_PATH}
+export R_LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 
 export _R_CHECK_FORCE_SUGGESTS_=false
 
