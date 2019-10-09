@@ -68,10 +68,10 @@ services:
     volumes: &conda-volumes
       - .:/arrow:delegated
       - conda-latest-cache:/build:delegated
-    entrypoint: /bin/bash -c -l
+    entrypoint: &conda-entrypoint /bin/bash -c -l
     command: &cpp-conda-command
-      ["/arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
-        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp"]
+      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/cpp_test.sh /arrow /build/cpp"]
 
   cuda-cpp:
     # only amd64 is supported
@@ -185,7 +185,7 @@ services:
         python: ${PYTHON}
     shm_size: *shm-size
     volumes: *conda-volumes
-    entrypoint: /bin/bash -c -l
+    entrypoint: *conda-entrypoint
     command: &python-conda-command
       ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
@@ -204,7 +204,7 @@ services:
     volumes: *cuda-volumes
     command: &python-command >
       /bin/bash -c "
-        /arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
         /arrow/ci/scripts/python_test.sh /arrow"
 
@@ -264,6 +264,7 @@ services:
         pandas: ${PANDAS}
     shm_size: *shm-size
     volumes: *conda-volumes
+    entrypoint: *conda-entrypoint
     command: *python-conda-command
 
   ########################## Python Wheels ####################################
@@ -316,7 +317,7 @@ services:
         r: ${R}
     shm_size: *shm-size
     volumes: *conda-volumes
-    entrypoint: /bin/bash -c -l
+    entrypoint: *conda-entrypoint
     command:
       ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/r_build.sh /arrow &&
