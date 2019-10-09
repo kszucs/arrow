@@ -52,7 +52,7 @@ jobs:
       matrix:
         os:
           - macos-10.14
-          - windows-2019
+          # - windows-2019
         include:
           - os: macos-10.14
             name: MacOS 10.14
