@@ -10,10 +10,6 @@ on:
     #   - 'cpp/**'
     #   - 'c_glib/**'
 
-env:
-  # ORG: docker.pkg.github.com/${{ github.repository }}
-  ORG: kszucs
-
 jobs:
 
   docker:
