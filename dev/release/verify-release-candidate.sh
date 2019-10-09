@@ -126,6 +126,8 @@ test_binary() {
   popd
 }
 
+# TODO(kszucs): use docker directly instead of docker-compose and pass arrow
+# directory mount with -v flag
 test_apt() {
   for target in debian-stretch \
                 debian-buster \

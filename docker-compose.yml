@@ -35,12 +35,22 @@ volumes:
   ubuntu-14.04-cache:
   fedora-29-cache:
 
-# TODO(kszucs): set shared memory size
-# shm_size: 2G
-
 services:
 
   ################################# C++ #######################################
+  # Release build:
+  #   docker-compose build -e ARROW_BUILD_TYPE=release conda-cpp|debian-cpp|...
+  # Shared only:
+  #   docker-compose build -e ARROW_BUILD_STATIC=OFF conda-cpp|debian-cpp|...
+  # Static only:
+  #   docker-compose build \
+  #     -e ARROW_BUILD_SHARED=OFF \
+  #     -e ARROW_TEST_LINKAGE=static \
+  #     conda-cpp|debian-cpp|...
+  # Minimum boost - Ubuntu Xenial 16.04 has Boost 1.58:
+  #   UBUNTU=16.04 docker-compose build \
+  #     -e ARROW_BOOST_SOURCE=SYSTEM \
+  #     ubuntu-cpp
 
   conda-cpp:
     image: ${ORG}/${ARCH}-conda-latest-cpp:latest
@@ -169,7 +179,6 @@ services:
         arch: ${ARCH}
         conda: latest
         python: ${PYTHON}
-        prefix: /opt/conda
     shm_size: *shm-size
     volumes: *conda-volumes
     command: &python-command >
@@ -251,7 +260,38 @@ services:
 
   ################################## R ########################################
 
+  conda-r:
+    image: ${ORG}/${ARCH}-conda-latest-r-${R}:latest
+    build:
+      context: ci
+      dockerfile: docker/conda-latest-r.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-conda-latest-r-${R}:latest
+      args:
+        org: ${ORG}
+        arch: ${ARCH}
+        conda: latest
+        r: ${R}
+    shm_size: *shm-size
+    volumes: *conda-volumes
+    command: &r-command >
+      /bin/bash -c "
+        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/r_build.sh /arrow &&
+        /arrow/ci/scripts/r_build.sh /arrow"
 
+  ubuntu-r:
+    image: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-r-3.6:latest
+    build:
+      context: ci
+      dockerfile: docker/linux-apt-r-3.6.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-ubuntu-${UBUNTU}-r-3.6:latest
+      args:
+        base: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-cpp:latest
+    shm_size: *shm-size
+    volumes: *ubuntu-volumes
+    command: *r-command
 
   ################################ Rust #######################################
 
@@ -324,7 +364,9 @@ services:
         jdk: ${JDK}
         maven: ${MAVEN}
     shm_size: *shm-size
-    volumes: *debian-volumes
+    volumes: &java-volumes
+      - .:/arrow:delegated
+      - maven-cache:/root/.m2:delegated
     command: &java-command >
       /bin/bash -c "
         /arrow/ci/scripts/java_build.sh /arrow &&

@@ -1,0 +1,62 @@
+name: R
+
+on:
+  push:
+    # paths:
+    #   - 'cpp/**'
+    #   - 'r/**'
+  pull_request:
+    # paths:
+    #   - 'cpp/**'
+    #   - 'r/**'
+
+jobs:
+
+  docker:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - amd64-conda-latest-r-3.6
+          - amd64-ubuntu-18.04-r-3.6
+        include:
+          - name: AMD64 Conda R 3.6
+            image: amd64-conda-latest-r-3.6
+            platform: conda
+            r: 3.6
+          - name: AMD64 Ubuntu 18.04 R 3.6
+            image: amd64-ubuntu-18.04-r-3.6
+            platform: ubuntu
+            ubuntu: 18.04
+            r: 3.6
+    env:
+      R: ${{ matrix.r || 3.6 }}
+      UBUNTU: ${{ matrix.ubuntu || 18.04 }}
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Docker Pull
+        shell: bash
+        run: |
+          docker-compose pull --ignore-pull-failures ${{ matrix.platform }}-cpp
+          docker-compose pull --ignore-pull-failures ${{ matrix.platform }}-r
+      - name: Docker Build
+        shell: bash
+        run: |
+          docker-compose build ${{ matrix.platform }}-cpp
+          docker-compose build ${{ matrix.platform }}-r
+      - name: Docker Run
+        shell: bash
+        run: docker-compose run ${{ matrix.platform }}-r
+      - name: Docker Push
+        if: github.event_name == 'push' # && github.ref == 'master'
+        shell: bash
+        run: |
+          docker login \
+            -u ${{ secrets.DOCKERHUB_USER }} \
+            -p ${{ secrets.DOCKERHUB_TOKEN }}
+          docker-compose push ${{ matrix.platform }}-r

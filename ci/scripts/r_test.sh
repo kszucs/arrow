@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,22 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -e
+set -ex
 
-export ARROW_C_GLIB_HOME=$CONDA_PREFIX
+source_dir=${1}/r
 
-export CFLAGS="-DARROW_NO_DEPRECATED_API"
-export CXXFLAGS="-DARROW_NO_DEPRECATED_API"
+pushd ${source_dir}
 
-mkdir -p /build/c_glib
+R CMD check $(ls | grep arrow_*.tar.gz) --as-cran --no-manual
 
-# Build with Meson
-meson --prefix=$ARROW_C_GLIB_HOME \
-      --libdir=lib \
-      /build/c_glib \
-      /arrow/c_glib
-
-pushd /build/c_glib
-  ninja
-  ninja install
 popd

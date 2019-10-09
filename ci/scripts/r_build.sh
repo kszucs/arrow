@@ -16,36 +16,29 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -e
+set -ex
 
-export MAVEN_OPTS="-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
+source_dir=${1}/r
 
-# /arrow/java is read-only
-mkdir -p /build/java
 
-arrow_src=/build/java/arrow
+# Tell R where it can find the source code for arrow
+# ENV PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:/build/cpp/src/arrow:/opt/conda/lib/pkgconfig
+# ENV LD_LIBRARY_PATH=/opt/conda/lib/:/build/cpp/src/arrow:/arrow/r/src
 
-# Remove any pre-existing artifacts
-rm -rf $arrow_src
+# ARROW-6171: Because lz4 is installed in the base Ubuntu image, there's an
+# issue of which library is loaded at runtime. R by default will override
+# LD_LIBRARY_PATH at runtime by concatenating (in that order)
+# R_LD_LIBRARY_PATH, R_JAVA_LD_LIBRARY_PATH and LD_LIBRARY_PATH. If
+# R_LD_LIBRARY_PATH is not set, it'll default to a list of directories which
+# contains /usr/lib/x86_64-linux-gnu.
+# ENV R_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
 
-pushd /arrow
-rsync -a header java format integration testing $arrow_src
-popd
+export _R_CHECK_FORCE_SUGGESTS_=false
 
-JAVA_ARGS=
-if [ "$ARROW_JAVA_RUN_TESTS" != "1" ]; then
-  JAVA_ARGS=-DskipTests
-fi
+pushd ${source_dir}
 
-if [ "$ARROW_JAVA_SHADE_FLATBUFS" == "1" ]; then
-  SHADE_FLATBUFFERS=-Pshade-flatbuffers
-fi
+make clean
+R CMD build --keep-empty-dirs .
+R CMD INSTALL $(ls | grep arrow_*.tar.gz)
 
-pushd $arrow_src/java
-mvn -B $JAVA_ARGS -Drat.skip=true install $SHADE_FLATBUFFERS
-
-if [ "$ARROW_JAVADOC" == "1" ]; then
-  export MAVEN_OPTS="$MAVEN_OPTS -Dorg.slf4j.simpleLogger.defaultLogLevel=warn"
-  mvn -B site
-fi
 popd

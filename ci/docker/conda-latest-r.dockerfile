@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,42 +15,35 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -e
+ARG org
+ARG arch
+ARG conda
+FROM ${org}/${arch}-conda-${conda}-cpp:latest
 
-cd /arrow/rust
+# install R specific packages
+ARG r=3.6.1
+COPY ci/conda_env_r.yml /arrow/ci/
+RUN conda install -q \
+        --file arrow/ci/conda_env_r.yml \
+        r-base=$r \
+        nomkl && \
+    conda clean --all
 
-# show activated toolchain
-rustup show
+# Ensure parallel compilation of each individual package
+RUN printf "\nMAKEFLAGS=-j8\n" >> /opt/conda/lib/R/etc/Makeconf
 
-# clean first
-cargo clean
+ENV MAKEFLAGS=-j8 \
+    R_CONDA=1
 
-# raises on any formatting errors
-echo "Running formatting checks ..."
-cargo +stable fmt --all -- --check
-echo "Formatting checks completed"
-
-# build entire project
-RUSTFLAGS="-D warnings" cargo build --all-targets
-
-# run tests
-cargo test
-
-# make sure we can build Arrow sub-crate without default features
-pushd arrow
-cargo build --no-default-features
-popd
-
-# run Arrow examples
-pushd arrow
-cargo run --example builders
-cargo run --example dynamic_types
-cargo run --example read_csv
-cargo run --example read_csv_infer_schema
-popd
-
-# run DataFusion examples
-pushd datafusion
-cargo run --example csv_sql
-cargo run --example parquet_sql
-popd
+# Arrow build flags
+ENV ARROW_FLIGHT=OFF \
+    ARROW_GANDIVA=OFF \
+    ARROW_HDFS=OFF \
+    ARROW_ORC=OFF \
+    ARROW_PARQUET=ON \
+    ARROW_PLASMA=OFF \
+    ARROW_USE_ASAN=OFF \
+    ARROW_USE_UBSAN=OFF \
+    ARROW_NO_DEPRECATED_API=ON \
+    ARROW_R_DEV=TRUE \
+    ARROW_BUILD_TESTS=ON
