@@ -83,9 +83,7 @@ jobs:
         shell: bash
         run: docker-compose run ${{ matrix.platform }}-python
       - name: Docker Push
-        if: github.event_name == 'push' &&
-            secrets.DOCKERHUB_USER &&
-            secrets.DOCKERHUB_TOKEN
+        if: github.event_name == 'push' # && github.ref == 'master'
         shell: bash
         run:
           docker login \
