@@ -26,16 +26,7 @@ ARG prefix=/opt/conda
 # install build essentials
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update -y -q && \
-    apt-get install -y -q --no-install-recommends \
-        ca-certificates \
-        ccache \
-        g++ \
-        gcc \
-        git \
-        ninja-build \
-        pkg-config \
-        tzdata \
-        wget \
+    apt-get install -y -q wget \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -53,16 +44,17 @@ RUN /arrow/ci/scripts/install_conda.sh ${arch} linux ${minio} ${prefix} && \
 COPY conda_env_cpp.yml \
      conda_env_gandiva.yml \
      conda_env_unix.yml \
+     conda_env_linux.yml \
      /arrow/ci/
 RUN conda install -q \
+        --file arrow/ci/conda_env_unix.yml \
+        --file arrow/ci/conda_env_linux.yml \
         --file arrow/ci/conda_env_cpp.yml \
         --file arrow/ci/conda_env_gandiva.yml \
-        --file arrow/ci/conda_env_unix.yml && \
+        git && \
     conda clean --all
 
-ENV CC=gcc \
-    CXX=g++ \
-    ARROW_S3=ON \
+ENV ARROW_S3=ON \
     ARROW_GANDIVA=ON \
     ARROW_WITH_ZLIB=ON \
     ARROW_WITH_LZ4=ON \

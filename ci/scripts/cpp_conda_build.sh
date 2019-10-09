@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,17 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-ORG=arrowdev
-ARCH=amd64
-CUDA=10.0
-DEBIAN=10
-UBUNTU=18.04
-FEDORA=29
-PYTHON=3.6
-RUST=nightly-2019-09-25
-PANDAS=0.25
-GO=1.12
-NODE=11
-MAVEN=3.5.2
-JDK=8
-R=3.6.1
+set -ex
+
+export CMAKE_AR=${AR}
+export CMAKE_RANLIB=${RUNLIB}
+export ARROW_GANDIVA_PC_CXX_FLAGS=$(echo | ${CXX} -E -Wp,-v -xc++ - 2>&1 | grep '^ ' | awk '{print "-isystem;" substr($1, 1)}' | tr '\n' ';')
+
+$(dirname $0)/cpp_build.sh "$@"

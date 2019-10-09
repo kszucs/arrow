@@ -68,10 +68,10 @@ services:
     volumes: &conda-volumes
       - .:/arrow:delegated
       - conda-latest-cache:/build:delegated
-    command: &cpp-command >
-      /bin/bash -c "
+    command: &cpp-conda-command
+      /bin/bash -c -l "
         /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
-        /arrow/ci/scripts/cpp_test.sh  /arrow /build/cpp"
+        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp"
 
   cuda-cpp:
     # only amd64 is supported
@@ -85,7 +85,10 @@ services:
     volumes: &cuda-volumes
       - .:/arrow:delegated
       - cuda-${CUDA}-cache:/build:delegated
-    command: *cpp-command
+    command: &cpp-command >
+      /bin/bash -c "
+        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/cpp_test.sh /arrow /build/cpp"
 
   debian-cpp:
     image: ${ORG}/${ARCH}-debian-${DEBIAN}-cpp:latest
@@ -183,8 +186,8 @@ services:
     shm_size: *shm-size
     volumes: *conda-volumes
     command: &python-command >
-      /bin/bash -c "
-        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
+      /bin/bash -c -l "
+        /arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
         /arrow/ci/scripts/python_test.sh /arrow"
 
@@ -310,8 +313,8 @@ services:
     shm_size: *shm-size
     volumes: *conda-volumes
     command: &r-command >
-      /bin/bash -c "
-        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
+      /bin/bash -c -l "
+        /arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/r_build.sh /arrow &&
         /arrow/ci/scripts/r_build.sh /arrow"
 
