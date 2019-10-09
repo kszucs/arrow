@@ -19,7 +19,7 @@ jobs:
         image:
           - amd64-conda-latest-cpp
           - amd64-debian-10-cpp
-          # - amd64-ubuntu-16.04-cpp
+          - amd64-ubuntu-16.04-cpp
           - amd64-ubuntu-18.04-cpp
           - amd64-fedora-29-cpp
         include:
@@ -31,10 +31,10 @@ jobs:
             service: debian-cpp
             platform: debian
             debian: 10
-          # - name: AMD64 Ubuntu 16.04 C++
-          #   image: amd64-ubuntu-16.04-cpp
-          #   platform: ubuntu
-          #   ubuntu: 16.04
+          - name: AMD64 Ubuntu 16.04 C++
+            image: amd64-ubuntu-16.04-cpp
+            platform: ubuntu
+            ubuntu: 16.04
           - name: AMD64 Ubuntu 18.04 C++
             image: amd64-ubuntu-18.04-cpp
             platform: ubuntu

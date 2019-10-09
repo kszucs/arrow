@@ -119,7 +119,3 @@ ENV ARROW_BUILD_TESTS=ON \
     ARROW_WITH_SNAPPY=ON \
     ARROW_WITH_BROTLI=ON \
     ARROW_DEPENDENCY_SOURCE=SYSTEM
-
-ENV CC=clang-${llvm_version} \
-    CXX=clang++-${llvm_version} \
-    LLVM_VERSION=${llvm_version}
