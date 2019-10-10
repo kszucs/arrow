@@ -33,7 +33,7 @@ RUN apt-get update -y && \
     apt-get install -y \
         r-base \
         # system libs needed by core R packages
-        libzml2-dev \
+        libxml2-dev \
         libgit2-dev \
         libssl-dev \
         # install clang to mirror what was done on Travis
