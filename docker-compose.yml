@@ -56,7 +56,7 @@ services:
   conda-cpp:
     image: ${ORG}/${ARCH}-conda-latest-cpp:latest
     build:
-      context: ..
+      context: .
       dockerfile: ci/docker/conda-latest-cpp.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-conda-latest-cpp:latest
