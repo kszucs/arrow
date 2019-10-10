@@ -26,7 +26,7 @@ ARG prefix=/opt/conda
 # install build essentials
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update -y -q && \
-    apt-get install -y -q wget \
+    apt-get install -y -q wget tzdata \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
