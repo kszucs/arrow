@@ -22,3 +22,8 @@ FROM ${arch}/maven:${maven}-jdk-${jdk}
 
 ENV ARROW_JAVA_RUN_TESTS=1 \
     ARROW_JAVA_SHADE_FLATBUFS=0
+
+# TODO(kszucs):
+# 1. add the files required to install the dependencies to .dockeignore
+# 2. copy these files to their appropiate path
+# 3. download and compile the dependencies

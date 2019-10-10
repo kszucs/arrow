@@ -15,24 +15,35 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM arrowdev/arrow-python-3.6:latest
+ARG org
+ARG arch=amd64
+ARG conda=latest
+ARG python=3.6
+FROM ${org}/${arch}-conda-${conda}-python-${python}:latest
 
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update -y -q && \
     apt-get install -y -q --no-install-recommends \
         odbc-postgresql \
         postgresql \
-        sudo \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+        sudo && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # install turbodbc dependencies from conda-forge
-RUN conda install -c conda-forge pybind11 pytest pytest-cov mock unixodbc && \
+RUN conda install -c conda-forge \
+        pybind11 \
+        mock \
+        unixodbc && \
     conda clean --all
 
-ENV TURBODBC_TEST_CONFIGURATION_FILES "query_fixtures_postgresql.json"
+ARG turbodbc=latest
+RUN if [ "${turbodbc}" = "master" ]; then \
+        pip install https://github.com/blue-yonder/turbodbc/archive/master.zip \
+    elif [ "${turbodbc}" = "latest" ]; then \
+        conda install -q turbodbc && conda clean --all \
+    else \
+        conda install -q turbodbc=${turbodbc} && conda clean --all \
+    fi
 
-# build and test
-CMD ["/bin/bash", "-c", "arrow/ci/docker_build_cpp.sh && \
-    arrow/ci/docker_build_python.sh && \
-    arrow/integration/turbodbc/runtest.sh"]
+ENV TURBODBC_TEST_CONFIGURATION_FILES "query_fixtures_postgresql.json"

@@ -22,7 +22,7 @@ FROM ${org}/${arch}-conda-${conda}-cpp:latest
 
 # install R specific packages
 ARG r=3.6.1
-COPY conda_env_r.yml /arrow/ci/
+COPY ci/conda_env_r.yml /arrow/ci/
 RUN conda install -q \
         --file arrow/ci/conda_env_r.yml \
         r-base=$r \

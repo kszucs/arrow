@@ -26,13 +26,13 @@ RUN dnf install -y \
 RUN ln -s /usr/bin/python3 /usr/local/bin/python && \
     ln -s /usr/bin/pip3 /usr/local/bin/pip
 
-COPY requirements.txt \
-     requirements-test.txt \
+COPY python/requirements.txt \
+     python/requirements-test.txt \
      /arrow/ci/
 
 RUN pip install \
-    -r arrow/ci/requirements.txt \
-    -r arrow/ci/requirements-test.txt \
+    -r arrow/python/requirements.txt \
+    -r arrow/python/requirements-test.txt \
     cython
 
 ENV ARROW_PYTHON=ON \

@@ -21,5 +21,11 @@ ARG conda=latest
 ARG python=3.6
 FROM ${org}/${arch}-conda-${conda}-python-${python}:latest
 
-ARG pandas=0.25
-RUN conda install -q pandas=${pandas} && conda clean --all
+ARG pandas=latest
+RUN if [ "${pandas}" = "master" ]; then \
+        pip install https://github.com/pandas-dev/pandas/archive/master.zip \
+    elif [ "${pandas}" = "latest" ]; then \
+        conda install -q pandas && conda clean --all \
+    else \
+        conda install -q pandas=${pandas} && conda clean --all \
+    fi

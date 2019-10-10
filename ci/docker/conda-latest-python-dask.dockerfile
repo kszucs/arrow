@@ -15,10 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM arrowdev/arrow-python-3.6:latest
+ARG org
+ARG arch=amd64
+ARG conda=latest
+ARG python=3.6
+FROM ${org}/${arch}-conda-${conda}-python-${python}:latest
 
-COPY ci/conda_env_sphinx.yml /arrow/ci/
-RUN conda install --file arrow/ci/conda_env_sphinx.yml && \
-    conda clean --all
-
-CMD ["/bin/bash", "-c", "arrow/ci/docker_build_cpp.sh && arrow/ci/docker_build_python.sh && arrow/ci/docker_build_sphinx.sh"]
+ARG dask=latest
+RUN if [ "${dask}" = "master" ]; then \
+        pip install https://github.com/dask/dask/archive/master.zip \
+    elif [ "${dask}" = "latest" ]; then \
+        conda install -q dask && conda clean --all \
+    else \
+        conda install -q dask=${dask} && conda clean --all \
+    fi

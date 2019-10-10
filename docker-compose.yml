@@ -56,8 +56,8 @@ services:
   conda-cpp:
     image: ${ORG}/${ARCH}-conda-latest-cpp:latest
     build:
-      context: ci
-      dockerfile: docker/conda-latest-cpp.dockerfile
+      context: ..
+      dockerfile: ci/docker/conda-latest-cpp.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-conda-latest-cpp:latest
       args:
@@ -77,8 +77,8 @@ services:
     # only amd64 is supported
     image: ${ORG}/${ARCH}-cuda-${CUDA}-cpp:latest
     build:
-      context: ci
-      dockerfile: docker/cuda-${CUDA}-cpp.dockerfile
+      context: .
+      dockerfile: ci/docker/cuda-${CUDA}-cpp.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-cuda-${CUDA}-cpp:latest
     shm_size: *shm-size
@@ -93,8 +93,8 @@ services:
   debian-cpp:
     image: ${ORG}/${ARCH}-debian-${DEBIAN}-cpp:latest
     build:
-      context: ci
-      dockerfile: docker/debian-${DEBIAN}-cpp.dockerfile
+      context: .
+      dockerfile: ci/docker/debian-${DEBIAN}-cpp.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-debian-${DEBIAN}-cpp:latest
       args:
@@ -110,8 +110,8 @@ services:
     # Possible distros: 18.04, 16.04, 14.04
     image: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-cpp:latest
     build:
-      context: ci
-      dockerfile: docker/ubuntu-${UBUNTU}-cpp.dockerfile
+      context: .
+      dockerfile: ci/docker/ubuntu-${UBUNTU}-cpp.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-ubuntu-${UBUNTU}-cpp:latest
       args:
@@ -125,8 +125,8 @@ services:
   fedora-cpp:
     image: ${ORG}/${ARCH}-fedora-${FEDORA}-cpp:latest
     build:
-      context: ci
-      dockerfile: docker/fedora-${FEDORA}-cpp.dockerfile
+      context: .
+      dockerfile: ci/docker/fedora-${FEDORA}-cpp.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-fedora-${FEDORA}-cpp:latest
       args:
@@ -142,8 +142,8 @@ services:
   debian-c-glib:
     image: ${ORG}/${ARCH}-debian-${DEBIAN}-c-glib:latest
     build:
-      context: ci
-      dockerfile: docker/linux-apt-c-glib.dockerfile
+      context: .
+      dockerfile: ci/docker/linux-apt-c-glib.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-debian-${DEBIAN}-c-glib:latest
       args:
@@ -159,8 +159,8 @@ services:
   ubuntu-c-glib:
     image: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-c-glib:latest
     build:
-      context: ci
-      dockerfile: docker/linux-apt-c-glib.dockerfile
+      context: .
+      dockerfile: ci/docker/linux-apt-c-glib.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-ubuntu-${UBUNTU}-c-glib:latest
       args:
@@ -174,8 +174,8 @@ services:
   conda-python:
     image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}:latest
     build:
-      context: ci
-      dockerfile: docker/conda-latest-python.dockerfile
+      context: .
+      dockerfile: ci/docker/conda-latest-python.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-conda-latest-python-${PYTHON}:latest
       args:
@@ -194,8 +194,8 @@ services:
   cuda-python:
     image: ${ORG}/${ARCH}-cuda-${CUDA}-python-3:latest
     build:
-      context: ci
-      dockerfile: docker/linux-apt-python-3.dockerfile
+      context: .
+      dockerfile: ci/docker/linux-apt-python-3.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-cuda-${CUDA}-python-3:latest
       args:
@@ -211,8 +211,8 @@ services:
   debian-python:
     image: ${ORG}/${ARCH}-debian-${DEBIAN}-python-3:latest
     build:
-      context: ci
-      dockerfile: docker/linux-apt-python-3.dockerfile
+      context: .
+      dockerfile: ci/docker/linux-apt-python-3.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-debian-${DEBIAN}-python-3:latest
       args:
@@ -224,8 +224,8 @@ services:
   ubuntu-python:
     image: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-python-3:latest
     build:
-      context: ci
-      dockerfile: docker/linux-apt-python-3.dockerfile
+      context: .
+      dockerfile: ci/docker/linux-apt-python-3.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-ubuntu-${UBUNTU}-python-3:latest
       args:
@@ -237,8 +237,8 @@ services:
   fedora-python:
     image: ${ORG}/${ARCH}-fedora-${FEDORA}-python-3:latest
     build:
-      context: ci
-      dockerfile: docker/linux-dnf-python-3.dockerfile
+      context: .
+      dockerfile: ci/docker/linux-dnf-python-3.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-fedora-${FEDORA}-python-3:latest
       args:
@@ -247,13 +247,13 @@ services:
     volumes: *fedora-volumes
     command: *python-command
 
-  ############################# Python Pandas #################################
+  ########################### Python Downstream ###############################
 
   conda-python-pandas:
     image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-pandas-${PANDAS}:latest
     build:
-      context: ci
-      dockerfile: docker/conda-latest-python-pandas.dockerfile
+      context: .
+      dockerfile: ci/docker/conda-latest-python-pandas.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-pandas-${PANDAS}:latest
       args:
@@ -266,6 +266,48 @@ services:
     volumes: *conda-volumes
     entrypoint: *conda-entrypoint
     command: *python-conda-command
+
+  conda-python-dask:
+    image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-dask-${DASK}:latest
+    build:
+      context: .
+      dockerfile: ci/docker/conda-latest-python-dask.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-dask-${DASK}:latest
+      args:
+        org: ${ORG}
+        arch: ${ARCH}
+        conda: latest
+        python: ${PYTHON}
+        dask: ${DASK}
+    shm_size: *shm-size
+    volumes: *conda-volumes
+    entrypoint: *conda-entrypoint
+    command:
+      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/python_build.sh /arrow &&
+        /arrow/ci/scripts/dask_test.sh /arrow"]
+
+  conda-python-turbodbc:
+    image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-turbodbc-${TURBODBC}:latest
+    build:
+      context: .
+      dockerfile: ci/docker/conda-latest-python-dask.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-turbodbc-${TURBODBC}:latest
+      args:
+        org: ${ORG}
+        arch: ${ARCH}
+        conda: latest
+        python: ${PYTHON}
+        turbodbc: ${TURBODBC}
+    shm_size: *shm-size
+    volumes: *conda-volumes
+    entrypoint: *conda-entrypoint
+    command:
+      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/python_build.sh /arrow &&
+        /arrow/ci/scripts/turbodbc_test.sh /arrow"]
 
   ########################## Python Wheels ####################################
 
@@ -306,8 +348,8 @@ services:
   conda-r:
     image: ${ORG}/${ARCH}-conda-latest-r-${R}:latest
     build:
-      context: ci
-      dockerfile: docker/conda-latest-r.dockerfile
+      context: .
+      dockerfile: ci/docker/conda-latest-r.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-conda-latest-r-${R}:latest
       args:
@@ -326,8 +368,8 @@ services:
   ubuntu-r:
     image: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-r-3.6:latest
     build:
-      context: ci
-      dockerfile: docker/linux-apt-r-3.6.dockerfile
+      context: .
+      dockerfile: ci/docker/linux-apt-r-3.6.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-ubuntu-${UBUNTU}-r-3.6:latest
       args:
@@ -346,8 +388,8 @@ services:
   debian-rust:
     image: ${ORG}/${ARCH}-debian-10-rust-${RUST}:latest
     build:
-      context: ci
-      dockerfile: docker/debian-10-rust.dockerfile
+      context: .
+      dockerfile: ci/docker/debian-10-rust.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-debian-10-rust-${RUST}:latest
       args:
@@ -365,8 +407,8 @@ services:
   debian-go:
     image: ${ORG}/${ARCH}-debian-10-go-${GO}:latest
     build:
-      context: ci
-      dockerfile: docker/debian-10-go.dockerfile
+      context: .
+      dockerfile: ci/docker/debian-10-go.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-debian-10-go-${GO}:latest
       args:
@@ -384,8 +426,8 @@ services:
   debian-js:
     image: ${ORG}/${ARCH}-debian-10-js-${NODE}:latest
     build:
-      context: ci
-      dockerfile: docker/debian-10-js.dockerfile
+      context: .
+      dockerfile: ci/docker/debian-10-js.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-debian-10-js-${NODE}:latest
       args:
@@ -403,8 +445,8 @@ services:
   debian-java:
     image: ${ORG}/${ARCH}-debian-10-java-${JDK}-maven-${MAVEN}:latest
     build:
-      context: ci
-      dockerfile: docker/debian-10-java.dockerfile
+      context: .
+      dockerfile: ci/docker/debian-10-java.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-debian-10-java-${JDK}-maven-${MAVEN}:latest
       args:
@@ -425,8 +467,8 @@ services:
   conda-docs:
     image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-docs:latest
     build:
-      context: ci
-      dockerfile: docker/conda-latest-python-docs.dockerfile
+      context: .
+      dockerfile: ci/docker/conda-latest-python-docs.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-docs:latest
       args:
@@ -446,8 +488,8 @@ services:
   lint:
     image: ${ORG}/${ARCH}-debian-${DEBIAN}-lint:latest
     build:
-      context: ci
-      dockerfile: docker/linux-apt-lint.dockerfile
+      context: .
+      dockerfile: ci/docker/linux-apt-lint.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-debian-${DEBIAN}-lint:latest
       args:
@@ -457,3 +499,177 @@ services:
       /bin/bash -c "
         pip install -e /arrow/dev/archery &&
         archery lint"
+
+  #############################################################################
+  #############################################################################
+  #############################################################################
+
+  ######################### Language Containers ###############################
+
+  cpp-cmake32:
+    # Usage:
+    #   docker-compose build cpp-cmake32
+    #   docker-compose run cpp-cmake32
+    image: arrow:cpp-cmake32
+    shm_size: 2G
+    build:
+      context: .
+      dockerfile: cpp/Dockerfile.cmake
+      args:
+        CMAKE_VERSION: 3.2.3
+    environment:
+      # Vendor boost to avoid dealing with stale FindBoost.
+      ARROW_BOOST_SOURCE: "BUNDLED"
+      ARROW_ORC: "OFF"
+      # uriparser requires cmake 3.3
+      ARROW_FLIGHT: "OFF"
+      PARQUET_TEST_DATA: /arrow/cpp/submodules/parquet-testing/data
+    volumes: *ubuntu-volumes
+
+  # cpp-debian-testing:
+  #   # Usage:
+  #   #   docker-compose build cpp-debian-testing
+  #   #   docker-compose run cpp-debian-testing
+  #   image: arrow:cpp-debian-testing
+  #   shm_size: 2G
+  #   build:
+  #     context: .
+  #     dockerfile: cpp/Dockerfile.debian-testing
+  #   environment:
+  #     PARQUET_TEST_DATA: /arrow/cpp/submodules/parquet-testing/data
+  #   volumes: *debian-testing-volumes
+
+  r-sanitizer:
+    # Usage:
+    #   docker-compose build r-sanitizer
+    #   docker-compose run r-sanitizer
+    image: arrow:r-sanitizer
+    cap_add:
+      # LeakSanitizer and gdb requires ptrace(2)
+      - SYS_PTRACE
+    build:
+      context: .
+      dockerfile: r/Dockerfile.sanitizer
+    volumes: *ubuntu-volumes
+
+  ######################### Tools and Linters #################################
+
+  fuzzit:
+    # Usage:
+    #   docker-compose build cpp
+    #   docker-compose build fuzzit
+    #   docker-compose run fuzzit
+    image: arrow:fuzzit
+    build:
+      context: .
+      dockerfile: dev/fuzzit/Dockerfile
+    environment:
+      CI_ARROW_SHA: ${CI_ARROW_SHA}
+      CI_ARROW_BRANCH: ${CI_ARROW_BRANCH}
+    volumes: *ubuntu-volumes
+
+  iwyu:
+    # Usage:
+    #   export PYTHON_VERSION=3.6
+    #   docker-compose build cpp
+    #   docker-compose build python
+    #   docker-compose build lint
+    #   docker-compose run iwyu
+    image: arrow:lint
+    command: arrow/dev/lint/run_iwyu.sh
+    volumes: *ubuntu-volumes
+
+  clang-tidy:
+    # Usage:
+    #   docker-compose build cpp
+    #   docker-compose build python
+    #   docker-compose build lint
+    #   docker-compose run clang-tidy
+    image: arrow:lint
+    command: arrow/dev/lint/run_clang_tidy.sh
+    volumes: *ubuntu-volumes
+
+  ######################### Integration Tests #################################
+
+  hdfs-namenode:
+    image: gelog/hadoop
+    shm_size: 2G
+    ports:
+      - "9000:9000"
+      - "50070:50070"
+    command: hdfs namenode
+    hostname: hdfs-namenode
+
+  hdfs-datanode-1:
+    image: gelog/hadoop
+    command: hdfs datanode
+    ports:
+      # The host port is randomly assigned by Docker, to allow scaling
+      # to multiple DataNodes on the same host
+      - "50075"
+    links:
+      - hdfs-namenode:hdfs-namenode
+
+  hdfs-datanode-2:
+    image: gelog/hadoop
+    command: hdfs datanode
+    ports:
+      # The host port is randomly assigned by Docker, to allow scaling
+      # to multiple DataNodes on the same host
+      - "50075"
+    links:
+      - hdfs-namenode:hdfs-namenode
+
+  hdfs-integration:
+    # Usage:
+    #   export PYTHON_VERSION=3.6
+    #   docker-compose build cpp
+    #   docker-compose build python
+    #   docker-compose build hdfs-integration
+    #   docker-compose run hdfs-integration
+    image: arrow:hdfs-${HDFS_VERSION:-2.9.2}
+    links:
+      - hdfs-namenode:hdfs-namenode
+      - hdfs-datanode-1:hdfs-datanode-1
+      - hdfs-datanode-2:hdfs-datanode-2
+    environment:
+      - ARROW_HDFS_TEST_HOST=hdfs-namenode
+      - ARROW_HDFS_TEST_PORT=9000
+      - ARROW_HDFS_TEST_USER=root
+    build:
+      context: .
+      dockerfile: integration/hdfs/Dockerfile
+      args:
+        HDFS_VERSION: ${HDFS_VERSION:-2.9.2}
+    volumes: *ubuntu-volumes
+
+  # spark-integration:
+  #   # Usage:
+  #   #   export PYTHON_VERSION=3.6
+  #   #   docker-compose build cpp
+  #   #   docker-compose build python
+  #   #   docker-compose build spark-integration
+  #   #   docker-compose run spark-integration
+  #   image: arrow:spark-${SPARK_VERSION:-master}
+  #   environment:
+  #     - SPARK_VERSION=${SPARK_VERSION:-master}
+  #   build:
+  #     context: .
+  #     dockerfile: integration/spark/Dockerfile
+  #   volumes:
+  #     - .:/arrow:ro  # ensures that docker won't contaminate the host directory
+  #     - ubuntu-cache:/build:delegated
+  #     - maven-cache:/root/.m2:delegated
+  #     - spark-cache:/spark:delegated
+
+  # TODO(kszucs): hive-integration
+
+  ################################# Release ###################################
+
+  release-source:
+    image: arrow:release-source
+    build:
+      context: .
+      dockerfile: dev/release/source/Dockerfile
+    volumes:
+      - .:/arrow:delegated

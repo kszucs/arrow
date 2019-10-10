@@ -34,17 +34,17 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
 ENV PATH=${prefix}/bin:$PATH \
     CONDA_PREFIX=${prefix}
 # install conda and minio
-COPY scripts/install_conda.sh \
-     scripts/install_minio.sh \
+COPY ci/scripts/install_conda.sh \
+     ci/scripts/install_minio.sh \
      /arrow/ci/scripts/
 RUN /arrow/ci/scripts/install_conda.sh ${arch} linux ${minio} ${prefix} && \
     /arrow/ci/scripts/install_minio.sh ${arch} linux ${conda} ${prefix}
 
 # install the required conda packages
-COPY conda_env_cpp.yml \
-     conda_env_gandiva.yml \
-     conda_env_unix.yml \
-     conda_env_linux.yml \
+COPY ci/conda_env_cpp.yml \
+     ci/conda_env_gandiva.yml \
+     ci/conda_env_unix.yml \
+     ci/conda_env_linux.yml \
      /arrow/ci/
 RUN conda install -q \
         --file arrow/ci/conda_env_unix.yml \

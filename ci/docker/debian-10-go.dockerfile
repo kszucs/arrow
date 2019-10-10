@@ -18,3 +18,8 @@
 ARG arch=amd64
 ARG go=1.12
 FROM ${arch}/golang:${go}
+
+# TODO(kszucs):
+# 1. add the files required to install the dependencies to .dockeignore
+# 2. copy these files to their appropiate path
+# 3. download and compile the dependencies

@@ -22,7 +22,7 @@ FROM ${org}/${arch}-conda-${conda}-cpp:latest
 
 # install python specific packages
 ARG python=3.6
-COPY conda_env_python.yml /arrow/ci/
+COPY ci/conda_env_python.yml /arrow/ci/
 RUN conda install -q \
         --file arrow/ci/conda_env_python.yml \
         python=$PYTHON_VERSION \

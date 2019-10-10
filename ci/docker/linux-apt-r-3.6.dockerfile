@@ -45,12 +45,31 @@ RUN apt-get update -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Ensure parallel R package installation and set CRAN repo mirror
+# Ensure parallel R package installation, set CRAN repo mirror,
+# and use pre-built binaries where possible
+RUN printf "\
+    options(Ncpus = parallel::detectCores(), \
+            repos = 'https://demo.rstudiopm.com/all/__linux__/bionic/latest', \
+            HTTPUserAgent = sprintf(\
+                'R/%%s R (%%s)', getRversion(), \
+                paste(getRversion(), R.version\$platform, R.version\$arch, R.version\$os)))\n" \
+    >> /etc/R/Rprofile.site
+
 # Also ensure parallel compilation of each individual package
-RUN echo "options(Ncpus = parallel::detectCores(), repos = 'https://demo.rstudiopm.com/all/__linux__/bionic/latest')" >> /etc/R/Rprofile.site && \
-    echo "MAKEFLAGS=-j8" >> /usr/lib/R/etc/Makeconf
+RUN echo "MAKEFLAGS=-j8" >> /usr/lib/R/etc/Makeconf
 
-ENV ARROW_BUILD_TESTS=OFF \
-    # So that arrowExports.* files are generated
-    ARROW_R_DEV=TRUE
-
+ENV ARROW_DEPENDENCY_SOURCE=SYSTEM \
+    ARROW_FLIGHT=OFF \
+    ARROW_GANDIVA=OFF \
+    ARROW_HDFS=OFF \
+    ARROW_ORC=OFF \
+    ARROW_PARQUET=ON \
+    ARROW_PLASMA=OFF \
+    ARROW_USE_ASAN=OFF \
+    ARROW_USE_UBSAN=OFF \
+    ARROW_NO_DEPRECATED_API=ON \
+    ARROW_INSTALL_NAME_RPATH=OFF \
+    ARROW_WITH_BZ2=OFF \
+    ARROW_WITH_ZSTD=OFF \
+    ARROW_R_DEV=TRUE \
+    MAKEFLAGS=-j8

@@ -21,6 +21,6 @@ ARG conda=latest
 ARG python=3.6
 FROM ${org}/${arch}-conda-${conda}-python-${python}:latest
 
-COPY conda_env_docs.yml /arrow/ci/
+COPY ci/conda_env_docs.yml /arrow/ci/
 RUN conda install -q --file arrow/ci/conda_env_docs.yml && \
     conda clean --all

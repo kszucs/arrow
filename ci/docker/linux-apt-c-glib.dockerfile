@@ -33,8 +33,8 @@ RUN apt-get update -y -q && \
 RUN pip3 install meson && \
     gem install bundler
 
-COPY Gemfile /arrow/ci/
-RUN bundle install --gemfile /arrow/ci/Gemfile
+COPY c_glib/Gemfile /arrow/c_glib/
+RUN bundle install --gemfile /arrow/c_glib/Gemfile
 
 ENV ARROW_BUILD_TESTS=OFF \
     ARROW_BUILD_UTILITIES=OFF \

@@ -22,3 +22,8 @@ FROM ${arch}/rust
 # dependencies without building the library itself
 ARG rust=nightly-2019-09-25
 RUN rustup default ${rust}
+
+# TODO(kszucs):
+# 1. add the files required to install the dependencies to .dockeignore
+# 2. copy these files to their appropiate path
+# 3. download and compile the dependencies
