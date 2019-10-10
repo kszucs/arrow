@@ -22,6 +22,10 @@ source_dir=${1}/r
 
 pushd ${source_dir}
 
+export LD_LIBRARY_PATH=${ARROW_HOME}/lib:${LD_LIBRARY_PATH}
+export R_LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
+export _R_CHECK_FORCE_SUGGESTS_=false
+
 R CMD check $(ls | grep arrow_*.tar.gz) --as-cran --no-manual
 
 popd

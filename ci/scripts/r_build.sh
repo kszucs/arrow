@@ -28,7 +28,6 @@ source_dir=${1}/r
 # contains /usr/lib/x86_64-linux-gnu.
 export LD_LIBRARY_PATH=${ARROW_HOME}/lib:${LD_LIBRARY_PATH}
 export R_LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
-export _R_CHECK_FORCE_SUGGESTS_=false
 
 pushd ${source_dir}
 
