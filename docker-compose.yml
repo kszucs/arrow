@@ -522,7 +522,7 @@ services:
     volumes: *conda-volumes
     entrypoint: *conda-entrypoint
     command:
-      ["/arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
+      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
         /arrow/ci/scripts/docs_build.sh /arrow"]
 
@@ -543,47 +543,41 @@ services:
         pip install -e /arrow/dev/archery &&
         archery lint"
 
-  #############################################################################
-  #############################################################################
-  #############################################################################
-
-  ######################### Language Containers ###############################
-
-  cpp-cmake32:
-    # Usage:
-    #   docker-compose build cpp-cmake32
-    #   docker-compose run cpp-cmake32
-    image: arrow:cpp-cmake32
-    shm_size: 2G
-    build:
-      context: .
-      dockerfile: cpp/Dockerfile.cmake
-      args:
-        CMAKE_VERSION: 3.2.3
-    environment:
-      # Vendor boost to avoid dealing with stale FindBoost.
-      ARROW_BOOST_SOURCE: "BUNDLED"
-      ARROW_ORC: "OFF"
-      # uriparser requires cmake 3.3
-      ARROW_FLIGHT: "OFF"
-      PARQUET_TEST_DATA: /arrow/cpp/submodules/parquet-testing/data
-    volumes: *ubuntu-volumes
+  # cpp-cmake32:
+  #   # Usage:
+  #   #   docker-compose build cpp-cmake32
+  #   #   docker-compose run cpp-cmake32
+  #   image: arrow:cpp-cmake32
+  #   shm_size: 2G
+  #   build:
+  #     context: .
+  #     dockerfile: cpp/Dockerfile.cmake
+  #     args:
+  #       CMAKE_VERSION: 3.2.3
+  #   environment:
+  #     # Vendor boost to avoid dealing with stale FindBoost.
+  #     ARROW_BOOST_SOURCE: "BUNDLED"
+  #     ARROW_ORC: "OFF"
+  #     # uriparser requires cmake 3.3
+  #     ARROW_FLIGHT: "OFF"
+  #     PARQUET_TEST_DATA: /arrow/cpp/submodules/parquet-testing/data
+  #   volumes: *ubuntu-volumes
 
   ######################### Tools and Linters #################################
 
-  fuzzit:
-    # Usage:
-    #   docker-compose build cpp
-    #   docker-compose build fuzzit
-    #   docker-compose run fuzzit
-    image: arrow:fuzzit
-    build:
-      context: .
-      dockerfile: dev/fuzzit/Dockerfile
-    environment:
-      CI_ARROW_SHA: ${CI_ARROW_SHA}
-      CI_ARROW_BRANCH: ${CI_ARROW_BRANCH}
-    volumes: *ubuntu-volumes
+  # fuzzit:
+  #   # Usage:
+  #   #   docker-compose build cpp
+  #   #   docker-compose build fuzzit
+  #   #   docker-compose run fuzzit
+  #   image: arrow:fuzzit
+  #   build:
+  #     context: .
+  #     dockerfile: dev/fuzzit/Dockerfile
+  #   environment:
+  #     CI_ARROW_SHA: ${CI_ARROW_SHA}
+  #     CI_ARROW_BRANCH: ${CI_ARROW_BRANCH}
+  #   volumes: *ubuntu-volumes
 
   ######################### Integration Tests #################################
 
