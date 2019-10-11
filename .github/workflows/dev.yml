@@ -15,15 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: Lint
+name: Dev
 
 on:
   push:
   pull_request:
 
 jobs:
-  docker:
-    name: C++, Python, R, Rust, Docker, RAT
+
+  docker-lint:
+    name: Lint C++, Python, R, Rust, Docker, RAT
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Arrow
@@ -44,3 +45,33 @@ jobs:
             -u ${{ secrets.DOCKERHUB_USER }} \
             -p ${{ secrets.DOCKERHUB_TOKEN }}
           docker-compose push lint
+
+  docker-docs:
+    name: Sphinx Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Docker Pull
+        run: |
+          docker-compose pull --ignore-pull-failures conda-cpp
+          docker-compose pull --ignore-pull-failures conda-python
+          docker-compose pull --ignore-pull-failures conda-docs
+      - name: Docker Build
+        run: |
+          docker-compose build conda-cpp
+          docker-compose build conda-python
+          docker-compose build conda-docs
+      - name: Docker Run
+        run: docker-compose run conda-docs
+      - name: Docker Push
+        if: github.event_name == 'push' # && github.ref == 'master'
+        shell: bash
+        run: |
+          docker login \
+            -u ${{ secrets.DOCKERHUB_USER }} \
+            -p ${{ secrets.DOCKERHUB_TOKEN }}
+          docker-compose push conda-docs
+

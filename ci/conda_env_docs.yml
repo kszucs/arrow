@@ -16,6 +16,7 @@
 # under the License.
 
 # Requirements for building the documentation
+pandas
 breathe
 doxygen
 ipython
