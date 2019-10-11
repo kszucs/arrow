@@ -139,9 +139,9 @@ jobs:
             turbodbc: latest
     env:
       PYTHON: ${{ matrix.python || 3.7 }}
-      PANDAS: ${{ matrix.pandas || latest }}
-      DASK: ${{ matrix.dask || latest }}
-      TURBODBC: ${{ matrix.turbodbc || latest }}
+      PANDAS: ${{ matrix.pandas || 'latest' }}
+      DASK: ${{ matrix.dask || 'latest' }}
+      TURBODBC: ${{ matrix.turbodbc || 'latest' }}
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1

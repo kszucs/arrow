@@ -19,32 +19,27 @@
 
 set -e
 
-${source_dir}=${1}
-${build_dir}=${2:-${source_dir}/build}
+source_dir=${1}
+build_dir=${2:-${source_dir}/build}
 
 # check that optional pyarrow modules are available
 # because pytest would just skip the pyarrow tests
 python -c "import pyarrow.orc"
 python -c "import pyarrow.parquet"
 
-service postgresql start
-sudo -u postgres psql -U postgres -c \
-    'CREATE DATABASE test_db;'
-sudo -u postgres psql -U postgres -c \
-    'ALTER USER postgres WITH PASSWORD '\''password'\'';'
-export ODBCSYSINI="$(pwd)/travis/odbc/"
-
 mkdir -p ${build_dir}
 pushd ${build_dir}
 
 cmake -DCMAKE_INSTALL_PREFIX=${ARROW_HOME} \
-      -DPYTHON_EXECUTABLE=$(which python) \
+      -CMAKE_CXX_FLAGS=${CXXFLAGS} \
       -GNinja \
       ..
 ninja install
 
 # TODO(ARROW-5074)
 export LD_LIBRARY_PATH="${ARROW_HOME}/lib:${LD_LIBRARY_PATH}"
+export ODBCSYSINI="$(pwd)/travis/odbc/"
+
 ctest --output-on-failure
 
 popd

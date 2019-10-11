@@ -37,6 +37,12 @@ RUN conda install -c conda-forge \
         unixodbc && \
     conda clean --all
 
+RUN service postgresql start && \
+    sudo -u postgres psql -U postgres -c \
+        "CREATE DATABASE test_db;" && \
+    sudo -u postgres psql -U postgres -c \
+        "ALTER USER postgres WITH PASSWORD 'password';"
+
 ARG turbodbc=latest
 RUN git clone --recurse-submodules https://github.com/blue-yonder/turbodbc /turbodbc && \
     if [ "${turbodbc}" = "master" ]; then \
