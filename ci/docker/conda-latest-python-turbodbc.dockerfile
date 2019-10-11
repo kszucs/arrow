@@ -33,6 +33,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
 # install turbodbc dependencies from conda-forge
 RUN conda install -c conda-forge \
         pybind11 \
+        pytest-cov \
         mock \
         unixodbc && \
     conda clean --all
