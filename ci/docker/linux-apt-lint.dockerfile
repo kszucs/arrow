@@ -39,6 +39,10 @@ RUN apt-get update && \
 # Docker linter
 COPY --from=hadolint /bin/hadolint /usr/bin/hadolint
 
+# IWYU
+COPY ci/scripts/install_iwyu.sh /arrow/ci/scripts/
+RUN arrow/ci/scripts/install_iwyu.sh /tmp/iwyu /usr/local 7
+
 # Rust linter
 RUN curl https://sh.rustup.rs -sSf | \
     sh -s -- --default-toolchain stable -y

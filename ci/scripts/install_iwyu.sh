@@ -16,22 +16,28 @@
 # limitations under the License.
 #
 
-set -eux
+set -eu
 
-mkdir -p /build/lint
-pushd /build/lint
+source_dir=${1:-/tmp/iwyu}
+install_prefix=${2:-/usr/local}
+llvm_major=${3:-7}
 
-cmake -GNinja \
-      -DCMAKE_BUILD_TYPE=debug \
-      -DARROW_FLIGHT=ON \
-      -DARROW_GANDIVA=ON \
-      -DARROW_PARQUET=ON \
-      -DARROW_PYTHON=ON \
-      -DCMAKE_CXX_FLAGS='-D_GLIBCXX_USE_CXX11_ABI=0' \
-      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-      /arrow/cpp
+git clone --single-branch --branch "clang_${llvm_major}.0" \
+    https://github.com/include-what-you-use/include-what-you-use.git ${source_dir}
+
+mkdir -p ${source_dir}/build
+pushd ${source_dir}/build
+
+# Build IWYU for current Clang
+export CC=clang-${llvm_major}
+export CXX=clang++-${llvm_major}
+
+cmake -DCMAKE_PREFIX_PATH=/usr/lib/llvm-${llvm_major} \
+      -DCMAKE_INSTALL_PREFIX=${install_prefix} \
+      ${source_dir}
+make -j4
+make install
 
 popd
 
-export IWYU_COMPILATION_DATABASE_PATH=/build/lint
-/arrow/cpp/build-support/iwyu/iwyu.sh all
+rm -rf ${source_dir}
