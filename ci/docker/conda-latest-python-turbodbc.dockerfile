@@ -38,12 +38,13 @@ RUN conda install -c conda-forge \
     conda clean --all
 
 ARG turbodbc=latest
-RUN if [ "${turbodbc}" = "master" ]; then \
-        pip install https://github.com/blue-yonder/turbodbc/archive/master.zip; \
+RUN git clone --recurse-submodules https://github.com/blue-yonder/turbodbc /turbodbc && \
+    if [ "${turbodbc}" = "master" ]; then \
+        git -C /turbodbc checkout master; \
     elif [ "${turbodbc}" = "latest" ]; then \
-        conda install -q turbodbc && conda clean --all; \
+        git -C /turbodbc checkout $(git describe --tags); \
     else \
-        conda install -q turbodbc=${turbodbc} && conda clean --all; \
+        git -C /turbodbc checkout ${turbodbc}; \
     fi
 
 ENV TURBODBC_TEST_CONFIGURATION_FILES "query_fixtures_postgresql.json"

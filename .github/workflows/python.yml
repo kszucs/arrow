@@ -77,7 +77,7 @@ jobs:
             fedora: 29
             python: 3
     env:
-      PYTHON: ${{ matrix.python || 3.6 }}
+      PYTHON: ${{ matrix.python || 3.7 }}
       DEBIAN: ${{ matrix.debian || 10 }}
       UBUNTU: ${{ matrix.ubuntu || 18.04 }}
       FEDORA: ${{ matrix.fedora || 29 }}
@@ -108,35 +108,40 @@ jobs:
             -p ${{ secrets.DOCKERHUB_TOKEN }}
           docker-compose push ${{ matrix.platform }}-python
 
-  docker-pandas:
+  docker-integration:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         image:
-          - amd64-conda-latest-python-2.7-pandas-0.25
-          - amd64-conda-latest-python-3.6-pandas-0.25
-          - amd64-conda-latest-python-3.7-pandas-0.25
+          - amd64-conda-latest-python-3.7-pandas-latest
+          - amd64-conda-latest-python-3.7-dask-latest
+          - amd64-conda-latest-python-3.7-turbodbc-latest
         include:
-          - name: AMD64 Conda Python 2.7 Pandas 0.25
-            image: amd64-conda-latest-python-2.7-pandas-0.25
+          - name: AMD64 Conda Python 3.7 Pandas
+            image: amd64-conda-latest-python-3.7-pandas-latest
             platform: conda
-            python: 2.7
-            pandas: 0.25
-          - name: AMD64 Conda Python 3.6 Pandas 0.25
-            image: amd64-conda-latest-python-3.6-pandas-0.25
-            platform: conda
-            python: 3.6
-            pandas: 0.25
-          - name: AMD64 Conda Python 3.7 Pandas 0.25
-            image: amd64-conda-latest-python-3.7-pandas-0.25
-            platform: conda
+            integration: pandas
             python: 3.7
-            pandas: 0.25
+            pandas: latest
+          - name: AMD64 Conda Python 3.7 Dask
+            image: amd64-conda-latest-python-3.7-dask-latest
+            platform: conda
+            integration: dask
+            python: 3.7
+            dask: latest
+          - name: AMD64 Conda Python 3.7 Turbodbc
+            image: amd64-conda-latest-python-3.7-turbodbc-latest
+            platform: conda
+            integration: turbodbc
+            python: 3.7
+            turbodbc: latest
     env:
-      PYTHON: ${{ matrix.python || 3.6 }}
-      PANDAS: ${{ matrix.pandas || 0.25 }}
+      PYTHON: ${{ matrix.python || 3.7 }}
+      PANDAS: ${{ matrix.pandas || latest }}
+      DASK: ${{ matrix.dask || latest }}
+      TURBODBC: ${{ matrix.turbodbc || latest }}
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -145,18 +150,26 @@ jobs:
       - name: Docker Pull
         shell: bash
         run: |
-          docker-compose pull --ignore-pull-failures ${{ matrix.platform }}-cpp
-          docker-compose pull --ignore-pull-failures ${{ matrix.platform }}-python
-          docker-compose pull --ignore-pull-failures ${{ matrix.platform }}-python-pandas
+          docker-compose pull --ignore-pull-failures \
+            ${{ matrix.platform }}-cpp
+          docker-compose pull --ignore-pull-failures \
+            ${{ matrix.platform }}-python
+          docker-compose pull --ignore-pull-failures \
+            ${{ matrix.platform }}-python-${{ matrix.integration }}
       - name: Docker Build
         shell: bash
         run: |
-          docker-compose build ${{ matrix.platform }}-cpp
-          docker-compose build ${{ matrix.platform }}-python
-          docker-compose build ${{ matrix.platform }}-python-pandas
+          docker-compose build \
+            ${{ matrix.platform }}-cpp
+          docker-compose build \
+            ${{ matrix.platform }}-python
+          docker-compose build \
+            ${{ matrix.platform }}-python-${{ matrix.integration }}
       - name: Docker Run
         shell: bash
-        run: docker-compose run ${{ matrix.platform }}-python-pandas
+        run: |
+          docker-compose run \
+            ${{ matrix.platform }}-python-${{ matrix.integration }}
       - name: Docker Push
         if: github.event_name == 'push' # && github.ref == 'master'
         shell: bash
@@ -164,4 +177,5 @@ jobs:
           docker login \
             -u ${{ secrets.DOCKERHUB_USER }} \
             -p ${{ secrets.DOCKERHUB_TOKEN }}
-          docker-compose push ${{ matrix.platform }}-python-pandas
+          docker-compose push \
+            ${{ matrix.platform }}-python-${{ matrix.integration }}
