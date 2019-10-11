@@ -100,10 +100,7 @@ ENV ARROW_DEPENDENCY_SOURCE=SYSTEM \
     ARROW_WITH_ZSTD=OFF \
     ARROW_R_DEV=TRUE
 
-ENV ARROW_BUILD_BENCHMARKS=off
-ENV ARROW_BUILD_EXAMPLES=off
-ENV ARROW_BUILD_TESTS=off
-ENV ARROW_BUILD_UTILITIES=off
-
-CMD ["/bin/bash", "-c", "/arrow/ci/docker_build_cpp.sh && \
-    /arrow/ci/docker_build_r_sanitizer.sh"]
+# Ensure parallel R package installation and set CRAN repo mirror
+RUN printf "options(Ncpus = parallel::detectCores(), repos = 'https://demo.rstudiopm.com/all/__linux__/bionic/latest')\n" >> /etc/R/Rprofile.site
+# Also ensure parallel compilation of each individual package
+RUN printf "MAKEFLAGS=-j8\n" >> /usr/lib/R/etc/Makeconf

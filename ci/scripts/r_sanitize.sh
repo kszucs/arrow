@@ -16,16 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -e
+set -ex
 
 : ${R_BIN:=RDsan}
 
-# Build arrow
-pushd /arrow/r
+source_dir=${1}/r
 
-# Install R package dependencies
-# NOTE: any changes here should also be done in docker_build_r.sh
-${R_BIN} -e "remotes::install_deps(dependencies = TRUE)"
+# Build arrow
+pushd ${source_dir}
 
 make clean
 ${R_BIN} CMD INSTALL --no-byte-compile .
