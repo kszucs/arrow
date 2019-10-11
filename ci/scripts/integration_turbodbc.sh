@@ -19,27 +19,48 @@
 
 set -e
 
+${source_dir}=${1}/python
+${turbodbc_version}=${2:-latest}
+${turbodbc_source_dir}=${3:-/turbodbc}
+${turbodbc_build_dir}=${4:-/turbodbc/build}
+
 # check that optional pyarrow modules are available
 # because pytest would just skip the pyarrow tests
 python -c "import pyarrow.orc"
 python -c "import pyarrow.parquet"
 
-pushd /tmp
-git clone https://github.com/blue-yonder/turbodbc.git
-pushd turbodbc
-git submodule update --init --recursive
+git clone --recurse-submodules \
+    https://github.com/blue-yonder/turbodbc.git \
+    ${turbodbc_source_dir}
+
+pushd ${turbodbc_source_dir}
+if [ "${turbodbc_version}" = "master" ]; then
+    git -C checkout master
+elif [ "${turbodbc_version}" = "latest" ]; then
+    git checkout $(git describe --tags)
+else
+    git -C turbodbc checkout ${turbodbc_version}
+fi
+popd
 
 service postgresql start
-sudo -u postgres psql -U postgres -c 'CREATE DATABASE test_db;'
-sudo -u postgres psql -U postgres -c 'ALTER USER postgres WITH PASSWORD '\''password'\'';'
+sudo -u postgres psql -U postgres -c \
+    'CREATE DATABASE test_db;'
+sudo -u postgres psql -U postgres -c \
+    'ALTER USER postgres WITH PASSWORD '\''password'\'';'
 export ODBCSYSINI="$(pwd)/travis/odbc/"
 
-mkdir build
-pushd build
-cmake -DCMAKE_INSTALL_PREFIX=./dist -DPYTHON_EXECUTABLE=`which python` -GNinja ..
+mkdir -p ${turbodbc_build_dir}
+pushd ${turbodbc_build_dir}
+
+cmake -DCMAKE_INSTALL_PREFIX=./dist \
+      -DPYTHON_EXECUTABLE=`which python` \
+      -GNinja \
+      ..
 ninja install
 
 # TODO(ARROW-5074)
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/opt/conda/lib"
-
 ctest --output-on-failure
+
+popd

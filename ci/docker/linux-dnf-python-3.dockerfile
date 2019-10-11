@@ -28,7 +28,7 @@ RUN ln -s /usr/bin/python3 /usr/local/bin/python && \
 
 COPY python/requirements.txt \
      python/requirements-test.txt \
-     /arrow/ci/
+     /arrow/python/
 
 RUN pip install \
     -r arrow/python/requirements.txt \

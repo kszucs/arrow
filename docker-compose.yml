@@ -265,9 +265,10 @@ services:
     volumes: *fedora-volumes
     command: *python-command
 
-  ########################### Python Downstream ###############################
+  ########################### Python Integration ##############################
 
   conda-python-pandas:
+    # document to use --no-cache in case of PANDAS=master
     image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-pandas-${PANDAS}:latest
     build:
       context: .
@@ -286,6 +287,7 @@ services:
     command: *python-conda-command
 
   conda-python-dask:
+    # document to use --no-cache in case of DASK=master
     image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-dask-${DASK}:latest
     build:
       context: .
@@ -304,13 +306,14 @@ services:
     command:
       ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
-        /arrow/ci/scripts/dask_test.sh /arrow"]
+        /arrow/ci/scripts/integration_dask.sh"]
 
   conda-python-turbodbc:
+    # document to use --no-cache in case of TURBODBC=master
     image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-turbodbc-${TURBODBC}:latest
     build:
       context: .
-      dockerfile: ci/docker/conda-latest-python-dask.dockerfile
+      dockerfile: ci/docker/conda-latest-python-turbodbc.dockerfile
       cache_from:
         - ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-turbodbc-${TURBODBC}:latest
       args:
@@ -325,7 +328,7 @@ services:
     command:
       ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
-        /arrow/ci/scripts/turbodbc_test.sh /arrow"]
+        /arrow/ci/scripts/integration_turbodbc.sh"]
 
   ########################## Python Wheels ####################################
 

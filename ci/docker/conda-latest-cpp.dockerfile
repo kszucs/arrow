@@ -55,6 +55,7 @@ RUN conda install -q \
     conda clean --all
 
 ENV ARROW_S3=ON \
+    ARROW_ORC=ON \
     ARROW_GANDIVA=ON \
     ARROW_PARQUET=ON \
     ARROW_PLASMA=ON \
