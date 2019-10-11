@@ -18,6 +18,8 @@
 
 set -ex
 
+: ${R_BIN:=R}
+
 source_dir=${1}/r
 
 # ARROW-6171: Because lz4 is installed in the base Ubuntu image, there's an
@@ -32,7 +34,7 @@ export R_LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 pushd ${source_dir}
 
 make clean
-R CMD build --keep-empty-dirs .
-R CMD INSTALL $(ls | grep arrow_*.tar.gz)
+${R_BIN} CMD build --keep-empty-dirs .
+${R_BIN} CMD INSTALL $(ls | grep arrow_*.tar.gz)
 
 popd

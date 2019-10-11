@@ -23,16 +23,9 @@ set -ex
 source_dir=${1}/r
 
 # Build arrow
-pushd ${source_dir}
-
-make clean
-${R_BIN} CMD INSTALL --no-byte-compile .
-
-pushd tests
+pushd ${source_dir}/tests
 
 export UBSAN_OPTIONS="print_stacktrace=1,suppressions=/arrow/r/tools/ubsan.supp"
 ${R_BIN} < testthat.R
-
-popd
 
 popd

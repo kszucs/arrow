@@ -98,7 +98,8 @@ ENV ARROW_DEPENDENCY_SOURCE=SYSTEM \
     ARROW_INSTALL_NAME_RPATH=OFF \
     ARROW_WITH_BZ2=OFF \
     ARROW_WITH_ZSTD=OFF \
-    ARROW_R_DEV=TRUE
+    ARROW_R_DEV=TRUE \
+    R_BIN=RDsan
 
 # Ensure parallel R package installation and set CRAN repo mirror
 RUN printf "options(Ncpus = parallel::detectCores(), repos = 'https://demo.rstudiopm.com/all/__linux__/bionic/latest')\n" >> /etc/R/Rprofile.site

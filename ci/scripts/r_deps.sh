@@ -18,13 +18,15 @@
 
 set -ex
 
+: ${R_BIN:=R}
+
 source_dir=${1}/r
 
 pushd ${source_dir}
 
 # Install R package dependencies
-R -e "install.packages(c('remotes', 'dplyr', 'glue'))"
-R -e "remotes::install_deps(dependencies = TRUE)"
-R -e "remotes::install_github('romainfrancois/decor')"
+${R_BIN} -e "install.packages(c('remotes', 'dplyr', 'glue'))"
+${R_BIN} -e "remotes::install_deps(dependencies = TRUE)"
+${R_BIN} -e "remotes::install_github('romainfrancois/decor')"
 
 popd
