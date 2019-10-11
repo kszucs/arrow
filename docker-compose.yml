@@ -647,22 +647,38 @@ services:
     shm_size: *shm-size
     volumes: *conda-volumes
     entrypoint: *conda-entrypoint
+    command:
+      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/python_build.sh /arrow &&
+        /arrow/ci/scripts/integration_hdfs.sh"]
 
-  # spark-integration:
-  #   # Usage:
-  #   #   export PYTHON_VERSION=3.6
-  #   #   docker-compose build cpp
-  #   #   docker-compose build python
-  #   #   docker-compose build spark-integration
-  #   #   docker-compose run spark-integration
-  #   image: arrow:spark-${SPARK_VERSION:-master}
-  #   environment:
-  #     - SPARK_VERSION=${SPARK_VERSION:-master}
-  #   build:
-  #     context: .
-  #     dockerfile: integration/spark/Dockerfile
-  #   volumes:
-  #     - .:/arrow:ro  # ensures that docker won't contaminate the host directory
-  #     - ubuntu-cache:/build:delegated
-  #     - maven-cache:/root/.m2:delegated
-  #     - spark-cache:/spark:delegated
+  conda-python-spark:
+    # Usage:
+    #   docker-compose build conda-cpp
+    #   docker-compose build conda-python
+    #   docker-compose build conda-python-spark
+    #   docker-compose run conda-python-spark
+    image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-spark-${SPARK}:latest
+    build:
+      context: .
+      dockerfile: ci/docker/conda-latest-python-spark.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-spark-${SPARK}:latest
+      args:
+        org: ${ORG}
+        arch: ${ARCH}
+        conda: latest
+        python: ${PYTHON}
+        jdk: ${JDK}
+        maven: ${MAVEN}
+        spark: ${SPARK}
+    shm_size: *shm-size
+    volumes: *conda-volumes
+    # - maven-cache:/root/.m2:delegated
+    # - spark-cache:/spark:delegated
+    entrypoint: *conda-entrypoint
+    command:
+      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/python_build.sh /arrow &&
+        /arrow/ci/scripts/java_build.sh /arrow &&
+        /arrow/ci/scripts/integration_spark.sh /arrow /spark"]

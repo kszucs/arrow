@@ -18,36 +18,36 @@
 # exit on any error
 set -e
 
-# rsynced source directory to build java libs
-arrow_src=/build/java/arrow
+source_dir=${1}
+spark_dir=${2}
 
-pushd $arrow_src/java
-  ARROW_VERSION=`mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | sed -n -e '/^\[.*\]/ !{ /^[0-9]/ { p; q } }'`
+pushd ${source_dir}/java
+  arrow_version=`mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | sed -n -e '/^\[.*\]/ !{ /^[0-9]/ { p; q } }'`
 popd
 
 export MAVEN_OPTS="-Xmx2g -XX:ReservedCodeCacheSize=512m -Dorg.slf4j.simpleLogger.defaultLogLevel=warn"
 export MAVEN_OPTS="${MAVEN_OPTS} -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
 
 # build Spark with Arrow
-pushd /spark
+pushd ${spark_dir}
   # update Spark pom with the Arrow version just installed and build Spark, need package phase for pyspark
-  echo "Building Spark with Arrow $ARROW_VERSION"
-  mvn versions:set-property -Dproperty=arrow.version -DnewVersion=$ARROW_VERSION
+  echo "Building Spark with Arrow ${arrow_version}"
+  mvn versions:set-property -Dproperty=arrow.version -DnewVersion=${arrow_version}
 
   build/mvn -B -DskipTests package -pl sql/core -pl assembly -am
 
-  SPARK_SCALA_TESTS=(
+  spark_scala_tests=(
     "org.apache.spark.sql.execution.arrow"
     "org.apache.spark.sql.execution.vectorized.ColumnarBatchSuite"
     "org.apache.spark.sql.execution.vectorized.ArrowColumnVectorSuite")
 
-  (echo "Testing Spark:"; IFS=$'\n'; echo "${SPARK_SCALA_TESTS[*]}")
+  (echo "Testing Spark:"; IFS=$'\n'; echo "${spark_scala_tests[*]}")
 
   # TODO: should be able to only build spark-sql tests with adding "-pl sql/core" but not currently working
-  build/mvn -B -Dtest=none -DwildcardSuites=$(IFS=,; echo "${SPARK_SCALA_TESTS[*]}") test
+  build/mvn -B -Dtest=none -DwildcardSuites=$(IFS=,; echo "${spark_scala_tests[*]}") test
 
   # Run pyarrow related Python tests only
-  SPARK_PYTHON_TESTS=(
+  spark_python_tests=(
     "pyspark.sql.tests.test_arrow"
     "pyspark.sql.tests.test_pandas_udf"
     "pyspark.sql.tests.test_pandas_udf_scalar"
@@ -55,6 +55,6 @@ pushd /spark
     "pyspark.sql.tests.test_pandas_udf_grouped_map"
     "pyspark.sql.tests.test_pandas_udf_window")
 
-  (echo "Testing PySpark:"; IFS=$'\n'; echo "${SPARK_PYTHON_TESTS[*]}")
-  python/run-tests --testnames "$(IFS=,; echo "${SPARK_PYTHON_TESTS[*]}")" --python-executables python
+  (echo "Testing PySpark:"; IFS=$'\n'; echo "${spark_python_tests[*]}")
+  python/run-tests --testnames "$(IFS=,; echo "${spark_python_tests[*]}")" --python-executables python
 popd

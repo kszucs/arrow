@@ -14,32 +14,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM arrowdev/arrow-python-3.6:latest
+ARG org
+ARG arch=amd64
+ARG conda=latest
+ARG python=3.6
+FROM ${org}/${arch}-conda-${conda}-python-${python}:latest
 
-# installing java and maven
-ARG MAVEN_VERSION=3.6.2
-ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 \
-    MAVEN_HOME=/usr/local/maven \
+ARG jdk=8
+ARG maven=3.5
+RUN conda install -q \
+        openjdk=${jdk} \
+        maven=${maven} && \
+    conda clean --all
+
+ENV MAVEN_HOME=/usr/local/maven \
     M2_HOME=/root/.m2 \
     PATH=/root/.m2/bin:/usr/local/maven/bin:$PATH
-RUN apt-get update -q -y && \
-    apt-get install -q -y --no-install-recommends openjdk-8-jdk && \
-    wget -q -O maven-$MAVEN_VERSION.tar.gz "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz" && \
-    tar -zxf /maven-$MAVEN_VERSION.tar.gz && \
-    rm /maven-$MAVEN_VERSION.tar.gz && \
-    mv /apache-maven-$MAVEN_VERSION /usr/local/maven \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
 
 # installing specific version of spark
-ARG SPARK_VERSION=master
-RUN wget -q -O /tmp/spark.tar.gz https://github.com/apache/spark/archive/$SPARK_VERSION.tar.gz && \
+ARG spark=master
+RUN wget -q -O /tmp/spark.tar.gz https://github.com/apache/spark/archive/${spark}.tar.gz && \
     mkdir /spark && \
     tar -xzf /tmp/spark.tar.gz -C /spark --strip-components=1 && \
     rm /tmp/spark.tar.gz
 
 # patch spark to build with current Arrow Java
-COPY integration/spark/ARROW-6429.patch /tmp/
+COPY ci/etc/ARROW-6429.patch /tmp/
 RUN patch -d /spark -p1 -i /tmp/ARROW-6429.patch && \
     rm /tmp/ARROW-6429.patch
 
@@ -49,9 +49,3 @@ ENV CC=gcc \
     ARROW_PYTHON=ON \
     ARROW_HDFS=ON \
     ARROW_BUILD_TESTS=OFF
-
-# build and test
-CMD ["/bin/bash", "-c", "arrow/ci/docker_build_cpp.sh && \
-    arrow/ci/docker_build_python.sh && \
-    arrow/ci/docker_build_java.sh && \
-    arrow/integration/spark/runtest.sh"]
