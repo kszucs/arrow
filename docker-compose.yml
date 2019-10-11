@@ -520,11 +520,11 @@ services:
         conda: latest
         python: ${PYTHON}
     volumes: *conda-volumes
-    command: &docs-command >
-      /bin/bash -c "
-        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
+    entrypoint: *conda-entrypoint
+    command:
+      ["/arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
-        /arrow/ci/scripts/docs_build.sh /arrow"
+        /arrow/ci/scripts/docs_build.sh /arrow"]
 
   ################################# Lint ######################################
 
