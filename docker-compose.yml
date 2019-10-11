@@ -581,12 +581,35 @@ services:
 
   ######################### Integration Tests #################################
 
-  impala:
-    # Required to test hiveserver2
-    image: cpcloud86/impala:java8-1
+  postgres:
+    image: postgres
     ports:
-      - "21050"
+      - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: postgres
+
+  impala:
+    image: ibisproject/impala:latest
     hostname: impala
+    links:
+      - postgres:postgres
+    environment:
+      PGPASSWORD: postgres
+    ports:
+      # HDFS
+      - 9020:9020
+      - 50070:50070
+      - 50075:50075
+      - 8020:8020
+      - 8042:8042
+      # Hive
+      - 9083:9083
+      # Impala
+      - 21000:21000
+      - 21050:21050
+      - 25000:25000
+      - 25010:25010
+      - 25020:25020
 
   conda-cpp-hiveserver2:
     # Usage:
@@ -609,35 +632,6 @@ services:
       ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/integration_hiveserver2.sh /arrow /build/cpp"]
 
-  hdfs-namenode:
-    image: gelog/hadoop
-    shm_size: 2G
-    ports:
-      - "9000:9000"
-      - "50070:50070"
-    command: hdfs namenode
-    hostname: hdfs-namenode
-
-  hdfs-datanode-1:
-    image: gelog/hadoop
-    command: hdfs datanode
-    ports:
-      # The host port is randomly assigned by Docker, to allow scaling
-      # to multiple DataNodes on the same host
-      - "50075"
-    links:
-      - hdfs-namenode:hdfs-namenode
-
-  hdfs-datanode-2:
-    image: gelog/hadoop
-    command: hdfs datanode
-    ports:
-      # The host port is randomly assigned by Docker, to allow scaling
-      # to multiple DataNodes on the same host
-      - "50075"
-    links:
-      - hdfs-namenode:hdfs-namenode
-
   conda-python-hdfs:
     # Usage:
     #   docker-compose build conda-cpp
@@ -659,13 +653,11 @@ services:
         maven: ${MAVEN}
         hdfs: ${HDFS}
     links:
-      - hdfs-namenode:hdfs-namenode
-      - hdfs-datanode-1:hdfs-datanode-1
-      - hdfs-datanode-2:hdfs-datanode-2
+      - impala:impala
     environment:
-      - ARROW_HDFS_TEST_HOST=hdfs-namenode
-      - ARROW_HDFS_TEST_PORT=9000
-      - ARROW_HDFS_TEST_USER=root
+      - ARROW_HDFS_TEST_HOST=impala
+      - ARROW_HDFS_TEST_PORT=8020
+      - ARROW_HDFS_TEST_USER=hdfs
     shm_size: *shm-size
     volumes: *conda-volumes
     entrypoint: *conda-entrypoint
