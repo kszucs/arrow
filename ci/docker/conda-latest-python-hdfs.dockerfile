@@ -24,6 +24,7 @@ FROM ${org}/${arch}-conda-${conda}-python-${python}:latest
 ARG jdk=8
 ARG maven=3.5
 RUN conda install -q \
+        pandas \
         openjdk=${jdk} \
         maven=${maven} && \
     conda clean --all
@@ -33,7 +34,6 @@ ARG hdfs=2.9.2
 ENV HADOOP_HOME=/usr/local/hadoop \
     HADOOP_OPTS=-Djava.library.path=/usr/local/hadoop/lib/native \
     PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
-
 RUN wget -q -O hadoop-${hdfs}.tar.gz "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=hadoop/common/hadoop-${hdfs}/hadoop-${hdfs}.tar.gz" && \
     tar -zxf /hadoop-${hdfs}.tar.gz && \
     rm /hadoop-${hdfs}.tar.gz && \

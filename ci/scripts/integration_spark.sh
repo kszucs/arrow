@@ -16,7 +16,7 @@
 # limitations under the License.
 
 # exit on any error
-set -e
+set -eu
 
 source_dir=${1}
 spark_dir=${2}

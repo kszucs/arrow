@@ -644,7 +644,7 @@ services:
     command:
       ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
-        /arrow/ci/scripts/integration_hdfs.sh"]
+        /arrow/ci/scripts/integration_hdfs.sh /arrow /build/cpp"]
 
   conda-python-spark:
     # Usage:

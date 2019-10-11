@@ -23,13 +23,15 @@ FROM ${org}/${arch}-conda-${conda}-python-${python}:latest
 ARG jdk=8
 ARG maven=3.5
 RUN conda install -q \
+        patch \
+        pandas \
         openjdk=${jdk} \
         maven=${maven} && \
     conda clean --all
 
-ENV MAVEN_HOME=/usr/local/maven \
-    M2_HOME=/root/.m2 \
-    PATH=/root/.m2/bin:/usr/local/maven/bin:$PATH
+# ENV MAVEN_HOME=/usr/local/maven \
+#     M2_HOME=/root/.m2 \
+#     PATH=/root/.m2/bin:/usr/local/maven/bin:$PATH
 
 # installing specific version of spark
 ARG spark=master
@@ -37,7 +39,6 @@ RUN wget -q -O /tmp/spark.tar.gz https://github.com/apache/spark/archive/${spark
     mkdir /spark && \
     tar -xzf /tmp/spark.tar.gz -C /spark --strip-components=1 && \
     rm /tmp/spark.tar.gz
-
 # patch spark to build with current Arrow Java
 COPY ci/etc/ARROW-6429.patch /tmp/
 RUN patch -d /spark -p1 -i /tmp/ARROW-6429.patch && \

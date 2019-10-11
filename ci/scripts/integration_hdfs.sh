@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -e
+set -eu
 
 source_dir=${1}/cpp
 build_dir=${2:-${source_dir}/build}
