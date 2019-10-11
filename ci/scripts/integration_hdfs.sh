@@ -17,8 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# exit on any error
 set -e
+
+source_dir=${1}/cpp
+build_dir=${2:-${source_dir}/build}
 
 export CLASSPATH=`$HADOOP_HOME/bin/hadoop classpath --glob`
 export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
@@ -26,8 +28,8 @@ export LIBHDFS3_CONF=$HADOOP_CONF_DIR/hdfs-site.xml
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HADOOP_HOME/lib/native/
 
 # execute cpp tests
-pushd /build/cpp
-  debug/arrow-io-hdfs-test
+pushd ${build_dir}
+debug/arrow-io-hdfs-test
 popd
 
 # cannot use --pyargs with custom arguments like --hdfs or --only-hdfs, because

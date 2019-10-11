@@ -616,14 +616,26 @@ services:
     links:
       - hdfs-namenode:hdfs-namenode
 
-  hdfs-integration:
+  conda-python-hdfs:
     # Usage:
-    #   export PYTHON_VERSION=3.6
-    #   docker-compose build cpp
-    #   docker-compose build python
-    #   docker-compose build hdfs-integration
-    #   docker-compose run hdfs-integration
-    image: arrow:hdfs-${HDFS_VERSION:-2.9.2}
+    #   docker-compose build conda-cpp
+    #   docker-compose build conda-python
+    #   docker-compose build conda-python-hdfs
+    #   docker-compose run conda-python-hdfs
+    image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-hdfs-${HDFS}:latest
+    build:
+      context: .
+      dockerfile: ci/docker/conda-latest-python-hdfs.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-hdfs-${HDFS}:latest
+      args:
+        org: ${ORG}
+        arch: ${ARCH}
+        conda: latest
+        python: ${PYTHON}
+        jdk: ${JDK}
+        maven: ${MAVEN}
+        hdfs: ${HDFS}
     links:
       - hdfs-namenode:hdfs-namenode
       - hdfs-datanode-1:hdfs-datanode-1
@@ -632,12 +644,9 @@ services:
       - ARROW_HDFS_TEST_HOST=hdfs-namenode
       - ARROW_HDFS_TEST_PORT=9000
       - ARROW_HDFS_TEST_USER=root
-    build:
-      context: .
-      dockerfile: integration/hdfs/Dockerfile
-      args:
-        HDFS_VERSION: ${HDFS_VERSION:-2.9.2}
-    volumes: *ubuntu-volumes
+    shm_size: *shm-size
+    volumes: *conda-volumes
+    entrypoint: *conda-entrypoint
 
   # spark-integration:
   #   # Usage:
