@@ -597,6 +597,9 @@ services:
     links:
       - impala:impala
     environment:
+      - ARROW_FLIGHT=OFF
+      - ARROW_GANDIVA=OFF
+      - ARROW_PLASMA=OFF
       - ARROW_HIVESERVER2=ON
       - ARROW_HIVESERVER2_TEST_HOST=impala
     shm_size: *shm-size

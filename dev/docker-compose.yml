@@ -17,20 +17,6 @@
 version: '3'
 services:
 
-  impala:
-    image: cpcloud86/impala:java8-1
-    ports:
-      - "21050"
-    hostname: impala
-
-  hiveserver2:
-    links:
-      - impala
-    build:
-      context: hiveserver2
-    volumes:
-      - ../..:/apache-arrow
-
   gen_apidocs:
     build:
       context: ..
