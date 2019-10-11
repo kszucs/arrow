@@ -54,6 +54,9 @@ services:
   #     ubuntu-cpp
 
   conda-cpp:
+    # Usage:
+    #   docker-compose build conda-cpp
+    #   docker-compose run --rm conda-cpp
     image: ${ORG}/${ARCH}-conda-latest-cpp:latest
     build:
       context: .
@@ -74,7 +77,12 @@ services:
         /arrow/ci/scripts/cpp_test.sh /arrow /build/cpp"]
 
   cuda-cpp:
-    # only amd64 is supported
+    # Usage:
+    #   docker-compose build cuda-cpp
+    #   docker-compose run --rm cuda-cpp
+    # Parameters:
+    #   ARCH: only amd64
+    #   CUDA: 8.0, 10.0, ...
     image: ${ORG}/${ARCH}-cuda-${CUDA}-cpp:latest
     build:
       context: .
@@ -91,6 +99,12 @@ services:
         /arrow/ci/scripts/cpp_test.sh /arrow /build/cpp"
 
   debian-cpp:
+    # Usage:
+    #   docker-compose build debian-cpp
+    #   docker-compose run --rm debian-cpp
+    # Parameters:
+    #   ARCH: amd64, arm64v8, ...
+    #   DEBIAN: 10
     image: ${ORG}/${ARCH}-debian-${DEBIAN}-cpp:latest
     build:
       context: .
@@ -106,8 +120,12 @@ services:
     command: *cpp-command
 
   ubuntu-cpp:
-    # Possible architectures: amd64, arm64v8
-    # Possible distros: 18.04, 16.04, 14.04
+    # Usage:
+    #   docker-compose build ubuntu-cpp
+    #   docker-compose run --rm ubuntu-cpp
+    # Parameters:
+    #   ARCH: amd64, arm64v8, ...
+    #   UBUNTU: 18.04, 16.04, 14.04
     image: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-cpp:latest
     build:
       context: .

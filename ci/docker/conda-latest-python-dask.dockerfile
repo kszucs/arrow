@@ -23,9 +23,9 @@ FROM ${org}/${arch}-conda-${conda}-python-${python}:latest
 
 ARG dask=latest
 RUN if [ "${dask}" = "master" ]; then \
-        pip install https://github.com/dask/dask/archive/master.zip \
+        pip install https://github.com/dask/dask/archive/master.zip; \
     elif [ "${dask}" = "latest" ]; then \
-        conda install -q dask && conda clean --all \
+        conda install -q dask && conda clean --all; \
     else \
-        conda install -q dask=${dask} && conda clean --all \
+        conda install -q dask=${dask} && conda clean --all; \
     fi

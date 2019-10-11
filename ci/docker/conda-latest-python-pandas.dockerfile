@@ -23,9 +23,9 @@ FROM ${org}/${arch}-conda-${conda}-python-${python}:latest
 
 ARG pandas=latest
 RUN if [ "${pandas}" = "master" ]; then \
-        pip install https://github.com/pandas-dev/pandas/archive/master.zip \
+        pip install https://github.com/pandas-dev/pandas/archive/master.zip; \
     elif [ "${pandas}" = "latest" ]; then \
-        conda install -q pandas && conda clean --all \
+        conda install -q pandas && conda clean --all; \
     else \
-        conda install -q pandas=${pandas} && conda clean --all \
+        conda install -q pandas=${pandas} && conda clean --all; \
     fi
