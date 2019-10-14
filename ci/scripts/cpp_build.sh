@@ -85,6 +85,7 @@ cmake -G "${CMAKE_GENERATOR:-Ninja}" \
       -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX:-${ARROW_HOME}} \
       -DPARQUET_REQUIRE_ENCRYPTION=${ARROW_WITH_OPENSSL:-ON} \
       -Duriparser_SOURCE=${uriparser_SOURCE:-AUTO} \
+      -Ddouble-conversion_SOURCE=${uriparser_SOURCE:-AUTO} \
       ${CMAKE_ARGS} \
       ${source_dir}
 
