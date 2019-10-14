@@ -265,7 +265,31 @@ services:
     volumes: *fedora-volumes
     command: *python-command
 
-  ########################### Python Integration ##############################
+  ##############################  Integration #################################
+
+  debian-cpp-cmake32:
+    # Usage:
+    #   docker-compose build debian-cpp
+    #   docker-compose build debian-cpp-cmake
+    #   docker-compose run debian-cpp-cmake32
+    image: ${ORG}/${ARCH}-debian-${DEBIAN}-cpp-cmake-3.2:latest
+    build:
+      context: .
+      cache_from:
+        - ${ORG}/${ARCH}-debian-${DEBIAN}-cpp-cmake-3.2:latest
+      dockerfile: ci/docker/linux-apt-cmake.dockerfile
+      args:
+        base: ${ORG}/${ARCH}-debian-${DEBIAN}-cpp:latest
+        cmake: 3.2.3
+    environment:
+      # Vendor boost to avoid dealing with stale FindBoost.
+      ARROW_BOOST_SOURCE: "BUNDLED"
+      ARROW_ORC: "OFF"
+      ARROW_GANDIVA: "OFF"
+      # uriparser requires cmake 3.3
+      ARROW_FLIGHT: "OFF"
+    volumes: *debian-volumes
+    command: *cpp-command
 
   conda-python-pandas:
     # document to use --no-cache in case of PANDAS=master
@@ -569,26 +593,6 @@ services:
       /bin/bash -c "
         /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/fuzzit_build.sh /arrow"
-
-  # cpp-cmake32:
-  #   # Usage:
-  #   #   docker-compose build cpp-cmake32
-  #   #   docker-compose run cpp-cmake32
-  #   image: arrow:cpp-cmake32
-  #   shm_size: 2G
-  #   build:
-  #     context: .
-  #     dockerfile: cpp/Dockerfile.cmake
-  #     args:
-  #       CMAKE_VERSION: 3.2.3
-  #   environment:
-  #     # Vendor boost to avoid dealing with stale FindBoost.
-  #     ARROW_BOOST_SOURCE: "BUNDLED"
-  #     ARROW_ORC: "OFF"
-  #     # uriparser requires cmake 3.3
-  #     ARROW_FLIGHT: "OFF"
-  #     PARQUET_TEST_DATA: /arrow/cpp/submodules/parquet-testing/data
-  #   volumes: *ubuntu-volumes
 
   ######################### Integration Tests #################################
 

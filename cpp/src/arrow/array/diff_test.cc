@@ -571,7 +571,7 @@ TEST_F(DiffTest, DictionaryDiffFormatter) {
                                   target_indices, target_dict, &target_));
 
   base_->Equals(*target_, EqualOptions().diff_sink(&formatted));
-  ASSERT_EQ(formatted.str(), R"(# Dictionary arrays differed
+  AssertDiffAndFormat(R"(# Dictionary arrays differed
 ## dictionary diff
 ## indices diff
 @@ -4, +4 @@
@@ -589,7 +589,7 @@ TEST_F(DiffTest, DictionaryDiffFormatter) {
 
   formatted.str("");
   base_->Equals(*target_, EqualOptions().diff_sink(&formatted));
-  ASSERT_EQ(formatted.str(), R"(# Dictionary arrays differed
+  AssertDiffAndFormat(R"(# Dictionary arrays differed
 ## dictionary diff
 @@ -0, +0 @@
 -"a"
