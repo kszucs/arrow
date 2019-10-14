@@ -37,9 +37,9 @@ jobs:
         image:
           - amd64-conda-latest-cpp
           - amd64-debian-10-cpp
-          - amd64-debian-10-cpp-cmake-3.2
           - amd64-ubuntu-16.04-cpp
           - amd64-ubuntu-18.04-cpp
+          - amd64-ubuntu-18.04-cpp-cmake-3.2
           - amd64-fedora-29-cpp
         include:
           - name: AMD64 Conda C++
@@ -49,10 +49,6 @@ jobs:
             image: amd64-debian-10-cpp
             service: debian-cpp
             debian: 10
-          - name: AMD64 Debian 10 C++ CMake 3.2
-            image: amd64-debian-10-cpp-cmake-3.2
-            service: debian-cpp-cmake32
-            debian: 10
           - name: AMD64 Ubuntu 16.04 C++
             image: amd64-ubuntu-16.04-cpp
             service: ubuntu-cpp
@@ -60,6 +56,10 @@ jobs:
           - name: AMD64 Ubuntu 18.04 C++
             image: amd64-ubuntu-18.04-cpp
             service: ubuntu-cpp
+            ubuntu: 18.04
+          - name: AMD64 Ubuntu 18.04 C++ CMake 3.2
+            image: amd64-ubuntu-18.04-cpp-cmake-3.2
+            service: ubuntu-cpp-cmake32
             ubuntu: 18.04
           - name: AMD64 Fedora 29 C++
             image: amd64-fedora-29-cpp
