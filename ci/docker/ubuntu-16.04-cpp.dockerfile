@@ -46,7 +46,6 @@ RUN apt-get update -y -q && \
         libre2-dev \
         libsnappy-dev \
         libssl-dev \
-        libzstd-dev \
         llvm-7-dev \
         make \
         ninja-build \
@@ -85,7 +84,7 @@ ENV ARROW_BUILD_BENCHMARKS=OFF \
     ARROW_WITH_ZLIB=ON \
     ARROW_WITH_LZ4=ON \
     ARROW_WITH_BZ2=ON \
-    ARROW_WITH_ZSTD=ON \
+    ARROW_WITH_ZSTD=OFF \
     ARROW_WITH_SNAPPY=ON \
     ARROW_WITH_BROTLI=ON \
     CXX=g++ \
