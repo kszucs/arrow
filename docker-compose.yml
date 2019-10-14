@@ -267,19 +267,19 @@ services:
 
   ##############################  Integration #################################
 
-  debian-cpp-cmake32:
+  ubuntu-cpp-cmake32:
     # Usage:
-    #   docker-compose build debian-cpp
-    #   docker-compose build debian-cpp-cmake
-    #   docker-compose run debian-cpp-cmake32
-    image: ${ORG}/${ARCH}-debian-${DEBIAN}-cpp-cmake-3.2:latest
+    #   docker-compose build ubuntu-cpp
+    #   docker-compose build ubuntu-cpp-cmake32
+    #   docker-compose run ubuntu-cpp-cmake32
+    image: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-cpp-cmake-3.2:latest
     build:
       context: .
       cache_from:
-        - ${ORG}/${ARCH}-debian-${DEBIAN}-cpp-cmake-3.2:latest
+        - ${ORG}/${ARCH}-ubuntu-${UBUNTU}-cpp-cmake-3.2:latest
       dockerfile: ci/docker/linux-apt-cmake.dockerfile
       args:
-        base: ${ORG}/${ARCH}-debian-${DEBIAN}-cpp:latest
+        base: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-cpp:latest
         cmake: 3.2.3
     environment:
       # Vendor boost to avoid dealing with stale FindBoost.
@@ -288,7 +288,7 @@ services:
       ARROW_GANDIVA: "OFF"
       # uriparser requires cmake 3.3
       ARROW_FLIGHT: "OFF"
-    volumes: *debian-volumes
+    volumes: *ubuntu-volumes
     command: *cpp-command
 
   conda-python-pandas:
