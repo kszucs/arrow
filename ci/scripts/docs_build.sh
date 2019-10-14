@@ -25,39 +25,39 @@ export LD_LIBRARY_PATH=${ARROW_HOME}/lib:${LD_LIBRARY_PATH}
 export PKG_CONFIG_PATH=${ARROW_HOME}/lib/pkgconfig:${PKG_CONFIG_PATH}
 export CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0"
 
-# Sphinx
-sphinx-build -b html ${arrow_dir}/docs/source ${arrow_dir}/docs/_build
+# # Sphinx
+# sphinx-build -b html ${arrow_dir}/docs/source ${arrow_dir}/docs/_build
 
-# C++
-pushd ${arrow_dir}/cpp/apidoc
-doxygen
-popd
+# # C++
+# pushd ${arrow_dir}/cpp/apidoc
+# doxygen
+# popd
 
 # C GLib
-# pushd ${arrow_dir}/c_glib
-# if [ -f Makefile ]; then
-#     # Ensure updating to prevent auto re-configure
-#     touch configure **/Makefile
-#     make distclean
-# fi
-# ./autogen.sh
-# mkdir -p apidoc
-# pushd apidoc
-# ../configure --prefix=${ARROW_HOME} --enable-gtk-doc
-# make -j4 GTK_DOC_V_XREF=": "
-# popd
-# popd
+pushd ${arrow_dir}/c_glib
+if [ -f Makefile ]; then
+    # Ensure updating to prevent auto re-configure
+    touch configure **/Makefile
+    make distclean
+fi
+./autogen.sh
+mkdir -p apidoc
+pushd apidoc
+../configure --prefix=${ARROW_HOME} --enable-gtk-doc
+make -j4 GTK_DOC_V_XREF=": "
+popd
+popd
 
 # Make Java documentation
 # Override user.home to cache dependencies outside the Docker container
 # NB: this assumes that you have arrow-site cloned in the (gitignored) site directory
 pushd ${arrow_dir}/java
-mvn -Duser.home=`pwd`/.apidocs-m2 -Drat.skip=true -Dcheckstyle.skip=true install site
+mvn -Duser.home=`pwd`/.apidocs-m2 -Drat.skip=true -DskipTests -Dcheckstyle.skip=true install site
 popd
 
 # Make Javascript documentation
 pushd ${arrow_dir}/js
-npm install
+npm clean-install
 npm run doc
 popd
 
