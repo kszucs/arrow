@@ -15,14 +15,33 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM arrowdev/arrow-cpp:latest
+ARG base
+FROM ${base}
 
 RUN apt-get update && \
     apt-get install -y -q \
-      clang-7 \
-      libclang-7-dev \
-      clang-format-7 \
-      clang-tidy-7 \
-      clang-tools-7
+        clang-7 \
+        libclang-7-dev \
+        clang-format-7 \
+        clang-tidy-7 \
+        clang-tools-7 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-CMD ["arrow/ci/docker_build_and_fuzzit.sh"]
+RUN wget -O /usr/local/bin/fuzzit https://github.com/fuzzitdev/fuzzit/releases/latest/download/fuzzit_Linux_x86_64 && \
+    chmod a+x /usr/local/bin/fuzzit
+
+ENV ARROW_FUZZING="ON" \
+    ARROW_USE_ASAN="ON" \
+    CC="clang-7" \
+    CXX="clang++-7" \
+    ARROW_BUILD_TYPE="RelWithDebInfo" \
+    ARROW_FLIGHT="OFF" \
+    ARROW_GANDIVA="OFF" \
+    ARROW_ORC="OFF" \
+    ARROW_PARQUET="OFF" \
+    ARROW_PLASMA="OFF" \
+    ARROW_WITH_BZ2="OFF" \
+    ARROW_WITH_ZSTD="OFF" \
+    ARROW_BUILD_BENCHMARKS="OFF" \
+    ARROW_BUILD_UTILITIES="OFF"

@@ -529,9 +529,13 @@ services:
         /arrow/ci/scripts/python_build.sh /arrow &&
         /arrow/ci/scripts/docs_build.sh /arrow"]
 
-  ################################# Lint ######################################
+  ################################# Tools #####################################
 
   lint:
+    # Usage:
+    #   docker-compose build debian-cpp
+    #   docker-compose build fuzzit
+    #   docker-compose run fuzzit
     image: ${ORG}/${ARCH}-debian-${DEBIAN}-lint:latest
     build:
       context: .
@@ -542,9 +546,29 @@ services:
         base: ${ORG}/${ARCH}-debian-${DEBIAN}-cpp:latest
     volumes: *debian-volumes
     command: >
+      /bin/bash -c "pip install -e /arrow/dev/archery && archery lint"
+
+  fuzzit:
+    # Usage:
+    #   docker-compose build ubuntu-cpp
+    #   docker-compose build fuzzit
+    #   docker-compose run fuzzit
+    build:
+      context: .
+      dockerfile: ci/docker/linux-apt-fuzzit.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-ubuntu-${UBUNTU}-fuzzit:latest
+      args:
+        base: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-cpp:latest
+    environment:
+      FUZZIT_HOST: bionic-llvm7
+      CI_ARROW_SHA: ${CI_ARROW_SHA}
+      CI_ARROW_BRANCH: ${CI_ARROW_BRANCH}
+    volumes: *debian-volumes
+    command: >
       /bin/bash -c "
-        pip install -e /arrow/dev/archery &&
-        archery lint"
+        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/fuzzit_build.sh /arrow"
 
   # cpp-cmake32:
   #   # Usage:
@@ -564,22 +588,6 @@ services:
   #     # uriparser requires cmake 3.3
   #     ARROW_FLIGHT: "OFF"
   #     PARQUET_TEST_DATA: /arrow/cpp/submodules/parquet-testing/data
-  #   volumes: *ubuntu-volumes
-
-  ######################### Tools and Linters #################################
-
-  # fuzzit:
-  #   # Usage:
-  #   #   docker-compose build cpp
-  #   #   docker-compose build fuzzit
-  #   #   docker-compose run fuzzit
-  #   image: arrow:fuzzit
-  #   build:
-  #     context: .
-  #     dockerfile: dev/fuzzit/Dockerfile
-  #   environment:
-  #     CI_ARROW_SHA: ${CI_ARROW_SHA}
-  #     CI_ARROW_BRANCH: ${CI_ARROW_BRANCH}
   #   volumes: *ubuntu-volumes
 
   ######################### Integration Tests #################################
