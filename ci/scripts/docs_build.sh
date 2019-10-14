@@ -19,52 +19,51 @@
 set -ex
 
 arrow_dir=${1}
-source_dir=${1}/docs
-build_dir=${2:-${source_dir}/_build}
+build_dir=${2}
 
 export LD_LIBRARY_PATH=${ARROW_HOME}/lib:${LD_LIBRARY_PATH}
 export PKG_CONFIG_PATH=${ARROW_HOME}/lib/pkgconfig:${PKG_CONFIG_PATH}
+export CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0"
 
 # Sphinx
-# sphinx-build -b html ${source_dir}/source ${build_dir}/html
+sphinx-build -b html ${arrow_dir}/docs/source ${arrow_dir}/docs/_build
 
 # C++
 pushd ${arrow_dir}/cpp/apidoc
 doxygen
-# mkdir -p ../../site/asf-site/docs/cpp
-# rsync -r html/ ../../site/asf-site/docs/cpp
 popd
 
 # C GLib
-pushd ${arrow_dir}/c_glib
-if [ -f Makefile ]; then
-    # Ensure updating to prevent auto re-configure
-    touch configure **/Makefile
-    make distclean
-fi
-./autogen.sh
-mkdir -p apidocs
-pushd apidocs
-../configure --prefix=${ARROW_HOME} --enable-gtk-doc
-make -j4 GTK_DOC_V_XREF=": "
-# mkdir -p ../../site/asf-site/docs/c_glib
-# rsync -r doc/arrow-glib/html/ ../../site/asf-site/docs/c_glib/arrow-glib
-# rsync -r doc/parquet-glib/html/ ../../site/asf-site/docs/c_glib/parquet-glib
-popd
-popd
+# pushd ${arrow_dir}/c_glib
+# if [ -f Makefile ]; then
+#     # Ensure updating to prevent auto re-configure
+#     touch configure **/Makefile
+#     make distclean
+# fi
+# ./autogen.sh
+# mkdir -p apidoc
+# pushd apidoc
+# ../configure --prefix=${ARROW_HOME} --enable-gtk-doc
+# make -j4 GTK_DOC_V_XREF=": "
+# popd
+# popd
 
 # Make Java documentation
 # Override user.home to cache dependencies outside the Docker container
 # NB: this assumes that you have arrow-site cloned in the (gitignored) site directory
 pushd ${arrow_dir}/java
 mvn -Duser.home=`pwd`/.apidocs-m2 -Drat.skip=true -Dcheckstyle.skip=true install site
-# mkdir -p ../site/asf-site/docs/java/
-# rsync -r target/site/apidocs/ ../site/asf-site/docs/java/
 popd
 
 # Make Javascript documentation
 pushd ${arrow_dir}/js
 npm install
 npm run doc
-# rsync -r doc/ ../site/asf-site/docs/js
 popd
+
+mkdir -p ${build_dir}/c_glib
+# rsync -r ${arrow_dir}/c_glib/apidoc/doc/arrow-glib/html/ ${build_dir}/c_glib/arrow-glib/
+# rsync -r ${arrow_dir}/c_glib/apidoc/doc/parquet-glib/html/ ${build_dir}/c_glib/parquet-glib/
+rsync -r ${arrow_dir}/cpp/apidoc/html/ ${build_dir}/cpp/
+rsync -r ${arrow_dir}/java/target/site/apidocs/ ${build_dir}/java/
+rsync -r ${arrow_dir}/js/doc/ ${build_dir}/js/

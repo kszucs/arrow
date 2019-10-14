@@ -25,6 +25,7 @@ ARG pandas=0.25
 ARG maven=3.5
 ARG node=11
 ARG jdk=8
+
 COPY ci/conda_env_sphinx.yml /arrow/ci/
 RUN conda install -q \
         --file arrow/ci/conda_env_sphinx.yml \
@@ -33,3 +34,15 @@ RUN conda install -q \
         nodejs=${node} \
         openjdk=${jdk} && \
     conda clean --all
+
+RUN apt-get update -y -q && \
+    apt-get install -y -q --no-install-recommends \
+        gtk-doc-tools \
+        libtool \
+        libgirepository1.0-dev \
+        libglib2.0-doc \
+        autoconf-archive \
+        gobject-introspection \
+        automake && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
