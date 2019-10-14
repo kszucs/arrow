@@ -47,7 +47,7 @@ jobs:
           docker-compose push lint
 
   docker-docs:
-    name: Sphinx Documentation
+    name: APIdocs and Sphinx
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Arrow
