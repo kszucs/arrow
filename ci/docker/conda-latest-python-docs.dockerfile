@@ -21,6 +21,15 @@ ARG conda=latest
 ARG python=3.6
 FROM ${org}/${arch}-conda-${conda}-python-${python}:latest
 
-COPY ci/conda_env_docs.yml /arrow/ci/
-RUN conda install -q --file arrow/ci/conda_env_docs.yml && \
+ARG pandas=0.25
+ARG maven=3.5
+ARG node=11
+ARG jdk=8
+COPY ci/conda_env_sphinx.yml /arrow/ci/
+RUN conda install -q \
+        --file arrow/ci/conda_env_sphinx.yml \
+        pandas=${pandas} \
+        maven=${maven} \
+        nodejs=${node} \
+        openjdk=${jdk} && \
     conda clean --all

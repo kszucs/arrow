@@ -519,6 +519,9 @@ services:
         arch: ${ARCH}
         conda: latest
         python: ${PYTHON}
+        jdk: ${JDK}
+        maven: ${MAVEN}
+        node: ${NODE}
     volumes: *conda-volumes
     entrypoint: *conda-entrypoint
     command:
