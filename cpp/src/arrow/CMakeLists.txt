@@ -149,6 +149,47 @@ set(ARROW_SRCS
     vendored/base64.cpp
     vendored/datetime/tz.cpp)
 
+if(ARROW_WITH_BOOST_FILESYSTEM)
+  add_definitions(-DARROW_WITH_BOOST_FILESYSTEM)
+endif()
+
+if(ARROW_WITH_BROTLI)
+  add_definitions(-DARROW_WITH_BROTLI)
+  list(APPEND ARROW_SRCS util/compression_brotli.cc)
+endif()
+
+if(ARROW_WITH_BZ2)
+  add_definitions(-DARROW_WITH_BZ2)
+  list(APPEND ARROW_SRCS util/compression_bz2.cc)
+endif()
+
+if(ARROW_WITH_LZ4)
+  add_definitions(-DARROW_WITH_LZ4)
+  list(APPEND ARROW_SRCS util/compression_lz4.cc)
+endif()
+
+if(ARROW_WITH_SNAPPY)
+  add_definitions(-DARROW_WITH_SNAPPY)
+  list(APPEND ARROW_SRCS util/compression_snappy.cc)
+endif()
+
+if(ARROW_WITH_ZLIB)
+  add_definitions(-DARROW_WITH_ZLIB)
+  list(APPEND ARROW_SRCS util/compression_zlib.cc)
+endif()
+
+if(ARROW_WITH_ZSTD)
+  add_definitions(-DARROW_WITH_ZSTD)
+  list(APPEND ARROW_SRCS util/compression_zstd.cc)
+endif()
+
+set(ARROW_TESTING_SRCS
+    io/test_common.cc
+    ipc/test_common.cc
+    testing/gtest_util.cc
+    testing/random.cc
+    testing/generator.cc)
+
 # Add dependencies for third-party allocators.
 # If possible we only want memory_pool.cc to wait for allocators to finish building,
 # but that only works with Ninja
@@ -233,63 +274,80 @@ if(ARROW_CUDA)
   add_subdirectory(gpu)
 endif()
 
-if(ARROW_WITH_BROTLI)
-  add_definitions(-DARROW_WITH_BROTLI)
-  set(ARROW_SRCS util/compression_brotli.cc ${ARROW_SRCS})
+if(ARROW_DATASET)
+  add_subdirectory(dataset)
 endif()
 
-if(ARROW_WITH_BZ2)
-  add_definitions(-DARROW_WITH_BZ2)
-  set(ARROW_SRCS util/compression_bz2.cc ${ARROW_SRCS})
+if(ARROW_FILESYSTEM)
+  add_subdirectory(filesystem)
+
+  list(APPEND ARROW_SRCS
+              filesystem/filesystem.cc
+              filesystem/localfs.cc
+              filesystem/mockfs.cc
+              filesystem/path_tree.cc
+              filesystem/path_util.cc
+              filesystem/util_internal.cc)
+
+  if(ARROW_S3)
+    list(APPEND ARROW_SRCS filesystem/s3fs.cc)
+  endif()
+
+  list(APPEND ARROW_TESTING_SRCS filesystem/test_util.cc)
 endif()
 
-if(ARROW_WITH_LZ4)
-  add_definitions(-DARROW_WITH_LZ4)
-  set(ARROW_SRCS util/compression_lz4.cc ${ARROW_SRCS})
+if(ARROW_FLIGHT)
+  add_subdirectory(flight)
 endif()
 
-if(ARROW_WITH_SNAPPY)
-  add_definitions(-DARROW_WITH_SNAPPY)
-  set(ARROW_SRCS util/compression_snappy.cc ${ARROW_SRCS})
+if(ARROW_HIVESERVER2)
+  add_subdirectory(dbi/hiveserver2)
 endif()
 
-if(ARROW_WITH_ZLIB)
-  add_definitions(-DARROW_WITH_ZLIB)
-  set(ARROW_SRCS util/compression_zlib.cc ${ARROW_SRCS})
+if(ARROW_IPC)
+  add_subdirectory(ipc)
+
+  list(APPEND ARROW_SRCS
+              ipc/dictionary.cc
+              ipc/feather.cc
+              ipc/message.cc
+              ipc/metadata_internal.cc
+              ipc/options.cc
+              ipc/reader.cc
+              ipc/writer.cc)
+
+  if(ARROW_JSON)
+    list(
+      APPEND ARROW_SRCS ipc/json_integration.cc ipc/json_internal.cc ipc/json_simple.cc)
+  endif()
 endif()
 
-if(ARROW_WITH_ZSTD)
-  add_definitions(-DARROW_WITH_ZSTD)
-  set(ARROW_SRCS util/compression_zstd.cc ${ARROW_SRCS})
+if(ARROW_JSON)
+  add_subdirectory(json)
+  list(APPEND ARROW_SRCS
+              json/options.cc
+              json/chunked_builder.cc
+              json/chunker.cc
+              json/converter.cc
+              json/parser.cc
+              json/reader.cc)
 endif()
 
 if(ARROW_ORC)
   add_subdirectory(adapters/orc)
-  set(ARROW_SRCS adapters/orc/adapter.cc adapters/orc/adapter_util.cc ${ARROW_SRCS})
+  list(APPEND ARROW_SRCS adapters/orc/adapter.cc adapters/orc/adapter_util.cc)
+endif()
+
+if(ARROW_PYTHON)
+  add_subdirectory(python)
 endif()
 
 if(ARROW_TENSORFLOW)
   add_subdirectory(adapters/tensorflow)
 endif()
 
-if(ARROW_IPC)
-  add_subdirectory(ipc)
-
-  set(ARROW_SRCS
-      ${ARROW_SRCS}
-      ipc/dictionary.cc
-      ipc/feather.cc
-      ipc/message.cc
-      ipc/metadata_internal.cc
-      ipc/options.cc
-      ipc/reader.cc
-      ipc/writer.cc)
-
-  if(ARROW_JSON)
-    set(ARROW_SRCS ${ARROW_SRCS} ipc/json_integration.cc ipc/json_internal.cc
-                   ipc/json_simple.cc)
-  endif()
-  add_dependencies(arrow_dependencies metadata_fbs)
+if(ARROW_WITH_URIPARSER)
+  list(APPEND ARROW_SRCS util/uri.cc)
 endif()
 
 if(NOT APPLE AND NOT MSVC)
