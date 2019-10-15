@@ -179,3 +179,40 @@ jobs:
             -p ${{ secrets.DOCKERHUB_TOKEN }}
           docker-compose push \
             ${{ matrix.platform }}-python-${{ matrix.integration }}
+
+  macos:
+    name: AMD64 MacOS 10.14 Python ${{ matrix.python }}
+    runs-on: macos-10.14
+    strategy:
+      fail-fast: false
+      matrix:
+        python: [2.7, 3.6, 3.7]
+    env:
+      ARROW_HOME: /usr/local
+      ARROW_ORC: OFF
+      ARROW_JEMALLOC: OFF
+      ARROW_BUILD_TESTS: ON
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install Dependencies
+        shell: bash
+        run: |
+          brew bundle --file=cpp/Brewfile
+          pip install -r python/requirements.txt \
+                      -r python/requirements-test.txt \
+                      cython
+      - name: Build
+        shell: bash
+        run: |
+          ci/scripts/cpp_build.sh $(pwd)
+          ci/scripts/python_build.sh $(pwd)
+      - name: Test
+        shell: bash
+        run: |
+          ci/scripts/python_test.sh $(pwd)
