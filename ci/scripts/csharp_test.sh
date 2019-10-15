@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,9 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM mcr.microsoft.com/dotnet/core/sdk:2.1
+set -ex
 
-COPY csharp /arrow/csharp
-WORKDIR /arrow/csharp
+source_dir=${1}/csharp
 
-CMD ["dotnet", "build"]
+pushd ${source_dir}
+dotnet test
+popd

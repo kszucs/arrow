@@ -1,0 +1,89 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: C#
+
+on:
+  push:
+  #   paths:
+  #     - 'csharp/**'
+  pull_request:
+  #   paths:
+  #     - 'csharp/**'
+
+jobs:
+
+  docker:
+    name: AMD64 Ubuntu C# ${{ matrix.csharp }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        csharp: [2.1]
+    env:
+      csharp: ${{ matrix.csharp }}
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Docker Pull
+        run: docker-compose pull --ignore-pull-failures ubuntu-csharp
+      - name: Docker Build
+        run: docker-compose build ubuntu-csharp
+      - name: Docker Run
+        run: docker-compose run ubuntu-csharp
+      - name: Docker Push
+        if: github.event_name == 'push' # && github.ref == 'master'
+        shell: bash
+        run: |
+          docker login \
+            -u ${{ secrets.DOCKERHUB_USER }} \
+            -p ${{ secrets.DOCKERHUB_TOKEN }}
+          docker-compose push ubuntu-csharp
+
+  macos-windows:
+    name: AMD64 ${{ matrix.name }} C# ${{ matrix.csharp }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-10.14
+          - windows-2019
+        include:
+          - os: macos-10.14
+            name: MacOS 10.14
+            csharp: nightly-2019-09-25
+          - os: windows-2019
+            name: Windows 2019
+            csharp: nightly-2019-09-25
+    steps:
+      - name: Install csharp
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '2.1'
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Build
+        shell: bash
+        run: ci/scripts/csharp_build.sh $(pwd)
+      - name: Test
+        shell: bash
+        run: ci/scripts/csharp_test.sh $(pwd)

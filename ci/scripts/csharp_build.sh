@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-ORG=arrowdev
-ARCH=amd64
-CUDA=10.0
-DEBIAN=10
-UBUNTU=18.04
-FEDORA=29
-PYTHON=3.6
-RUST=nightly-2019-09-25
-GO=1.12
-NODE=11
-MAVEN=3.5
-JDK=8
-R=3.6.1
-PANDAS=latest
-DASK=latest
-TURBODBC=latest
-HDFS=2.9.2
-SPARK=master
-DOTNET=2.1
+set -ex
+
+source_dir=${1}/csharp
+
+pushd ${source_dir}
+dotnet build
+popd

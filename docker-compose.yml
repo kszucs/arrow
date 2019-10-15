@@ -508,6 +508,26 @@ services:
         /arrow/ci/scripts/js_build.sh /arrow &&
         /arrow/ci/scripts/js_test.sh /arrow"
 
+  #################################### C# #####################################
+
+  ubuntu-csharp:
+    image: ${ORG}/${ARCH}-ubuntu-18.04-csharp-${DOTNET}:latest
+    build:
+      context: .
+      dockerfile: ci/docker/ubuntu-18.04-csharp.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-ubuntu-18.04-csharp-${DOTNET}:latest
+      args:
+        arch: ${ARCH}
+        dotnet: ${DOTNET}
+        platform: bionic  # use bionic-arm64v8 for ARM
+    shm_size: *shm-size
+    volumes: *ubuntu-volumes
+    command: &csharp-command >
+      /bin/bash -c "
+        /arrow/ci/scripts/csharp_build.sh /arrow &&
+        /arrow/ci/scripts/csharp_test.sh /arrow"
+
   ################################ Java #######################################
 
   debian-java:
@@ -552,7 +572,7 @@ services:
     command:
       ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
-        /arrow/ci/scripts/docs_build.sh /arrow"]
+        /arrow/ci/scripts/docs_build.sh /arrow /build/docs"]
 
   ################################# Tools #####################################
 
