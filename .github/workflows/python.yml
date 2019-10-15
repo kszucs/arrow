@@ -193,6 +193,12 @@ jobs:
       ARROW_JEMALLOC: OFF
       ARROW_BUILD_TESTS: ON
       ARROW_PYTHON: ON
+      ARROW_WITH_ZLIB: ON
+      ARROW_WITH_LZ4: ON
+      ARROW_WITH_BZ2: ON
+      ARROW_WITH_ZSTD: ON
+      ARROW_WITH_SNAPPY: ON
+      ARROW_WITH_BROTLI: ON
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
