@@ -192,6 +192,7 @@ jobs:
       ARROW_ORC: OFF
       ARROW_JEMALLOC: OFF
       ARROW_BUILD_TESTS: ON
+      ARROW_PYTHON: ON
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
