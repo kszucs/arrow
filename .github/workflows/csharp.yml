@@ -28,14 +28,14 @@ on:
 jobs:
 
   docker:
-    name: AMD64 Ubuntu C# ${{ matrix.csharp }}
+    name: AMD64 Ubuntu C# ${{ matrix.dotnet }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         csharp: [2.1]
     env:
-      csharp: ${{ matrix.csharp }}
+      DOTNET: ${{ matrix.dotnet }}
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
@@ -57,7 +57,7 @@ jobs:
           docker-compose push ubuntu-csharp
 
   macos-windows:
-    name: AMD64 ${{ matrix.name }} C# ${{ matrix.csharp }}
+    name: AMD64 ${{ matrix.name }} C# ${{ matrix.dotnet }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -68,15 +68,15 @@ jobs:
         include:
           - os: macos-10.14
             name: MacOS 10.14
-            csharp: nightly-2019-09-25
+            dotnet: 2.2.103
           - os: windows-2019
             name: Windows 2019
-            csharp: nightly-2019-09-25
+            dotnet: 2.2.103
     steps:
       - name: Install csharp
         uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: '2.2.103'
+          dotnet-version: ${{ matrix.dotnet }}
       - name: Checkout Arrow
         uses: actions/checkout@v1
         with:
