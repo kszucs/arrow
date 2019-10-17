@@ -187,6 +187,38 @@ services:
     volumes: *ubuntu-volumes
     command: *c-glib-command
 
+  ############################### Ruby ########################################
+
+  debian-ruby:
+    image: ${ORG}/${ARCH}-debian-${DEBIAN}-ruby:latest
+    build:
+      context: .
+      dockerfile: ci/docker/linux-apt-ruby.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-debian-${DEBIAN}-ruby:latest
+      args:
+        base: ${ORG}/${ARCH}-debian-${DEBIAN}-c-glib:latest
+    shm_size: *shm-size
+    volumes: *debian-volumes
+    command: &ruby-command >
+      /bin/bash -c "
+        /arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/c_glib_build.sh /arrow /build/c_glib &&
+        /arrow/ci/scripts/ruby_test.sh /arrow"
+
+  ubuntu-ruby:
+    image: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-ruby:latest
+    build:
+      context: .
+      dockerfile: ci/docker/linux-apt-ruby.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-ubuntu-${UBUNTU}-ruby:latest
+      args:
+        base: ${ORG}/${ARCH}-ubuntu-${UBUNTU}-c-glib:latest
+    shm_size: *shm-size
+    volumes: *ubuntu-volumes
+    command: *ruby-command
+
   ############################### Python ######################################
 
   conda-python:
