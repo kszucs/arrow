@@ -582,15 +582,42 @@ services:
         /arrow/ci/scripts/java_build.sh /arrow &&
         /arrow/ci/scripts/java_test.sh /arrow"
 
+  ############################## Integration ##################################
+
+  conda-integration:
+    image: ${ORG}/${ARCH}-conda-latest-integration:latest
+    build:
+      context: .
+      dockerfile: ci/docker/conda-latest-integration.dockerfile
+      cache_from:
+        - ${ORG}/${ARCH}-conda-latest-integration:latest
+      args:
+        org: ${ORG}
+        arch: ${ARCH}
+        conda: latest
+        jdk: ${JDK}
+        maven: ${MAVEN}
+        node: ${NODE}
+        go: ${GO}
+    volumes: *conda-volumes
+    entrypoint: *conda-entrypoint
+    command:
+      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+        /arrow/ci/scripts/go_build.sh /arrow &&
+        /arrow/ci/scripts/java_build.sh /arrow &&
+        /arrow/ci/scripts/js_build.sh /arrow &&
+        pip install -e /arrow/dev/archery &&
+        archery integration --with-all --run-flight"]
+
   ################################ Docs #######################################
 
   conda-docs:
-    image: ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-docs:latest
+    image: ${ORG}/${ARCH}-conda-latest-docs:latest
     build:
       context: .
-      dockerfile: ci/docker/conda-latest-python-docs.dockerfile
+      dockerfile: ci/docker/conda-latest-docs.dockerfile
       cache_from:
-        - ${ORG}/${ARCH}-conda-latest-python-${PYTHON}-docs:latest
+        - ${ORG}/${ARCH}-conda-latest-docs:latest
       args:
         org: ${ORG}
         arch: ${ARCH}
