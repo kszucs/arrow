@@ -21,10 +21,12 @@ on:
   push:
     # paths:
     #   - 'cpp/**'
+    #   - 'c_glib/**'
     #   - 'ruby/**'
   pull_request:
     # paths:
     #   - 'cpp/**'
+    #   - 'c_glib/**'
     #   - 'ruby/**'
 
 jobs:

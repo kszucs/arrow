@@ -18,6 +18,7 @@
 ARG arch=amd64
 FROM ${arch}/ubuntu:18.04
 
+# arch is unset after the FROM statement, so need to define it again
 ARG arch=amd64
 ARG conda=latest
 ARG minio=latest
@@ -30,7 +31,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# arch is unset after the FROM statement, so need to define it again
 ENV PATH=${prefix}/bin:$PATH \
     CONDA_PREFIX=${prefix}
 # install conda and minio

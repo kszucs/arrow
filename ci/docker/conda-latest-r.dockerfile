@@ -32,7 +32,7 @@ RUN conda install -q \
 # Ensure parallel compilation of each individual package
 RUN printf "\nMAKEFLAGS=-j8\n" >> /opt/conda/lib/R/etc/Makeconf
 
-ENV MAKEFLAGS=-j8 \
+ENV MAKEFLAGS=-j4 \
     R_CONDA=1
 
 # Arrow build flags
