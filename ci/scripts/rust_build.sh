@@ -30,7 +30,7 @@ export CARGO_TARGET_DIR=${build_dir}
 
 pushd ${source_dir}
 
-cargo build --all-target
+cargo build --all-targets
 
 pushd arrow
 # build with no default features
