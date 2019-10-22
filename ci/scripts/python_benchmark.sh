@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,18 +17,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -e
+# TODO(kszucs): port it
 
-source $TRAVIS_BUILD_DIR/ci/travis_env_common.sh
+# Check the ASV benchmarking setup.
+# Unfortunately this won't ensure that all benchmarks succeed
+# (see https://github.com/airspeed-velocity/asv/issues/449)
+source deactivate
+conda create -y -q -n pyarrow_asv python=$PYTHON_VERSION
+conda activate pyarrow_asv
+pip install -q git+https://github.com/pitrou/asv.git@customize_commands
 
-JAVA_DIR=${TRAVIS_BUILD_DIR}/java
-pushd $JAVA_DIR
+export PYARROW_WITH_PARQUET=1
+export PYARROW_WITH_PLASMA=1
+export PYARROW_WITH_ORC=0
+export PYARROW_WITH_GANDIVA=0
 
-if [ "$ARROW_TRAVIS_JAVA_BUILD_ONLY" == "1" ]; then
-    # Save time and make build less verbose by skipping tests and style checks
-    $TRAVIS_MVN -DskipTests=true -Dcheckstyle.skip=true -B install
-else
-    $TRAVIS_MVN -B install
-fi
-
-popd
+pushd $ARROW_PYTHON_DIR
+# Workaround for https://github.com/airspeed-velocity/asv/issues/631
+git fetch --depth=100 origin master:master
+# Generate machine information (mandatory)
+asv machine --yes
+# Run benchmarks on the changeset being tested
+asv run --no-pull --show-stderr --quick HEAD^!
+popd  # $ARROW_PYTHON_DIR

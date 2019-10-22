@@ -28,3 +28,12 @@ export GI_TYPELIB_PATH=${ARROW_HOME}/lib/girepository-1.0
 export PKG_CONFIG=/usr/bin/pkg-config
 
 ruby ${source_dir}/test/run-test.rb
+
+
+# TODO(kszucs): run lua examples
+#   pushd example/lua
+#   lua write-batch.lua
+#   lua read-batch.lua
+#   lua write-stream.lua
+#   lua read-stream.lua
+#   popd

@@ -38,3 +38,26 @@ pushd ${source_dir}
 mvn -B $JAVA_ARGS -Drat.skip=true install $SHADE_FLATBUFFERS
 
 popd
+
+###################################
+# TODO(kszucs): java jni tests
+# # build with gandiva profile
+# $TRAVIS_MVN -P arrow-jni -B install -DskipTests -Darrow.cpp.build.dir=$CPP_BUILD_DIR/debug
+
+# # run gandiva tests
+# $TRAVIS_MVN test -P arrow-jni -pl gandiva -Darrow.cpp.build.dir=$CPP_BUILD_DIR/debug
+
+##################################
+# TODO(kszucs): plasma java client
+# PLASMA_JAVA_DIR=${TRAVIS_BUILD_DIR}/java/plasma
+
+# pushd $PLASMA_JAVA_DIR
+
+# $TRAVIS_MVN clean install
+
+# export LD_LIBRARY_PATH=${ARROW_CPP_INSTALL}/lib:$LD_LIBRARY_PATH
+# export PLASMA_STORE=${ARROW_CPP_INSTALL}/bin/plasma_store_server
+
+# ldd $PLASMA_STORE
+
+# $TRAVIS_JAVA -cp target/test-classes:target/classes -Djava.library.path=${TRAVIS_BUILD_DIR}/cpp-build/debug/ org.apache.arrow.plasma.PlasmaClientTest

@@ -48,11 +48,11 @@ COPY ci/conda_env_cpp.yml \
      /arrow/ci/
 RUN conda install -q \
         --file arrow/ci/conda_env_unix.yml \
-        --file arrow/ci/conda_env_linux.yml \
         --file arrow/ci/conda_env_cpp.yml \
         --file arrow/ci/conda_env_gandiva.yml \
-        git && \
+        git compilers && \
     conda clean --all
+# TODO(kszucs): compilers instead of conda_env_linux
 
 ENV ARROW_S3=ON \
     ARROW_ORC=ON \

@@ -19,6 +19,8 @@ ARG arch=amd64
 ARG node=11
 FROM ${arch}/node:${node}
 
+ENV NODE_NO_WARNINGS=1
+
 # TODO(kszucs):
 # 1. add the files required to install the dependencies to .dockeignore
 # 2. copy these files to their appropiate path

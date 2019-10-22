@@ -30,4 +30,5 @@ RUN conda install -q \
     conda clean --all
 
 ENV ARROW_PYTHON=ON \
-    ARROW_BUILD_TESTS=OFF
+    ARROW_BUILD_TESTS=OFF \
+    ARROW_TENSORFLOW=ON

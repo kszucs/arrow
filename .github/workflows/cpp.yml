@@ -109,6 +109,7 @@ jobs:
           submodules: true
       - name: Install Dependencies
         shell: bash
+        # TODO(kszucs): consider to use run_brew from travis_install_osx.sh
         run: brew bundle --file=cpp/Brewfile
       - name: Build
         shell: bash
