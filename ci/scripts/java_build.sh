@@ -22,6 +22,8 @@ source_dir=${1}/java
 
 export MAVEN_OPTS="-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
 
+# TODO(kszucs): flag to build with gandiva
+
 JAVA_ARGS=
 if [ "${ARROW_JAVA_RUN_TESTS}" != "1" ]; then
   JAVA_ARGS=-DskipTests

@@ -17,23 +17,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -e
+set -eux
 
-GO_DIR=${TRAVIS_BUILD_DIR}/go/arrow
+arrow_dir=${1}
 
-pushd $GO_DIR
+pip install cython
+pip install setuptools
 
-go get -d -t -v ./...
-go install -v ./...
+wget -q https://packages.microsoft.com/config/ubuntu/16.04/packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
 
-echo "" > coverage.txt
+sudo apt-get install apt-transport-https
+sudo apt-get update
+sudo apt-get install dotnet-sdk-2.2
 
-for d in $(go list ./... | grep -v vendor); do
-    go test -race -coverprofile=profile.out -covermode=atomic $d
-    if [ -f profile.out ]; then
-        cat profile.out >> coverage.txt
-        rm profile.out
-    fi
-done
-
-popd
+${arrow_dir}/dev/release/run-test.rb

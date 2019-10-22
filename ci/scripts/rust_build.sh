@@ -25,6 +25,25 @@ build_dir=${2:-${source_dir}/target}
 mkdir -p ${build_dir}
 export CARGO_TARGET_DIR=${build_dir}
 
+# TODO(kszucs): pass target explicitly, like x86_64-pc-windows-msvc?
+# TODO(kszucs): run release build?
+
 pushd ${source_dir}
-cargo build
+
+cargo build --all-target
+
+pushd arrow
+# build with no default features
+cargo build --all-targets --no-default-features
+# build arrow examples
+cargo run --example builders --release
+cargo run --example dynamic_types --release
+cargo run --example read_csv --release
+cargo run --example read_csv_infer_schema --release
+popd
+
+pushd datafusion
+# build datafusion examples
+cargo run --example csv_sql --release
+cargo run --example parquet_sql --release
 popd

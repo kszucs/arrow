@@ -70,3 +70,31 @@ jobs:
             -u ${{ secrets.DOCKERHUB_USER }} \
             -p ${{ secrets.DOCKERHUB_TOKEN }}
           docker-compose push ${{ matrix.platform }}-c-glib
+
+  macos:
+    name: AMD64 MacOS 10.14 C Glib
+    runs-on: macos-10.14
+    strategy:
+      fail-fast: false
+    env:
+      ARROW_HOME: /usr/local
+      ARROW_ORC: OFF
+      ARROW_JEMALLOC: OFF
+      ARROW_BUILD_TESTS: ON
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: Install Dependencies
+        shell: bash
+        run: brew bundle --file=cpp/Brewfile
+      - name: Build
+        shell: bash
+        run: |
+          ci/scripts/cpp_build.sh $(pwd) $(pwd)/cpp/build && \
+          ci/scripts/c_glib_build.sh $(pwd) $(pwd)/c_glib/build
+      - name: Test
+        shell: bash
+        run: |
+          ci/scripts/c_glib_test.sh $(pwd) $(pwd)/c_glib/build
