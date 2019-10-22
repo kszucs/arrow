@@ -36,7 +36,7 @@ RUN conda install -q \
 
 # installing specific version of spark
 ARG spark=master
-RUN wget -q -O /tmp/spark.tar.gz https://github.com/apache/spark/archive/${spark}.tar.gz | tar -xzf --strip-components=1 -C /spark
+RUN wget -q -O /tmp/spark.tar.gz https://github.com/apache/spark/archive/${spark}.tar.gz | tar -xzf --strip-components=1 -C /spark -
 # patch spark to build with current Arrow Java
 COPY ci/etc/ARROW-6429.patch /tmp/
 RUN patch -d /spark -p1 -i /tmp/ARROW-6429.patch && \
