@@ -28,5 +28,21 @@ export PARQUET_TEST_DATA=${arrow_dir}/cpp/submodules/parquet-testing/data
 export CARGO_TARGET_DIR=${build_dir}
 
 pushd ${source_dir}
+
 cargo test
+
+pushd arrow
+# test arrow examples
+cargo run --example builders --release
+cargo run --example dynamic_types --release
+cargo run --example read_csv --release
+cargo run --example read_csv_infer_schema --release
+popd
+
+pushd datafusion
+# test datafusion examples
+cargo run --example csv_sql --release
+cargo run --example parquet_sql --release
+popd
+
 popd

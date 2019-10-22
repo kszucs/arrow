@@ -35,15 +35,6 @@ cargo build --all-targets
 pushd arrow
 # build with no default features
 cargo build --all-targets --no-default-features
-# build arrow examples
-cargo run --example builders --release
-cargo run --example dynamic_types --release
-cargo run --example read_csv --release
-cargo run --example read_csv_infer_schema --release
 popd
 
-pushd datafusion
-# build datafusion examples
-cargo run --example csv_sql --release
-cargo run --example parquet_sql --release
 popd
