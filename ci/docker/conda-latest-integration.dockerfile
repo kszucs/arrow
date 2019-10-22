@@ -27,6 +27,7 @@ ARG jdk=8
 ARG go=1.12
 
 RUN conda install -q \
+        numpy \
         maven=${maven} \
         nodejs=${node} \
         openjdk=${jdk} && \
@@ -38,14 +39,14 @@ RUN wget -O /tmp/go${go}.linux-${arch}.tar.gz https://dl.google.com/go/go${go}.l
     tar -C /usr/local -xzf /tmp/go${go}.linux-${arch}.tar.gz && \
     rm -r /tmp/go*
 
-ENV ARROW_BUILD_INTEGRATION=ON
-    # ARROW_FLIGHT=ON \
-    # ARROW_ORC=OFF \
-    # ARROW_DATASET=OFF \
-    # ARROW_GANDIVA=OFF \
-    # ARROW_PLASMA=OFF \
-    # ARROW_FILESYSTEM=OFF \
-    # ARROW_HDFS=OFF \
-    # ARROW_JEMALLOC=OFF \
-    # ARROW_JSON=OFF \
-    # ARROW_USE_GLOG=OFF
+ENV ARROW_BUILD_INTEGRATION=ON \
+    ARROW_FLIGHT=ON \
+    ARROW_ORC=OFF \
+    ARROW_DATASET=OFF \
+    ARROW_GANDIVA=OFF \
+    ARROW_PLASMA=OFF \
+    ARROW_FILESYSTEM=OFF \
+    ARROW_HDFS=OFF \
+    ARROW_JEMALLOC=OFF \
+    ARROW_JSON=OFF \
+    ARROW_USE_GLOG=OFF
