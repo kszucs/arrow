@@ -26,6 +26,7 @@ RUN apt-get update -y -q && \
         libgirepository1.0-dev \
         libglib2.0-doc \
         pkg-config \
+        lua5.3 \
         ruby-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*

@@ -543,12 +543,12 @@ services:
   #################################### C# #####################################
 
   ubuntu-csharp:
-    image: ${ORG}/${ARCH}-ubuntu-18.04-csharp-${DOTNET}:latest
+    image: ${ORG}/${ARCH}-ubuntu-18.04-csharp-${DOTNET_VERSION}:latest
     build:
       context: .
       dockerfile: ci/docker/ubuntu-18.04-csharp.dockerfile
       cache_from:
-        - ${ORG}/${ARCH}-ubuntu-18.04-csharp-${DOTNET}:latest
+        - ${ORG}/${ARCH}-ubuntu-18.04-csharp-${DOTNET_VERSION}:latest
       args:
         arch: ${ARCH}
         dotnet: ${DOTNET_VERSION}
