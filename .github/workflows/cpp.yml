@@ -137,10 +137,8 @@ jobs:
     env:
       CMAKE_GENERATOR: ${{ matrix.generator }}
       CMAKE_ARGS: '-A x64'
-      ARROW_WITH_LZ4: OFF
-      ARROW_WITH_ZLIB: OFF
-      ARROW_BUILD_TESTS: OFF
       ARROW_USE_GLOG: OFF
+      ARROW_BUILD_TESTS: OFF
       ARROW_VERBOSE_THIRDPARTY_BUILD: ON
     steps:
       - name: Checkout Arrow
@@ -153,8 +151,6 @@ jobs:
       - name: Build
         shell: bash
         run: ci/scripts/cpp_build.sh $(pwd) $(pwd)/cpp/build
-      # - name: Test
-      #   shell: bash
-      #   run: ci/scripts/cpp_test.sh $(pwd) $(pwd)/cpp/build
-      # ARROW_BUILD_TESTS sets LZ4 unconditionally to ON, and lz4_ep fails to
-      # compile
+      - name: Test
+        shell: bash
+        run: ci/scripts/cpp_test.sh $(pwd) $(pwd)/cpp/build
