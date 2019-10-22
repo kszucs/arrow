@@ -42,7 +42,7 @@ jobs:
       - name: Run Release Test
         shell: bash
         run: |
-          ci/scripts/release_test.sh
+          ci/scripts/release_test.sh $(pwd)
 
   docker-lint:
     name: Lint C++, Python, R, Rust, Docker, RAT

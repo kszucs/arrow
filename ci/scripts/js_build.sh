@@ -24,8 +24,10 @@ source_dir=${1}/js
 pushd ${source_dir}
 
 # TODO(kszucs): linting should be moved to archery
-npm run lint:ci
+npm install npm-run-all
 npm install
+
+npm run lint:ci
 npm run build
 
 popd
