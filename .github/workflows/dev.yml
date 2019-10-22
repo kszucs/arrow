@@ -39,6 +39,10 @@ jobs:
         uses: actions/setup-ruby@v1
         with:
           ruby-version: '2.6'
+      - name: Run Release Test
+        shell: bash
+        run: |
+          ci/scripts/release_test.sh
 
   docker-lint:
     name: Lint C++, Python, R, Rust, Docker, RAT
