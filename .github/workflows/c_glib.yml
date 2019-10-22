@@ -88,11 +88,13 @@ jobs:
           submodules: true
       - name: Install Dependencies
         shell: bash
-        run: brew bundle --file=cpp/Brewfile
+        run: |
+          brew bundle --file=cpp/Brewfile
+          brew bundle --file=c_glib/Brewfile
       - name: Build
         shell: bash
         run: |
-          ci/scripts/cpp_build.sh $(pwd) $(pwd)/cpp/build && \
+          ci/scripts/cpp_build.sh $(pwd) $(pwd)/cpp/build
           ci/scripts/c_glib_build.sh $(pwd) $(pwd)/c_glib/build
       - name: Test
         shell: bash

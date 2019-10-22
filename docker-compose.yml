@@ -551,7 +551,7 @@ services:
         - ${ORG}/${ARCH}-ubuntu-18.04-csharp-${DOTNET}:latest
       args:
         arch: ${ARCH}
-        dotnet: ${DOTNET}
+        dotnet: ${DOTNET_VERSION}
         platform: bionic  # use bionic-arm64v8 for ARM
     shm_size: *shm-size
     volumes: *ubuntu-volumes
