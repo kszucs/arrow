@@ -44,7 +44,6 @@ RUN /arrow/ci/scripts/install_conda.sh ${arch} linux ${minio} ${prefix} && \
 COPY ci/conda_env_cpp.yml \
      ci/conda_env_gandiva.yml \
      ci/conda_env_unix.yml \
-     ci/conda_env_linux.yml \
      /arrow/ci/
 RUN conda install -q \
         --file arrow/ci/conda_env_unix.yml \
