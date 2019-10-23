@@ -602,7 +602,8 @@ services:
     volumes: *conda-volumes
     entrypoint: *conda-entrypoint
     environment:
-      ARROW_CPP_EXE_PATH: /build/cpp
+      # tell archery where the arrow binaries are located
+      ARROW_CPP_EXE_PATH: /build/cpp/debug
     command:
       ["/arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/go_build.sh /arrow &&
