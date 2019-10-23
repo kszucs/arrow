@@ -35,7 +35,7 @@ RUN conda install -q \
 
 ENV GOROOT=/opt/go/bin \
     PATH=/opt/go/bin:$PATH
-RUN wget -nv -O - https://dl.google.com/go/go${go}.linux-${arch}.tar.gz | tar -xzf -C /usr/local -
+RUN wget -nv -O - https://dl.google.com/go/go${go}.linux-${arch}.tar.gz | tar -xzf - -C /usr/local
 
 ENV ARROW_BUILD_INTEGRATION=ON \
     ARROW_FLIGHT=ON \

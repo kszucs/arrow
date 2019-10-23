@@ -543,15 +543,15 @@ services:
   #################################### C# #####################################
 
   ubuntu-csharp:
-    image: ${ORG}/${ARCH}-ubuntu-18.04-csharp-${DOTNET_VERSION}:latest
+    image: ${ORG}/${ARCH}-ubuntu-18.04-csharp-${DOTNET}:latest
     build:
       context: .
       dockerfile: ci/docker/ubuntu-18.04-csharp.dockerfile
       cache_from:
-        - ${ORG}/${ARCH}-ubuntu-18.04-csharp-${DOTNET_VERSION}:latest
+        - ${ORG}/${ARCH}-ubuntu-18.04-csharp-${DOTNET}:latest
       args:
         arch: ${ARCH}
-        dotnet: ${DOTNET_VERSION}
+        dotnet: ${DOTNET}
         platform: bionic  # use bionic-arm64v8 for ARM
     shm_size: *shm-size
     volumes: *ubuntu-volumes
