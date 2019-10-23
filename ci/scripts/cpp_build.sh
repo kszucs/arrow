@@ -22,7 +22,7 @@ set -ex
 source_dir=${1}/cpp
 build_dir=${2:-${source_dir}/build}
 
-if [ -z "${CONDA_PREFIX}" ]; then
+if [ ! -z "${CONDA_PREFIX}" ]; then
     export CMAKE_ARGS="${CMAKE_ARGS} -DCMAKE_AR=${AR} -DCMAKE_RANLIB=${RANLIB}"
     export ARROW_GANDIVA_PC_CXX_FLAGS=$(echo | ${CXX} -E -Wp,-v -xc++ - 2>&1 | grep '^ ' | awk '{print "-isystem;" substr($1, 1)}' | tr '\n' ';')
 elif [ -x "$(command -v xcrun)" ]; then
