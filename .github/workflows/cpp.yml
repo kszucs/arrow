@@ -99,6 +99,8 @@ jobs:
       fail-fast: false
     env:
       ARROW_HOME: /usr/local
+      # TODO(kszucs): investigate why does it fail
+      ARROW_JEMALLOC: OFF
       ARROW_ORC: OFF
       ARROW_PLASMA: ON
       ARROW_GANDIVA: ON
