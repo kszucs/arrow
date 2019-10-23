@@ -31,6 +31,8 @@ RUN apt-get update -y -q && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+RUN ln -s /usr/bin/lua5.3 /usr/local/bin/lua
+
 RUN pip3 install meson && \
     gem install bundler
 

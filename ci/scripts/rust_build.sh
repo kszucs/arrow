@@ -23,6 +23,9 @@ source_dir=${1}/rust
 build_dir=${2:-${source_dir}/target}
 
 mkdir -p ${build_dir}
+
+export ARROW_TEST_DATA=${arrow_dir}/testing/data
+export PARQUET_TEST_DATA=${arrow_dir}/cpp/submodules/parquet-testing/data
 export CARGO_TARGET_DIR=${build_dir}
 
 # TODO(kszucs): pass target explicitly, like x86_64-pc-windows-msvc?

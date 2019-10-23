@@ -207,8 +207,8 @@ jobs:
       - name: Install Dependencies
         shell: bash
         run: |
-          brew install python
           brew bundle --file=cpp/Brewfile
+          brew install python
           pip install -r python/requirements.txt \
                       -r python/requirements-test.txt \
                       cython

@@ -28,7 +28,6 @@ export PARQUET_TEST_DATA=${arrow_dir}/cpp/submodules/parquet-testing/data
 export CARGO_TARGET_DIR=${build_dir}
 
 pushd ${source_dir}
-
 cargo test
 
 pushd arrow
