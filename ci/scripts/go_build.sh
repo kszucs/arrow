@@ -23,8 +23,7 @@ source_dir=${1}/go
 
 pushd ${source_dir}/arrow
 
-for d in $(go list ./... | grep -v vendor); do
-    go test $d
-done
+go get -d -t -v ./...
+go install -v ./...
 
 popd
