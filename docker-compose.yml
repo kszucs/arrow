@@ -601,6 +601,8 @@ services:
         go: ${GO}
     volumes: *conda-volumes
     entrypoint: *conda-entrypoint
+    environment:
+      ARROW_CPP_EXE_PATH: /build/cpp
     command:
       ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/go_build.sh /arrow &&
