@@ -92,6 +92,7 @@ jobs:
           brew bundle --file=cpp/Brewfile
           brew bundle --file=c_glib/Brewfile
           bundle install --gemfile c_glib/Gemfile
+          luarocks install lgi
       - name: Build
         shell: bash
         run: |

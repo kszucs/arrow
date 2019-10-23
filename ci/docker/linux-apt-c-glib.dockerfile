@@ -25,13 +25,13 @@ RUN apt-get update -y -q && \
         gtk-doc-tools \
         libgirepository1.0-dev \
         libglib2.0-doc \
+        luarocks \
         pkg-config \
-        lua5.3 \
         ruby-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN ln -s /usr/bin/lua5.3 /usr/local/bin/lua
+RUN luarocks install lgi
 
 RUN pip3 install meson && \
     gem install bundler
