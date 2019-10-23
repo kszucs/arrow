@@ -107,4 +107,4 @@ jobs:
       - name: Test
         shell: bash
         run: |
-          ci/scripts/ruby_test.sh /arrow
+          ci/scripts/ruby_test.sh $(pwd)
