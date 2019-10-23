@@ -22,12 +22,18 @@ set -ex
 source_dir=${1}/cpp
 build_dir=${2:-${source_dir}/build}
 
+if [ -z "${CONDA_PREFIX}" ]; then
+    export CMAKE_ARGS="${CMAKE_ARGS} -DCMAKE_AR=${AR} -DCMAKE_RANLIB=${RANLIB}"
+    export ARROW_GANDIVA_PC_CXX_FLAGS=$(echo | ${CXX} -E -Wp,-v -xc++ - 2>&1 | grep '^ ' | awk '{print "-isystem;" substr($1, 1)}' | tr '\n' ';')
+elif [ -x "$(command -v xcrun)" ]; then
+    export ARROW_GANDIVA_PC_CXX_FLAGS="-isysroot $(xcrun --show-sdk-path)"
+fi
+
 # export CCACHE_COMPRESS=1
 # export CCACHE_COMPRESSLEVEL=5
 # export CCACHE_COMPILERCHECK=content
 # export CCACHE_DIR=/build/ccache
 # export PATH=/usr/lib/ccache/:$PATH
-# rm -rf ${build_dir}
 
 mkdir -p ${build_dir}
 pushd ${build_dir}
@@ -52,6 +58,7 @@ cmake -G "${CMAKE_GENERATOR:-Ninja}" \
       -DARROW_FUZZING=${ARROW_FUZZING:-OFF} \
       -DARROW_GANDIVA_JAVA=${ARROW_GANDIVA_JAVA:-OFF} \
       -DARROW_GANDIVA=${ARROW_GANDIVA:-OFF} \
+      -DARROW_GANDIVA_PC_CXX_FLAGS=${ARROW_GANDIVA_PC_CXX_FLAGS:-} \
       -DARROW_HDFS=${ARROW_HDFS:-ON} \
       -DARROW_HIVESERVER2=${ARROW_HIVESERVER2:-OFF} \
       -DARROW_INSTALL_NAME_RPATH=${ARROW_INSTALL_NAME_RPATH:-ON} \

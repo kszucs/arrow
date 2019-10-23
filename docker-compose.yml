@@ -73,7 +73,7 @@ services:
       - conda-latest-cache:/build:delegated
     entrypoint: &conda-entrypoint /bin/bash -c -l
     command: &cpp-conda-command
-      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+      ["/arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/cpp_test.sh /arrow /build/cpp"]
 
   cuda-cpp:
@@ -237,7 +237,7 @@ services:
     volumes: *conda-volumes
     entrypoint: *conda-entrypoint
     command: &python-conda-command
-      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+      ["/arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
         /arrow/ci/scripts/python_test.sh /arrow"]
 
@@ -361,7 +361,7 @@ services:
     volumes: *conda-volumes
     entrypoint: *conda-entrypoint
     command:
-      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+      ["/arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
         /arrow/ci/scripts/integration_dask.sh"]
 
@@ -383,7 +383,7 @@ services:
     volumes: *conda-volumes
     entrypoint: *conda-entrypoint
     command:
-      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+      ["/arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
         /arrow/ci/scripts/integration_turbodbc.sh /turbodbc /build/turbodbc"]
 
@@ -439,7 +439,7 @@ services:
     volumes: *conda-volumes
     entrypoint: *conda-entrypoint
     command:
-      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+      ["/arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/r_build.sh /arrow &&
         /arrow/ci/scripts/r_test.sh /arrow"]
 
@@ -604,7 +604,7 @@ services:
     environment:
       ARROW_CPP_EXE_PATH: /build/cpp
     command:
-      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+      ["/arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/go_build.sh /arrow &&
         /arrow/ci/scripts/java_build.sh /arrow &&
         /arrow/ci/scripts/js_build.sh /arrow &&
@@ -631,7 +631,7 @@ services:
     volumes: *conda-volumes
     entrypoint: *conda-entrypoint
     command:
-      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+      ["/arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
         /arrow/ci/scripts/docs_build.sh /arrow /build/docs"]
 
@@ -726,7 +726,7 @@ services:
     volumes: *conda-volumes
     entrypoint: *conda-entrypoint
     command:
-      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+      ["/arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/integration_hiveserver2.sh /arrow /build/cpp"]
 
   conda-python-hdfs:
@@ -759,7 +759,7 @@ services:
     volumes: *conda-volumes
     entrypoint: *conda-entrypoint
     command:
-      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+      ["/arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
         /arrow/ci/scripts/integration_hdfs.sh /arrow /build/cpp"]
 
@@ -789,7 +789,7 @@ services:
     # - spark-cache:/spark:delegated
     entrypoint: *conda-entrypoint
     command:
-      ["/arrow/ci/scripts/cpp_conda_build.sh /arrow /build/cpp &&
+      ["/arrow/ci/scripts/cpp_build.sh /arrow /build/cpp &&
         /arrow/ci/scripts/python_build.sh /arrow &&
         /arrow/ci/scripts/java_build.sh /arrow &&
         /arrow/ci/scripts/integration_spark.sh /arrow /spark"]
