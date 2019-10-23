@@ -25,5 +25,5 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 ARG cmake=3.2.3
-RUN wget -nv -O - https://github.com/Kitware/CMake/releases/download/v${cmake}/cmake-${cmake}-Linux-x86_64.tar.gz | tar -xzf - -C /opt/cmake
-ENV PATH=/opt/cmake/cmake-${cmake}-Linux-x86_64/bin:$PATH
+RUN wget -nv -O - https://github.com/Kitware/CMake/releases/download/v${cmake}/cmake-${cmake}-Linux-x86_64.tar.gz | tar -xzf - -C /opt
+ENV PATH=/opt/cmake-${cmake}-Linux-x86_64/bin:$PATH
