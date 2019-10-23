@@ -203,10 +203,6 @@ jobs:
       ARROW_WITH_ZSTD: ON
       ARROW_WITH_SNAPPY: ON
       ARROW_WITH_BROTLI: ON
-      # llvm@7 is keg-only, which means it was not symlinked into /usr/local,
-      # because this is an alternate version of another formula.
-      LDFLAGS: "-L/usr/local/opt/llvm@7/lib"
-      CPPFLAGS: "-I/usr/local/opt/llvm@7/include"
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
