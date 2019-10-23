@@ -23,19 +23,13 @@ source_dir=${1}/java
 export MAVEN_OPTS="-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
 
 # TODO(kszucs): flag to build with gandiva
-
-JAVA_ARGS=
-if [ "${ARROW_JAVA_RUN_TESTS}" != "1" ]; then
-  JAVA_ARGS=-DskipTests
-fi
-
 if [ "${ARROW_JAVA_SHADE_FLATBUFS}" == "1" ]; then
   SHADE_FLATBUFFERS=-Pshade-flatbuffers
 fi
 
 pushd ${source_dir}
 
-mvn -B $JAVA_ARGS -Drat.skip=true install $SHADE_FLATBUFFERS
+mvn -B $MAVEN_OPTS -DskipTests -Drat.skip=true install $SHADE_FLATBUFFERS
 
 popd
 

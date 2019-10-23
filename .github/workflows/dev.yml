@@ -25,7 +25,12 @@ jobs:
 
   release:
     name: Source Release
-    runs-on: ubuntu-latest
+    # distro is important because:
+    #   https://stackoverflow.com/questions/57790510/msbuild-unhandled-exception-the-filename-property-should-not-be-a-directory-unl
+    runs-on: ubuntu-16.04
+    env:
+      GIT_COMMITTER_NAME: Github Actions
+      GIT_COMMITTER_EMAIL: github@actions
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v1
