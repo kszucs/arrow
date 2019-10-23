@@ -100,7 +100,15 @@ jobs:
     env:
       ARROW_HOME: /usr/local
       ARROW_ORC: OFF
-      ARROW_JEMALLOC: OFF
+      ARROW_PLASMA: ON
+      ARROW_GANDIVA: ON
+      ARROW_PARQUET: ON
+      ARROW_WITH_ZLIB: ON
+      ARROW_WITH_LZ4: ON
+      ARROW_WITH_BZ2: ON
+      ARROW_WITH_ZSTD: ON
+      ARROW_WITH_SNAPPY: ON
+      ARROW_WITH_BROTLI: ON
       ARROW_BUILD_TESTS: ON
     steps:
       - name: Checkout Arrow
