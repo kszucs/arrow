@@ -29,7 +29,9 @@ jobs:
 
   docker:
     name: AMD64 Ubuntu C# ${{ matrix.dotnet }}
-    runs-on: ubuntu-latest
+    # distro is important because:
+    #   https://stackoverflow.com/questions/57790510/msbuild-unhandled-exception-the-filename-property-should-not-be-a-directory-unl
+    runs-on: ubuntu-16.04
     strategy:
       fail-fast: false
       matrix:
