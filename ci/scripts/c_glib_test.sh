@@ -31,11 +31,15 @@ pushd ${source_dir}
 
 ruby test/run-test.rb
 
-pushd example/lua
-lua write-batch.lua
-lua read-batch.lua
-lua write-stream.lua
-lua read-stream.lua
-popd
+if [[ "$(uname -s)" == "Linux" ]]; then
+    # TODO(kszucs): on osx it fails to load 'lgi.corelgilua51' despite that lgi
+    # was installed by luarocks
+    pushd example/lua
+    lua write-batch.lua
+    lua read-batch.lua
+    lua write-stream.lua
+    lua read-stream.lua
+    popd
+fi
 
 popd
