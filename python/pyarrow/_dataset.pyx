@@ -130,6 +130,31 @@ cdef class DefaultPartitionScheme(PartitionScheme):
 
 
 cdef class SchemaPartitionScheme(PartitionScheme):
+    """
+    A PartitionScheme based on a specified Schema.
+
+    The SchemaPartitionScheme expects one segment in the file path for each
+    field in the schema (all fields are required to be present).
+    For example given schema<year:int16, month:int8> the path "/2009/11" would
+    be parsed to ("year"_ == 2009 and "month"_ == 11).
+
+    Parameters
+    ----------
+    schema : Schema
+        The schema that describes the partitions present in the file path.
+
+    Returns
+    -------
+    SchemaPartitionScheme
+
+    Examples
+    --------
+    >>> from pyarrow.dataset import SchemaPartitionScheme
+    >>> scheme = SchemaPartitionScheme(
+    ...     pa.schema([("year", pa.int16()), ("month", pa.int8())]))
+    >>> print(scheme.parse("/2009/11"))
+    ((year == 2009:int16) and (month == 11:int8))
+    """
 
     cdef:
         CSchemaPartitionScheme* schema_scheme  # hmmm...
@@ -147,10 +172,42 @@ cdef class SchemaPartitionScheme(PartitionScheme):
 
     @property
     def schema(self):
+        """The arrow Schema describing the partition scheme."""
         return pyarrow_wrap_schema(self.schema_scheme.schema())
 
 
 cdef class HivePartitionScheme(PartitionScheme):
+    """
+    A PartitionScheme for "/$key=$value/" nested directories as found in
+    Apache Hive.
+
+    Multi-level, directory based partitioning scheme originating from
+    Apache Hive with all data files stored in the leaf directories. Data is
+    partitioned by static values of a particular column in the schema.
+    Partition keys are represented in the form $key=$value in directory names.
+    Field order is ignored, as are missing or unrecognized field names.
+
+    For example, given schema<year:int16, month:int8, day:int8>, a possible
+    path would be "/year=2009/month=11/day=15".
+
+    Parameters
+    ----------
+    schema : Schema
+        The schema that describes the partitions present in the file path.
+
+    Returns
+    -------
+    SchemaPartitionScheme
+
+    Examples
+    --------
+    >>> from pyarrow.dataset import HivePartitionScheme
+    >>> scheme = HivePartitionScheme(
+    ...     pa.schema([("year", pa.int16()), ("month", pa.int8())]))
+    >>> print(scheme.parse("/year=2009/month=11"))
+    ((year == 2009:int16) and (month == 11:int8))
+
+    """
 
     cdef:
         CHivePartitionScheme* hive_scheme
@@ -168,6 +225,7 @@ cdef class HivePartitionScheme(PartitionScheme):
 
     @property
     def schema(self):
+        """The arrow Schema describing the partition scheme."""
         return pyarrow_wrap_schema(self.hive_scheme.schema())
 
 
@@ -240,6 +298,10 @@ cdef class DataSourceDiscovery:
 
     @property
     def partition_scheme(self):
+        """
+        Get or set the PartitionScheme for the data source that is being
+        discovered.
+        """"
         cdef shared_ptr[CPartitionScheme] scheme
         scheme = self.discovery.partition_scheme()
         if scheme.get() == nullptr:
@@ -264,12 +326,26 @@ cdef class DataSourceDiscovery:
         check_status(self.discovery.SetRootPartition(expr.unwrap()))
 
     def inspect(self):
+        """
+        Insects all data fragments and returns a common Schema.
+
+        Returns
+        -------
+        Schema
+        """
         cdef CResult[shared_ptr[CSchema]] result
         with nogil:
             result = self.discovery.Inspect()
         return pyarrow_wrap_schema(GetResultValue(result))
 
     def finish(self):
+        """
+        Returns a DataSource.
+
+        Returns
+        -------
+        DataSource
+        """
         cdef CResult[shared_ptr[CDataSource]] result
         with nogil:
             result = self.discovery.Finish()
@@ -277,6 +353,21 @@ cdef class DataSourceDiscovery:
 
 
 cdef class FileSystemDataSourceDiscovery(DataSourceDiscovery):
+    """
+    Creates a DataSource from a list of paths with schema inspection.
+
+    DataSourceDiscovery is used to create a DataSource, inspect the Schema
+    of the fragments contained in it, and declare a partition scheme.
+
+    Parameters
+    ----------
+    filesystem : pyarrow.fs.FileSystem
+    paths_or_selector: pyarrow.fs.Selector or list of path-likes
+        Either a Selector object or a list of path-like objects.
+    format : FileFormat
+    options : FileSystemDiscoveryOptions, optional
+
+    """
 
     cdef:
         CFileSystemDataSourceDiscovery* filesystem_discovery
@@ -346,6 +437,10 @@ cdef class DataSource:
 
     @property
     def partition_expression(self):
+        """
+        An expression which evaluates to true for all data viewed by this
+        DataSource.
+        """
         cdef shared_ptr[CExpression] expression
         expression = self.source.partition_expression()
         if expression.get() == nullptr:
@@ -460,7 +555,13 @@ cdef class FileSystemDataSource(DataSource):
 
 
 cdef class Dataset:
-    """Collection of data fragments coming from possibly multiple sources."""
+    """
+    Collection of data fragments coming from possibly multiple sources.
+
+    Arrow Datasets allow you to query against data that has been split across
+    multiple files. This sharding of data may indicate partitioning, which
+    can accelerate queries that only touch some partitions (files).
+    """
 
     cdef:
         shared_ptr[CDataset] wrapped
@@ -500,7 +601,19 @@ cdef class Dataset:
         return self.wrapped
 
     def new_scan(self, MemoryPool memory_pool=None):
-        """Begin to build a new Scan operation against this Dataset."""
+        """
+        Begin to build a new Scan operation against this Dataset.
+
+        Parameters
+        ----------
+        memory_pool : MemoryPool, default None
+            For memory allocations, if required. If not specified, uses the
+            default pool.
+
+        Returns
+        -------
+        ScannerBuilder
+        """
         cdef:
             shared_ptr[CScanContext] context = make_shared[CScanContext]()
             CResult[shared_ptr[CScannerBuilder]] result
@@ -510,11 +623,13 @@ cdef class Dataset:
 
     @property
     def sources(self):
+        """List of the data sources"""
         cdef vector[shared_ptr[CDataSource]] sources = self.dataset.sources()
         return [DataSource.wrap(source) for source in sources]
 
     @property
     def schema(self):
+        """The common schema of the full Dataset"""
         return pyarrow_wrap_schema(self.dataset.schema())
 
 
