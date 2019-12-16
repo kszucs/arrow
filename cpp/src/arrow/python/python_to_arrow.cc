@@ -74,6 +74,10 @@ class SeqConverter {
   // converting Python objects to Arrow nested types
   virtual Status Init(ArrayBuilder* builder) = 0;
 
+  // Retrieve a Scalar obect from a single (non-sequence) Python datum,
+  // virtual function
+  // virtual Status GetScalar(PyObject* obj) = 0;
+
   // Append a single (non-sequence) Python datum to the underlying builder,
   // virtual function
   virtual Status AppendSingleVirtual(PyObject* obj) = 0;
@@ -129,70 +133,6 @@ struct NullChecker<NullCoding::PANDAS_SENTINELS> {
   static inline bool Check(PyObject* obj) { return internal::PandasObjectIsNull(obj); }
 };
 
-// ----------------------------------------------------------------------
-// Helper templates to append PyObject* to builder for each target conversion
-// type
-
-template <typename Type, typename Enable = void>
-struct Unbox {};
-
-template <typename Type>
-struct Unbox<Type, enable_if_integer<Type>> {
-  using BuilderType = typename TypeTraits<Type>::BuilderType;
-  static inline Status Append(BuilderType* builder, PyObject* obj) {
-    typename Type::c_type value;
-    RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
-    return builder->Append(value);
-  }
-};
-
-template <>
-struct Unbox<HalfFloatType> {
-  static inline Status Append(HalfFloatBuilder* builder, PyObject* obj) {
-    npy_half val;
-    RETURN_NOT_OK(PyFloat_AsHalf(obj, &val));
-    return builder->Append(val);
-  }
-};
-
-template <>
-struct Unbox<FloatType> {
-  static inline Status Append(FloatBuilder* builder, PyObject* obj) {
-    if (internal::PyFloatScalar_Check(obj)) {
-      float val = static_cast<float>(PyFloat_AsDouble(obj));
-      RETURN_IF_PYERROR();
-      return builder->Append(val);
-    } else if (internal::PyIntScalar_Check(obj)) {
-      float val = 0;
-      RETURN_NOT_OK(internal::IntegerScalarToFloat32Safe(obj, &val));
-      return builder->Append(val);
-    } else {
-      return internal::InvalidValue(obj, "tried to convert to float32");
-    }
-  }
-};
-
-template <>
-struct Unbox<DoubleType> {
-  static inline Status Append(DoubleBuilder* builder, PyObject* obj) {
-    if (PyFloat_Check(obj)) {
-      double val = PyFloat_AS_DOUBLE(obj);
-      return builder->Append(val);
-    } else if (internal::PyFloatScalar_Check(obj)) {
-      // Other kinds of float-y things
-      double val = PyFloat_AsDouble(obj);
-      RETURN_IF_PYERROR();
-      return builder->Append(val);
-    } else if (internal::PyIntScalar_Check(obj)) {
-      double val = 0;
-      RETURN_NOT_OK(internal::IntegerScalarToDoubleSafe(obj, &val));
-      return builder->Append(val);
-    } else {
-      return internal::InvalidValue(obj, "tried to convert to double");
-    }
-  }
-};
-
 // We use CRTP to avoid virtual calls to the AppendItem(), AppendNull(), and
 // IsNull() on the hot path
 template <typename Type, class Derived, NullCoding null_coding = NullCoding::NONE_ONLY>
@@ -211,10 +151,6 @@ class TypedConverter : public SeqConverter {
 
   // Append a missing item (default implementation)
   Status AppendNull() { return this->typed_builder_->AppendNull(); }
-
-  // This is overridden in several subclasses, but if an Unbox implementation
-  // is defined, it will be used here
-  Status AppendItem(PyObject* obj) { return Unbox<Type>::Append(typed_builder_, obj); }
 
   Status AppendSingle(PyObject* obj) {
     auto self = checked_cast<Derived*>(this);
@@ -285,11 +221,75 @@ class BoolConverter
 };
 
 // ----------------------------------------------------------------------
-// Sequence converter template for numeric (integer and floating point) types
+// Sequence converter template for integer types
 
-template <typename Type, NullCoding null_coding>
-class NumericConverter
-    : public TypedConverter<Type, NumericConverter<Type, null_coding>, null_coding> {};
+template <typename Type, NullCoding null_coding, typename Enable=enable_if_integer<Type>>
+class IntegerConverter
+    : public TypedConverter<Type, IntegerConverter<Type, null_coding>, null_coding> {
+ public:
+  Status AppendItem(PyObject* obj) {
+    typename Type::c_type value;
+    RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
+    return this->typed_builder_->Append(value);
+  }
+
+};
+
+// ----------------------------------------------------------------------
+// Sequence converter template for floating types (float and double)
+
+template <NullCoding null_coding>
+class HalfFloatConverter
+    : public TypedConverter<HalfFloatType, HalfFloatConverter<null_coding>, null_coding> {
+ public:
+  Status AppendItem(PyObject* obj) {
+    npy_half val;
+    RETURN_NOT_OK(PyFloat_AsHalf(obj, &val));
+    return this->typed_builder_->Append(val);
+  }
+};
+
+template <NullCoding null_coding>
+class FloatConverter
+    : public TypedConverter<FloatType, FloatConverter<null_coding>, null_coding> {
+ public:
+  Status AppendItem(PyObject* obj) {
+    if (internal::PyFloatScalar_Check(obj)) {
+      float val = static_cast<float>(PyFloat_AsDouble(obj));
+      RETURN_IF_PYERROR();
+      return this->typed_builder_->Append(val);
+    } else if (internal::PyIntScalar_Check(obj)) {
+      float val = 0;
+      RETURN_NOT_OK(internal::IntegerScalarToFloat32Safe(obj, &val));
+      return this->typed_builder_->Append(val);
+    } else {
+      return internal::InvalidValue(obj, "tried to convert to float32");
+    }
+  }
+};
+
+template <NullCoding null_coding>
+class DoubleConverter
+    : public TypedConverter<DoubleType, DoubleConverter<null_coding>, null_coding> {
+ public:
+  Status AppendItem(PyObject* obj) {
+    if (PyFloat_Check(obj)) {
+      double val = PyFloat_AS_DOUBLE(obj);
+      return this->typed_builder_->Append(val);
+    } else if (internal::PyFloatScalar_Check(obj)) {
+      // Other kinds of float-y things
+      double val = PyFloat_AsDouble(obj);
+      RETURN_IF_PYERROR();
+      return this->typed_builder_->Append(val);
+    } else if (internal::PyIntScalar_Check(obj)) {
+      double val = 0;
+      RETURN_NOT_OK(internal::IntegerScalarToDoubleSafe(obj, &val));
+      return this->typed_builder_->Append(val);
+    } else {
+      return internal::InvalidValue(obj, "tried to convert to double");
+    }
+  }
+};
 
 // ----------------------------------------------------------------------
 // Sequence converters for temporal types
@@ -1088,9 +1088,9 @@ class DecimalConverter
   std::shared_ptr<DecimalType> decimal_type_;
 };
 
-#define NUMERIC_CONVERTER(TYPE_ENUM, TYPE)                                         \
+#define INTEGER_CONVERTER_CASE(TYPE_ENUM, TYPE)                                    \
   case Type::TYPE_ENUM:                                                            \
-    *out = std::unique_ptr<SeqConverter>(new NumericConverter<TYPE, null_coding>); \
+    *out = std::unique_ptr<SeqConverter>(new IntegerConverter<TYPE, null_coding>); \
     break;
 
 #define SIMPLE_CONVERTER_CASE(TYPE_ENUM, TYPE_CLASS)                   \
@@ -1105,17 +1105,17 @@ Status GetConverterFlat(const std::shared_ptr<DataType>& type, bool strict_conve
   switch (type->id()) {
     SIMPLE_CONVERTER_CASE(NA, NullConverter);
     SIMPLE_CONVERTER_CASE(BOOL, BoolConverter);
-    NUMERIC_CONVERTER(INT8, Int8Type);
-    NUMERIC_CONVERTER(INT16, Int16Type);
-    NUMERIC_CONVERTER(INT32, Int32Type);
-    NUMERIC_CONVERTER(INT64, Int64Type);
-    NUMERIC_CONVERTER(UINT8, UInt8Type);
-    NUMERIC_CONVERTER(UINT16, UInt16Type);
-    NUMERIC_CONVERTER(UINT32, UInt32Type);
-    NUMERIC_CONVERTER(UINT64, UInt64Type);
-    NUMERIC_CONVERTER(HALF_FLOAT, HalfFloatType);
-    NUMERIC_CONVERTER(FLOAT, FloatType);
-    NUMERIC_CONVERTER(DOUBLE, DoubleType);
+    INTEGER_CONVERTER_CASE(INT8, Int8Type);
+    INTEGER_CONVERTER_CASE(INT16, Int16Type);
+    INTEGER_CONVERTER_CASE(INT32, Int32Type);
+    INTEGER_CONVERTER_CASE(INT64, Int64Type);
+    INTEGER_CONVERTER_CASE(UINT8, UInt8Type);
+    INTEGER_CONVERTER_CASE(UINT16, UInt16Type);
+    INTEGER_CONVERTER_CASE(UINT32, UInt32Type);
+    INTEGER_CONVERTER_CASE(UINT64, UInt64Type);
+    SIMPLE_CONVERTER_CASE(HALF_FLOAT, HalfFloatConverter);
+    SIMPLE_CONVERTER_CASE(FLOAT, FloatConverter);
+    SIMPLE_CONVERTER_CASE(DOUBLE, DoubleConverter);
     SIMPLE_CONVERTER_CASE(DECIMAL, DecimalConverter);
     SIMPLE_CONVERTER_CASE(BINARY, BytesConverter);
     SIMPLE_CONVERTER_CASE(LARGE_BINARY, LargeBytesConverter);
@@ -1338,6 +1338,35 @@ Status ConvertPySequence(PyObject* obj, const PyConversionOptions& options,
                          std::shared_ptr<ChunkedArray>* out) {
   return ConvertPySequence(obj, nullptr, options, out);
 }
+
+// Status ConvertPyValue(PyObject* value, const PyConversionOptions& options,
+//                       std::shared_ptr<Scalar>* out) {
+//   PyAcquireGIL lock;
+//   OwnedRef tmp_value_nanny;
+//   std::shared_ptr<DataType> real_type;
+//   std::shared_ptr<Scalar> scalar;
+//   tmp_value_nanny.reset(value);
+
+//   // In some cases, type inference may be "loose", like strings. If the user
+//   // passed pa.string(), then we will error if we encounter any non-UTF8
+//   // value. If not, then we will allow the result to be a BinaryArray
+//   bool strict_conversions = false;
+
+//   // TODO(kszucs): add inference later
+//   // if (options.type == nullptr) {
+//   //   RETURN_NOT_OK(InferArrowType(seq, mask, options.from_pandas, &real_type));
+//   // } else {
+//   real_type = options.type;
+//   strict_conversions = true;
+
+//   // Create the sequence converter, initialize with the builder
+//   std::unique_ptr<SeqConverter> converter;
+//   RETURN_NOT_OK(
+//       GetConverter(real_type, options.from_pandas, strict_conversions, &converter));
+
+//   // Retrieve result. Conversion may yield one or more array values
+//   return converter->GetScalar(value, &out);
+// }
 
 }  // namespace py
 }  // namespace arrow
