@@ -138,7 +138,7 @@ template <typename Type>
 struct Value<Type, enable_if_any_binary<Type>> {
   using ValueType = PyBytesView;
 
-  static inline Result<ValueType> FromPython(PyObject *obj, const Type& /* unused */) {
+  static inline Result<ValueType> FromPython(PyObject *obj) {
     ValueType view;
     RETURN_NOT_OK(view.FromString(obj));
     return view;
@@ -167,17 +167,9 @@ template <typename Type>
 struct Value<Type, enable_if_string_like<Type>> {
   using ValueType = PyBytesView;
 
-  static inline Result<ValueType> FromPython(PyObject *obj, const Type& type) {
-    bool is_utf8 = false;
+  static inline Result<ValueType> FromPython(PyObject *obj, bool* is_utf8) {
     ValueType view;
-    RETURN_NOT_OK(view.FromString(obj, &is_utf8));
-    // if (!is_utf8) {
-    //   if (STRICT) {
-    //     return internal::InvalidValue(obj, "was not a utf8 string");
-    //   } else {
-    //     ++binary_count_;
-    //   }
-    // }
+    RETURN_NOT_OK(view.FromString(obj, is_utf8));
     return view;
   }
 };
@@ -566,9 +558,8 @@ class TemporalConverter
 // ----------------------------------------------------------------------
 // Sequence converters for Binary, FixedSizeBinary, String
 
-template <typename Type, NullCoding null_coding>
-class BinaryLikeConverter
-    : public TypedConverter<Type, BinaryLikeConverter<Type, null_coding>, null_coding> {
+template <typename Type, class Derived, NullCoding null_coding>
+class BinaryLikeConverter : public TypedConverter<Type, Derived, null_coding> {
  public:
   using BuilderType = typename TypeTraits<Type>::BuilderType;
 
@@ -595,38 +586,48 @@ class BinaryLikeConverter
 
   Status AppendItem(PyObject* obj) {
     // Accessing members of the templated base requires using this-> here
-    ARROW_ASSIGN_OR_RAISE(auto value, Value<Type>::FromPython(
-      obj, checked_cast<const Type&>(*this->typed_builder_->type())
-    ));
+    ARROW_ASSIGN_OR_RAISE(auto value, Value<Type>::FromPython(obj));
     return AppendValue(value);
   }
 };
 
 template <NullCoding null_coding>
-class BytesConverter : public BinaryLikeConverter<BinaryType, null_coding> {};
+class BytesConverter : public BinaryLikeConverter<BinaryType, BytesConverter<null_coding>, null_coding> {};
 
 template <NullCoding null_coding>
-class LargeBytesConverter : public BinaryLikeConverter<LargeBinaryType, null_coding> {};
+class LargeBytesConverter : public BinaryLikeConverter<LargeBinaryType, LargeBytesConverter<null_coding>, null_coding> {};
 
 template <NullCoding null_coding>
-class FixedWidthBytesConverter : public BinaryLikeConverter<FixedSizeBinaryType, null_coding> {
-
+class FixedWidthBytesConverter : public BinaryLikeConverter<FixedSizeBinaryType, FixedWidthBytesConverter<null_coding>, null_coding> {
+ public:
   Status AppendItem(PyObject* obj) {
-    std::cout << "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\n";
     // Accessing members of the templated base requires using this-> here
     ARROW_ASSIGN_OR_RAISE(auto value, Value<FixedSizeBinaryType>::FromPython(
-      obj, checked_cast<const Type&>(*this->typed_builder_->type())
+      obj, checked_cast<const FixedSizeBinaryType&>(*this->typed_builder_->type())
     ));
-    return AppendValue(value);
+    return this->AppendValue(value);
   }
 };
 
 // For String/UTF8, if strict_conversions enabled, we reject any non-UTF8,
 // otherwise we allow but return results as BinaryArray
 template <typename Type, bool STRICT, NullCoding null_coding>
-class StringConverter : public BinaryLikeConverter<Type, null_coding> {
+class StringConverter : public BinaryLikeConverter<Type, StringConverter<Type, STRICT, null_coding>, null_coding> {
  public:
   StringConverter() : binary_count_(0) {}
+
+  Status AppendItem(PyObject* obj) {
+    bool is_utf8;
+    ARROW_ASSIGN_OR_RAISE(auto value, Value<Type>::FromPython(obj, &is_utf8));
+    if (!is_utf8) {
+      if (STRICT) {
+        return internal::InvalidValue(obj, "was not a utf8 string");
+      } else {
+        ++binary_count_;
+      }
+    }
+    return this->AppendValue(value);
+  }
 
   virtual Status GetResult(std::shared_ptr<ChunkedArray>* out) {
     RETURN_NOT_OK(SeqConverter::GetResult(out));
