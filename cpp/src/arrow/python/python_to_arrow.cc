@@ -27,7 +27,9 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <iostream>
 
+#include "arrow/scalar.h"
 #include "arrow/array.h"
 #include "arrow/builder.h"
 #include "arrow/status.h"
@@ -52,6 +54,133 @@ using internal::checked_cast;
 using internal::checked_pointer_cast;
 
 namespace py {
+
+template <typename Type, typename Enable = void>
+struct Value {};
+
+template <>
+struct Value<BooleanType> {
+  using ValueType = typename BooleanType::c_type;
+
+  static inline Result<ValueType> FromPython(PyObject *obj) {
+    if (obj == Py_True) {
+      return true;
+    } else if (obj == Py_False) {
+      return false;
+    } else {
+      return internal::InvalidValue(obj, "tried to convert to boolean");
+    }
+  }
+};
+
+template <typename Type>
+struct Value<Type, enable_if_integer<Type>> {
+  using ValueType = typename Type::c_type;
+
+  static inline Result<ValueType> FromPython(PyObject *obj) {
+    ValueType value;
+    RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
+    return value;
+  }
+};
+
+template <>
+struct Value<HalfFloatType> {
+  using ValueType = typename HalfFloatType::c_type;
+
+  static inline Result<ValueType> FromPython(PyObject *obj) {
+    ValueType value;
+    RETURN_NOT_OK(PyFloat_AsHalf(obj, &value));
+    return value;
+  }
+};
+
+template <>
+struct Value<FloatType> {
+  using ValueType = typename FloatType::c_type;
+
+  static inline Result<ValueType> FromPython(PyObject *obj) {
+    ValueType value;
+    if (internal::PyFloatScalar_Check(obj)) {
+      value = static_cast<ValueType>(PyFloat_AsDouble(obj));
+      RETURN_IF_PYERROR();
+    } else if (internal::PyIntScalar_Check(obj)) {
+      RETURN_NOT_OK(internal::IntegerScalarToFloat32Safe(obj, &value));
+    } else {
+      return internal::InvalidValue(obj, "tried to convert to float32");
+    }
+    return value;
+  }
+};
+
+template <>
+struct Value<DoubleType> {
+  using ValueType = typename DoubleType::c_type;
+
+  static inline Result<ValueType> FromPython(PyObject *obj) {
+    ValueType value;
+    if (PyFloat_Check(obj)) {
+      value = PyFloat_AS_DOUBLE(obj);
+    } else if (internal::PyFloatScalar_Check(obj)) {
+      // Other kinds of float-y things
+      value = PyFloat_AsDouble(obj);
+      RETURN_IF_PYERROR();
+    } else if (internal::PyIntScalar_Check(obj)) {
+      RETURN_NOT_OK(internal::IntegerScalarToDoubleSafe(obj, &value));
+    } else {
+      return internal::InvalidValue(obj, "tried to convert to double");
+    }
+    return value;
+  }
+};
+
+template <typename Type>
+struct Value<Type, enable_if_any_binary<Type>> {
+  using ValueType = PyBytesView;
+
+  static inline Result<ValueType> FromPython(PyObject *obj, const Type& /* unused */) {
+    ValueType view;
+    RETURN_NOT_OK(view.FromString(obj));
+    return view;
+  }
+};
+
+template <typename Type>
+struct Value<Type, enable_if_fixed_size_binary<Type>> {
+  using ValueType = PyBytesView;
+
+  static inline Result<ValueType> FromPython(PyObject *obj, const Type& type) {
+    ValueType view;
+    RETURN_NOT_OK(view.FromString(obj));
+    const auto expected_length = type.byte_width();
+    if (ARROW_PREDICT_FALSE(view.size != expected_length)) {
+      std::stringstream ss;
+      ss << "expected to be length " << expected_length << " was " << view.size;
+      return internal::InvalidValue(obj, ss.str());
+    } else {
+      return view;
+    }
+  }
+};
+
+template <typename Type>
+struct Value<Type, enable_if_string_like<Type>> {
+  using ValueType = PyBytesView;
+
+  static inline Result<ValueType> FromPython(PyObject *obj, const Type& type) {
+    bool is_utf8 = false;
+    ValueType view;
+    RETURN_NOT_OK(view.FromString(obj, &is_utf8));
+    // if (!is_utf8) {
+    //   if (STRICT) {
+    //     return internal::InvalidValue(obj, "was not a utf8 string");
+    //   } else {
+    //     ++binary_count_;
+    //   }
+    // }
+    return view;
+  }
+};
 
 // ----------------------------------------------------------------------
 // Sequence converter base and CRTP "middle" subclasses
@@ -152,6 +281,13 @@ class TypedConverter : public SeqConverter {
   // Append a missing item (default implementation)
   Status AppendNull() { return this->typed_builder_->AppendNull(); }
 
+  // This is overridden in several subclasses, but if a Value::FromPython
+  // implementation is defined, it will be used here
+  Status AppendItem(PyObject* obj) {
+    ARROW_ASSIGN_OR_RAISE(auto value, Value<Type>::FromPython(obj));
+    return typed_builder_->Append(value);
+  }
+
   Status AppendSingle(PyObject* obj) {
     auto self = checked_cast<Derived*>(this);
     return CheckNull(obj) ? self->AppendNull() : self->AppendItem(obj);
@@ -175,15 +311,16 @@ class TypedConverter : public SeqConverter {
     // Iterate over the items adding each one
     auto self = checked_cast<Derived*>(this);
     return internal::VisitSequenceMasked(
-        obj, mask, [self](PyObject* item, bool is_masked, bool* /* unused */) {
-          if (is_masked) {
-            return self->AppendNull();
-          } else {
-            // This will also apply the null-checking convention in the event
-            // that the value is not masked
-            return self->AppendSingle(item);
-          }
-        });
+      obj, mask, [self](PyObject* item, bool is_masked, bool* /* unused */) {
+        if (is_masked) {
+          return self->AppendNull();
+        } else {
+          // This will also apply the null-checking convention in the event
+          // that the value is not masked
+          return self->AppendSingle(item);
+        }
+      }
+    );
   }
 
  protected:
@@ -207,89 +344,14 @@ class NullConverter
 
 template <NullCoding null_coding>
 class BoolConverter
-    : public TypedConverter<BooleanType, BoolConverter<null_coding>, null_coding> {
- public:
-  Status AppendItem(PyObject* obj) {
-    if (obj == Py_True) {
-      return this->typed_builder_->Append(true);
-    } else if (obj == Py_False) {
-      return this->typed_builder_->Append(false);
-    } else {
-      return internal::InvalidValue(obj, "tried to convert to boolean");
-    }
-  }
-};
+    : public TypedConverter<BooleanType, BoolConverter<null_coding>, null_coding> {};
 
 // ----------------------------------------------------------------------
-// Sequence converter template for integer types
+// Sequence converter template for numeric (integer and floating point) types
 
-template <typename Type, NullCoding null_coding, typename Enable=enable_if_integer<Type>>
-class IntegerConverter
-    : public TypedConverter<Type, IntegerConverter<Type, null_coding>, null_coding> {
- public:
-  Status AppendItem(PyObject* obj) {
-    typename Type::c_type value;
-    RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
-    return this->typed_builder_->Append(value);
-  }
-
-};
-
-// ----------------------------------------------------------------------
-// Sequence converter template for floating types (float and double)
-
-template <NullCoding null_coding>
-class HalfFloatConverter
-    : public TypedConverter<HalfFloatType, HalfFloatConverter<null_coding>, null_coding> {
- public:
-  Status AppendItem(PyObject* obj) {
-    npy_half val;
-    RETURN_NOT_OK(PyFloat_AsHalf(obj, &val));
-    return this->typed_builder_->Append(val);
-  }
-};
-
-template <NullCoding null_coding>
-class FloatConverter
-    : public TypedConverter<FloatType, FloatConverter<null_coding>, null_coding> {
- public:
-  Status AppendItem(PyObject* obj) {
-    if (internal::PyFloatScalar_Check(obj)) {
-      float val = static_cast<float>(PyFloat_AsDouble(obj));
-      RETURN_IF_PYERROR();
-      return this->typed_builder_->Append(val);
-    } else if (internal::PyIntScalar_Check(obj)) {
-      float val = 0;
-      RETURN_NOT_OK(internal::IntegerScalarToFloat32Safe(obj, &val));
-      return this->typed_builder_->Append(val);
-    } else {
-      return internal::InvalidValue(obj, "tried to convert to float32");
-    }
-  }
-};
-
-template <NullCoding null_coding>
-class DoubleConverter
-    : public TypedConverter<DoubleType, DoubleConverter<null_coding>, null_coding> {
- public:
-  Status AppendItem(PyObject* obj) {
-    if (PyFloat_Check(obj)) {
-      double val = PyFloat_AS_DOUBLE(obj);
-      return this->typed_builder_->Append(val);
-    } else if (internal::PyFloatScalar_Check(obj)) {
-      // Other kinds of float-y things
-      double val = PyFloat_AsDouble(obj);
-      RETURN_IF_PYERROR();
-      return this->typed_builder_->Append(val);
-    } else if (internal::PyIntScalar_Check(obj)) {
-      double val = 0;
-      RETURN_NOT_OK(internal::IntegerScalarToDoubleSafe(obj, &val));
-      return this->typed_builder_->Append(val);
-    } else {
-      return internal::InvalidValue(obj, "tried to convert to double");
-    }
-  }
-};
+template <typename Type, NullCoding null_coding>
+class NumericConverter
+    : public TypedConverter<Type, NumericConverter<Type, null_coding>, null_coding> {};
 
 // ----------------------------------------------------------------------
 // Sequence converters for temporal types
@@ -504,74 +566,39 @@ class TemporalConverter
 // ----------------------------------------------------------------------
 // Sequence converters for Binary, FixedSizeBinary, String
 
-namespace detail {
-
-template <typename BuilderType>
-inline Status AppendPyString(BuilderType* builder, const PyBytesView& view,
-                             bool* is_full) {
-  if (view.size > BuilderType::memory_limit()) {
-    return Status::Invalid("string too large for datatype");
-  }
-  DCHECK_GE(view.size, 0);
-  // Did we reach the builder size limit?
-  if (ARROW_PREDICT_FALSE(builder->value_data_length() + view.size >
-                          BuilderType::memory_limit())) {
-    *is_full = true;
-    return Status::OK();
-  }
-  RETURN_NOT_OK(builder->Append(::arrow::util::string_view(view.bytes, view.size)));
-  *is_full = false;
-  return Status::OK();
-}
-
-inline Status BuilderAppend(BinaryBuilder* builder, PyObject* obj, bool* is_full) {
-  PyBytesView view;
-  RETURN_NOT_OK(view.FromString(obj));
-  return AppendPyString(builder, view, is_full);
-}
-
-inline Status BuilderAppend(LargeBinaryBuilder* builder, PyObject* obj, bool* is_full) {
-  PyBytesView view;
-  RETURN_NOT_OK(view.FromString(obj));
-  return AppendPyString(builder, view, is_full);
-}
-
-inline Status BuilderAppend(FixedSizeBinaryBuilder* builder, PyObject* obj,
-                            bool* is_full) {
-  PyBytesView view;
-  RETURN_NOT_OK(view.FromString(obj));
-  const auto expected_length =
-      checked_cast<const FixedSizeBinaryType&>(*builder->type()).byte_width();
-  if (ARROW_PREDICT_FALSE(view.size != expected_length)) {
-    std::stringstream ss;
-    ss << "expected to be length " << expected_length << " was " << view.size;
-    return internal::InvalidValue(obj, ss.str());
-  }
-
-  return AppendPyString(builder, view, is_full);
-}
-
-}  // namespace detail
-
 template <typename Type, NullCoding null_coding>
 class BinaryLikeConverter
     : public TypedConverter<Type, BinaryLikeConverter<Type, null_coding>, null_coding> {
  public:
-  Status AppendItem(PyObject* obj) {
-    // Accessing members of the templated base requires using this-> here
-    bool is_full = false;
-    RETURN_NOT_OK(detail::BuilderAppend(this->typed_builder_, obj, &is_full));
+  using BuilderType = typename TypeTraits<Type>::BuilderType;
 
-    // Exceeded capacity of builder
-    if (ARROW_PREDICT_FALSE(is_full)) {
+  Status AppendValue(const PyBytesView& view) {
+    if (view.size > BuilderType::memory_limit()) {
+      return Status::Invalid("string too large for datatype");
+    }
+    DCHECK_GE(view.size, 0);
+
+    // did we reach the builder size limit?
+    if (ARROW_PREDICT_FALSE(this->typed_builder_->value_data_length() + view.size >
+                            BuilderType::memory_limit())) {
+      // builder would be full, so need to add a new chunk
       std::shared_ptr<Array> chunk;
       RETURN_NOT_OK(this->typed_builder_->Finish(&chunk));
       this->chunks_.emplace_back(std::move(chunk));
-
-      // Append the item now that the builder has been reset
-      return detail::BuilderAppend(this->typed_builder_, obj, &is_full);
     }
+    // append the value
+    RETURN_NOT_OK(this->typed_builder_->Append(
+      ::arrow::util::string_view(view.bytes, view.size)));
+
     return Status::OK();
+  }
+
+  Status AppendItem(PyObject* obj) {
+    // Accessing members of the templated base requires using this-> here
+    ARROW_ASSIGN_OR_RAISE(auto value, Value<Type>::FromPython(
+      obj, checked_cast<const Type&>(*this->typed_builder_->type())
+    ));
+    return AppendValue(value);
   }
 };
 
@@ -582,57 +609,24 @@ template <NullCoding null_coding>
 class LargeBytesConverter : public BinaryLikeConverter<LargeBinaryType, null_coding> {};
 
 template <NullCoding null_coding>
-class FixedWidthBytesConverter
-    : public BinaryLikeConverter<FixedSizeBinaryType, null_coding> {};
+class FixedWidthBytesConverter : public BinaryLikeConverter<FixedSizeBinaryType, null_coding> {
+
+  Status AppendItem(PyObject* obj) {
+    std::cout << "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\n";
+    // Accessing members of the templated base requires using this-> here
+    ARROW_ASSIGN_OR_RAISE(auto value, Value<FixedSizeBinaryType>::FromPython(
+      obj, checked_cast<const Type&>(*this->typed_builder_->type())
+    ));
+    return AppendValue(value);
+  }
+};
 
 // For String/UTF8, if strict_conversions enabled, we reject any non-UTF8,
 // otherwise we allow but return results as BinaryArray
-template <typename TypeClass, bool STRICT, NullCoding null_coding>
-class StringConverter
-    : public TypedConverter<TypeClass, StringConverter<TypeClass, STRICT, null_coding>,
-                            null_coding> {
+template <typename Type, bool STRICT, NullCoding null_coding>
+class StringConverter : public BinaryLikeConverter<Type, null_coding> {
  public:
   StringConverter() : binary_count_(0) {}
-
-  Status Append(PyObject* obj, bool* is_full) {
-    if (STRICT) {
-      // Force output to be unicode / utf8 and validate that any binary values
-      // are utf8
-      bool is_utf8 = false;
-      RETURN_NOT_OK(string_view_.FromString(obj, &is_utf8));
-      if (!is_utf8) {
-        return internal::InvalidValue(obj, "was not a utf8 string");
-      }
-    } else {
-      // Non-strict conversion; keep track of whether values are unicode or
-      // bytes; if any bytes are observe, the result will be bytes
-      if (PyUnicode_Check(obj)) {
-        RETURN_NOT_OK(string_view_.FromUnicode(obj));
-      } else {
-        // If not unicode or bytes, FromBinary will error
-        RETURN_NOT_OK(string_view_.FromBinary(obj));
-        ++binary_count_;
-      }
-    }
-
-    return detail::AppendPyString(this->typed_builder_, string_view_, is_full);
-  }
-
-  Status AppendItem(PyObject* obj) {
-    bool is_full = false;
-    RETURN_NOT_OK(Append(obj, &is_full));
-
-    // Exceeded capacity of builder
-    if (ARROW_PREDICT_FALSE(is_full)) {
-      std::shared_ptr<Array> chunk;
-      RETURN_NOT_OK(this->typed_builder_->Finish(&chunk));
-      this->chunks_.emplace_back(std::move(chunk));
-
-      // Append the item now that the builder has been reset
-      RETURN_NOT_OK(Append(obj, &is_full));
-    }
-    return Status::OK();
-  }
 
   virtual Status GetResult(std::shared_ptr<ChunkedArray>* out) {
     RETURN_NOT_OK(SeqConverter::GetResult(out));
@@ -643,17 +637,13 @@ class StringConverter
       DCHECK(!STRICT);
 
       auto binary_type =
-          TypeTraits<typename TypeClass::EquivalentBinaryType>::type_singleton();
+          TypeTraits<typename Type::EquivalentBinaryType>::type_singleton();
       return (*out)->View(binary_type, out);
     }
     return Status::OK();
   }
 
  private:
-  // Create a single instance of PyBytesView here to prevent unnecessary object
-  // creation/destruction
-  PyBytesView string_view_;
-
   int64_t binary_count_;
 };
 
@@ -1088,9 +1078,9 @@ class DecimalConverter
   std::shared_ptr<DecimalType> decimal_type_;
 };
 
-#define INTEGER_CONVERTER_CASE(TYPE_ENUM, TYPE)                                    \
+#define NUMERIC_CONVERTER_CASE(TYPE_ENUM, TYPE)                                    \
   case Type::TYPE_ENUM:                                                            \
-    *out = std::unique_ptr<SeqConverter>(new IntegerConverter<TYPE, null_coding>); \
+    *out = std::unique_ptr<SeqConverter>(new NumericConverter<TYPE, null_coding>); \
     break;
 
 #define SIMPLE_CONVERTER_CASE(TYPE_ENUM, TYPE_CLASS)                   \
@@ -1105,17 +1095,17 @@ Status GetConverterFlat(const std::shared_ptr<DataType>& type, bool strict_conve
   switch (type->id()) {
     SIMPLE_CONVERTER_CASE(NA, NullConverter);
     SIMPLE_CONVERTER_CASE(BOOL, BoolConverter);
-    INTEGER_CONVERTER_CASE(INT8, Int8Type);
-    INTEGER_CONVERTER_CASE(INT16, Int16Type);
-    INTEGER_CONVERTER_CASE(INT32, Int32Type);
-    INTEGER_CONVERTER_CASE(INT64, Int64Type);
-    INTEGER_CONVERTER_CASE(UINT8, UInt8Type);
-    INTEGER_CONVERTER_CASE(UINT16, UInt16Type);
-    INTEGER_CONVERTER_CASE(UINT32, UInt32Type);
-    INTEGER_CONVERTER_CASE(UINT64, UInt64Type);
-    SIMPLE_CONVERTER_CASE(HALF_FLOAT, HalfFloatConverter);
-    SIMPLE_CONVERTER_CASE(FLOAT, FloatConverter);
-    SIMPLE_CONVERTER_CASE(DOUBLE, DoubleConverter);
+    NUMERIC_CONVERTER_CASE(INT8, Int8Type);
+    NUMERIC_CONVERTER_CASE(INT16, Int16Type);
+    NUMERIC_CONVERTER_CASE(INT32, Int32Type);
+    NUMERIC_CONVERTER_CASE(INT64, Int64Type);
+    NUMERIC_CONVERTER_CASE(UINT8, UInt8Type);
+    NUMERIC_CONVERTER_CASE(UINT16, UInt16Type);
+    NUMERIC_CONVERTER_CASE(UINT32, UInt32Type);
+    NUMERIC_CONVERTER_CASE(UINT64, UInt64Type);
+    NUMERIC_CONVERTER_CASE(HALF_FLOAT, HalfFloatType);
+    NUMERIC_CONVERTER_CASE(FLOAT, FloatType);
+    NUMERIC_CONVERTER_CASE(DOUBLE, DoubleType);
     SIMPLE_CONVERTER_CASE(DECIMAL, DecimalConverter);
     SIMPLE_CONVERTER_CASE(BINARY, BytesConverter);
     SIMPLE_CONVERTER_CASE(LARGE_BINARY, LargeBytesConverter);
