@@ -17,8 +17,13 @@
 
 import pytest
 
+import numpy as np
+import pandas as pd
+
 import pyarrow as pa
 import pyarrow.fs as fs
+
+from pyarrow.fs import FileSelector, FileType, LocalFileSystem
 
 try:
     import pyarrow.dataset as ds
@@ -60,6 +65,96 @@ def mockfs():
             pq.write_table(table, out)
 
     return mockfs
+
+
+def _generate_data(n):
+    import datetime
+    import itertools
+
+    day = datetime.datetime(2000, 1, 1)
+    interval = datetime.timedelta(days=1)
+    colors = itertools.cycle(['green', 'blue', 'yellow', 'red', 'orange'])
+
+    data = []
+    for i in range(n):
+        data.append((day, i, float(i), next(colors)))
+        day += interval
+
+    return pd.DataFrame(data, columns=['date', 'index', 'value', 'color'])
+
+
+def _table_from_pandas(df):
+    schema = pa.schema([
+        pa.field('date', pa.date32()),
+        pa.field('index', pa.int64()),
+        pa.field('value', pa.float64()),
+        pa.field('color', pa.string()),
+    ])
+    table = pa.Table.from_pandas(df, schema=schema, preserve_index=False)
+    return table.replace_schema_metadata()
+
+
+@pytest.fixture(scope='module')
+@pytest.mark.parquet
+def multisourcefs():
+    import pyarrow.parquet as pq
+
+    df = _generate_data(3000)
+    mockfs = fs._MockFileSystem()
+
+    # simply split the dataframe into three chunks to construct a data source
+    # from each chunk into its own directory
+    df_a, df_b, df_c = np.array_split(df, 3)
+
+    # create a directory containing a flat sequence of parquet files without
+    # any partitioning involved
+    mockfs.create_dir('plain')
+    for i, chunk in enumerate(np.array_split(df_a, 10)):
+        path = 'plain/chunk-{}.parquet'.format(i)
+        with mockfs.open_output_stream(path) as out:
+            pq.write_table(_table_from_pandas(chunk), out)
+
+    # create one with schema partitioning by week and color
+    mockfs.create_dir('schema')
+    for part, chunk in df.groupby([df.date.dt.week, df.color]):
+        folder = 'schema/{}/{}'.format(*part)
+        path = '{}/chunk.parquet'.format(folder)
+        mockfs.create_dir(folder)
+        with mockfs.open_output_stream(path) as out:
+            pq.write_table(_table_from_pandas(chunk), out)
+
+    # create one with hive partitioning by year and month
+    mockfs.create_dir('hive')
+    for part, chunk in df.groupby([df.date.dt.year, df.date.dt.month]):
+        folder = 'hive/year={}/month={}'.format(*part)
+        path = '{}/chunk.parquet'.format(folder)
+        mockfs.create_dir(folder)
+        with mockfs.open_output_stream(path) as out:
+            pq.write_table(_table_from_pandas(chunk), out)
+
+    return mockfs
+
+
+def test_multiple_sources(multisourcefs):
+    src1 = ds.source('/plain', fs=multisourcefs, format='parquet')
+    src2 = ds.source('/schema', fs=multisourcefs, format='parquet',
+                     partitioning=['week', 'color'])
+    src3 = ds.source('/hive', fs=multisourcefs, format='parquet',
+                     partitioning='hive')
+
+    assembled = ds.dataset([src1, src2, src2])
+    assert isinstance(assembled, ds.Dataset)
+
+    expected_schema = pa.schema([
+        pa.field('date', pa.date32()),
+        pa.field('index', pa.int64()),
+        pa.field('value', pa.float64()),
+        pa.field('color', pa.string()),
+    ])
+    assert assembled.schema.equals(expected_schema)
+
+    table = assembled.to_table()
+    print(table.to_pandas())
 
 
 @pytest.fixture
