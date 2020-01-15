@@ -744,6 +744,27 @@ cdef class Dataset:
         result = self.dataset.NewScanWithContext(context)
         return ScannerBuilder.wrap(GetResultValue(result))
 
+    def _scanner(self, columns=None, filter=None, use_threads=None,
+                 MemoryPool memory_pool=None):
+        builder = self.new_scan(memory_pool)
+        if columns is not None:
+            builder.project(columns)
+        if filter is not None:
+            builder.filter(filter)
+        if use_threads is not None:
+            builder.use_threads(use_threads)
+        return builder.finish()
+
+    def scan(self, columns=None, filter=None, use_threads=None,
+             MemoryPool memory_pool=None):
+        scanner = self._scanner(columns, filter, use_threads, memory_pool)
+        return scanner.scan()
+
+    def to_table(self, columns=None, filter=None, use_threads=None,
+                 MemoryPool memory_pool=None):
+        scanner = self._scanner(columns, filter, use_threads, memory_pool)
+        return scanner.to_table()
+
     @property
     def sources(self):
         """List of the data sources"""
@@ -775,7 +796,7 @@ cdef class ScanTask:
 
     @staticmethod
     cdef wrap(shared_ptr[CScanTask]& sp):
-        cdef SimpleScanTask self = SimpleScanTask.__new__(SimpleScanTask)
+        cdef ScanTask self = ScanTask.__new__(ScanTask)
         self.init(sp)
         return self
 
@@ -804,17 +825,6 @@ cdef class ScanTask:
                 raise StopIteration()
             else:
                 yield pyarrow_wrap_batch(record_batch)
-
-
-cdef class SimpleScanTask(ScanTask):
-    """A trivial ScanTask that yields the RecordBatch of an array."""
-
-    cdef:
-        CSimpleScanTask* simple_task
-
-    cdef init(self, shared_ptr[CScanTask]& sp):
-        ScanTask.init(self, sp)
-        self.simple_task = <CSimpleScanTask*> sp.get()
 
 
 cdef class ScannerBuilder:
