@@ -94,3 +94,5 @@ else
 fi
 
 %changelog
+* Mon Jan 27 2020 Krisztián Szűcs <szucs.krisztian@gmail.com> - 0.16.0-1
+- New upstream release.
