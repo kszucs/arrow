@@ -574,19 +574,15 @@ def _check_dataset_from_path(path, table, **kwargs):
 
     # pathlib object
     assert isinstance(path, pathlib.Path)
-    dataset = ds.dataset(ds.factory(path, **kwargs))
+    dataset = ds.dataset(path, **kwargs)
+    assert isinstance(dataset, ds.FileSystemDataset)
     assert dataset.schema.equals(table.schema, check_metadata=False)
     result = dataset.to_table(use_threads=False)  # deterministic row order
     assert result.equals(table, check_metadata=False)
 
     # string path
-    dataset = ds.dataset(ds.factory(str(path), **kwargs))
-    assert dataset.schema.equals(table.schema, check_metadata=False)
-    result = dataset.to_table(use_threads=False)  # deterministic row order
-    assert result.equals(table, check_metadata=False)
-
-    # passing directly to dataset
     dataset = ds.dataset(str(path), **kwargs)
+    assert isinstance(dataset, ds.FileSystemDataset)
     assert dataset.schema.equals(table.schema, check_metadata=False)
     result = dataset.to_table(use_threads=False)  # deterministic row order
     assert result.equals(table, check_metadata=False)
@@ -613,10 +609,11 @@ def test_open_dataset_list_of_files(tempdir):
     # list of exact files needs to be passed to source() function
     # (dataset() will interpret it as separate sources)
     datasets = [
-        ds.dataset(ds.factory([path1, path2])),
-        ds.dataset(ds.factory([str(path1), str(path2)]))
+        ds.dataset([path1, path2]),
+        ds.dataset([str(path1), str(path2)])
     ]
     for dataset in datasets:
+        assert isinstance(dataset, ds.FileSystemDataset)
         assert dataset.schema.equals(table.schema, check_metadata=False)
         result = dataset.to_table(use_threads=False)  # deterministic row order
         assert result.equals(table, check_metadata=False)
@@ -695,6 +692,16 @@ def test_open_dataset_validate_sources(tempdir):
 
 
 @pytest.mark.parquet
+def test_open_dataset_from_source_additional_kwargs(multisourcefs):
+    child = ds.FileSystemDatasetFactory(
+        multisourcefs, fs.FileSelector('/plain'),
+        format=ds.ParquetFileFormat()
+    )
+    with pytest.raises(ValueError, match="cannot pass any additional"):
+        ds.dataset(child, format="parquet")
+
+
+@pytest.mark.parquet
 def test_filter_implicit_cast(tempdir):
     # ARROW-7652
     table = pa.table({'a': pa.array([0, 1, 2, 3, 4, 5], type=pa.int8())})
@@ -709,8 +716,11 @@ def test_filter_implicit_cast(tempdir):
 
 @pytest.mark.parquet
 @pytest.mark.pandas
-def test_dataset_factory(multisourcefs):
-    child = ds.factory('/plain', filesystem=multisourcefs, format='parquet')
+def test_dataset_union(multisourcefs):
+    child = ds.FileSystemDatasetFactory(
+        multisourcefs, fs.FileSelector('/plain'),
+        format=ds.ParquetFileFormat()
+    )
     factory = ds.UnionDatasetFactory([child])
 
     # TODO(bkietz) reintroduce factory.children property
@@ -724,14 +734,14 @@ def test_dataset_factory(multisourcefs):
 @pytest.mark.parquet
 @pytest.mark.pandas
 def test_multiple_factories(multisourcefs):
-    src1 = ds.factory('/plain', filesystem=multisourcefs, format='parquet')
-    src2 = ds.factory('/schema', filesystem=multisourcefs, format='parquet',
-                      partitioning=['week', 'color'])
-    src3 = ds.factory('/hive', filesystem=multisourcefs, format='parquet',
-                      partitioning='hive')
+    child1 = ds.dataset('/plain', filesystem=multisourcefs, format='parquet')
+    child2 = ds.dataset('/schema', filesystem=multisourcefs, format='parquet',
+                        partitioning=['week', 'color'])
+    child3 = ds.dataset('/hive', filesystem=multisourcefs, format='parquet',
+                        partitioning='hive')
 
-    assembled = ds.dataset([src1, src2, src3])
-    assert isinstance(assembled, ds.Dataset)
+    assembled = ds.dataset([child1, child2, child3])
+    assert isinstance(assembled, ds.UnionDataset)
 
     expected_schema = pa.schema([
         ('date', pa.date32()),

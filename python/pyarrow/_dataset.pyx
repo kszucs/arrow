@@ -872,7 +872,7 @@ cdef class UnionDatasetFactory(DatasetFactory):
     """
 
     cdef:
-        CDatasetFactory* union_factory
+        CUnionDatasetFactory* union_factory
 
     def __init__(self, list factories):
         cdef:
@@ -881,6 +881,10 @@ cdef class UnionDatasetFactory(DatasetFactory):
         for factory in factories:
             c_factories.push_back(factory.unwrap())
         self.init(GetResultValue(CUnionDatasetFactory.Make(c_factories)))
+
+    cdef init(self, shared_ptr[CDatasetFactory]& sp):
+        DatasetFactory.init(self, sp)
+        self.union_factory = <CUnionDatasetFactory*> sp.get()
 
 
 cdef class ScanTask:
