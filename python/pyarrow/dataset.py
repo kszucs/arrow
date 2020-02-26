@@ -273,14 +273,16 @@ def _ensure_factory(src, **kwargs):
                 "When passing a DatasetFactory, you cannot pass any "
                 "additional arguments"
             )
-        # return the stored reference for the factory
-        # the schema inspection will be done again, but we can cache it in
-        # the future
-        raise TypeError(
-            "Dataset objects are currently not supported, only DatasetFactory "
-            "instances. Use the dataset() function or DatasetFactory "
-            "subclasses to create such objects."
-        )
+        if src.factory is not None:
+            # the dataset object holds a reference for the constructing factory
+            # so reuse it
+            return src.factory
+        else:
+            raise TypeError(
+                "Dataset objects are only supported if they are constructed "
+                "using the dataset() function or by directly instantiating a "
+                "DatasetFactory subclass."
+            )
     else:
         raise TypeError(
             "Expected a path-like or DatasetFactory, got {}".format(type(src))
@@ -325,25 +327,18 @@ def dataset(sources, filesystem=None, partitioning=None, format=None):
     ... ])
 
     """
-    if not isinstance(sources, list):
-        sources = [sources]
-
-    # reuse the keyword arguments
+    # reuse the keyword arguments for later use
     kwargs = dict(filesystem=filesystem, partitioning=partitioning,
                   format=format)
 
-    if any(isinstance(src, (Dataset, DatasetFactory)) for src in sources):
-        # if any of the passed sources is a previously cosntructed datasource
-        # factory, then construct another dataset whichs wraps the child
-        # datasets looking like a single dataset object
-        # note that it also instantiates the child datasets as filesystem
-        # datasets if src is a path or a list of paths
+    if isinstance(sources, list):
+        # instantiate a child dataset for each source then wrap them with a
+        # UnionDataset instance
         children = [_ensure_factory(src, **kwargs) for src in sources]
         factory = UnionDatasetFactory(children)
     else:
-        # outherwise assume assume that the user wants to construct a dataset
-        # backed by a filesystem
-        factory = _filesystem_factory(sources, **kwargs)
+        # create a FileSystemDataset
+        factory = _ensure_factory(sources, **kwargs)
 
     # convert the dataset factory to a dataset instance
     return factory.finish()

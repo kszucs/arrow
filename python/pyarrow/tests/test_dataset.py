@@ -613,7 +613,7 @@ def test_open_dataset_list_of_files(tempdir):
         ds.dataset([str(path1), str(path2)])
     ]
     for dataset in datasets:
-        assert isinstance(dataset, ds.FileSystemDataset)
+        assert isinstance(dataset, ds.UnionDataset)
         assert dataset.schema.equals(table.schema, check_metadata=False)
         result = dataset.to_table(use_threads=False)  # deterministic row order
         assert result.equals(table, check_metadata=False)
@@ -686,8 +686,24 @@ def test_open_dataset_unsupported_format(tempdir):
 def test_open_dataset_validate_sources(tempdir):
     _, path = _create_single_file(tempdir)
     dataset = ds.dataset(path)
-    with pytest.raises(TypeError,
-                       match="Dataset objects are currently not supported"):
+    # reuse the dataset factory for construction a union dataset later
+    assert dataset.factory is not None
+
+    union_dataset = ds.dataset([dataset, dataset])
+    assert isinstance(union_dataset, ds.UnionDataset)
+
+    # if the dataset is constructed directly then the factory object is not
+    # vailable for later reuse, so raise
+    dataset = ds.FileSystemDataset(
+        schema=pa.schema([]),
+        root_partition=None,
+        file_format=ds.ParquetFileFormat(),
+        filesystem=fs._MockFileSystem(),
+        paths_or_selector=[],
+        partitions=[]
+    )
+    expected_msg = "Dataset objects are only supported if they are constructed"
+    with pytest.raises(TypeError, match=expected_msg):
         ds.dataset([dataset])
 
 
