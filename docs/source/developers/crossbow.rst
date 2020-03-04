@@ -132,7 +132,7 @@ Install
 
    .. code:: bash
 
-      conda install -c conda-forge -y --file arrow/ci/conda_env_crossbow.txt
+      conda install -c conda-forge -y --file arrow/ci/conda_env_crossbow.yml
 
    .. code:: bash
 

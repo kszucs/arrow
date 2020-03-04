@@ -25,9 +25,9 @@ ARG prefix=/opt/conda
 # install build essentials
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update -y -q && \
-    apt-get install -y -q wget tzdata libc6-dbg \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    apt-get install -y -q wget tzdata libc6-dbg && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 ENV PATH=${prefix}/bin:$PATH
 # install conda and minio
