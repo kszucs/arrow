@@ -52,38 +52,38 @@ jobs:
         run: conda install -y --file arrow/ci/conda_env_crossbow.txt
       - name: Submit Nightlies
         shell: bash
-        run: |
-          python arrow/dev/tasks/crossbow.py submit \
-            -g nightly \
-            --prefix nightly-$(date -I) \
-            --dry-run
-
-  nightly-report:
-    name: Send Nightly Report
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Arrow
-        uses: actions/checkout@v2
-        with:
-          path: arrow
-      - name: Checkout Crossbow
-        uses: actions/checkout@v2
-        with:
-          repository: "ursa-labs/crossbow"
-          path: crossbow
-      - name: Setup Conda
-        uses: s-weigand/setup-conda@v1
-        with:
-          conda-channels: "conda-forge"
-      - name: Install Dependencies
-        shell: bash
-        run: conda install -y --file arrow/ci/conda_env_crossbow.txt
-      - name: Submit Nightlies
-        shell: bash
         env:
           CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN }}
         run: |
           python arrow/dev/tasks/crossbow.py submit \
-            -g nightly \
-            --prefix nightly-$(date -I) \
+            --job-prefix nightly-$(date -I) \
+            --group nightly \
             --dry-run
+
+  # nightly-report:
+  #   name: Send Nightly Report
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout Arrow
+  #       uses: actions/checkout@v2
+  #       with:
+  #         path: arrow
+  #     - name: Checkout Crossbow
+  #       uses: actions/checkout@v2
+  #       with:
+  #         repository: "ursa-labs/crossbow"
+  #         path: crossbow
+  #     - name: Setup Conda
+  #       uses: s-weigand/setup-conda@v1
+  #       with:
+  #         conda-channels: "conda-forge"
+  #     - name: Install Dependencies
+  #       shell: bash
+  #       run: conda install -y --file arrow/ci/conda_env_crossbow.txt
+  #     - name: Submit Nightlies
+  #       shell: bash
+  #       run: |
+  #         python arrow/dev/tasks/crossbow.py submit \
+  #           -g nightly \
+  #           --prefix nightly-$(date -I) \
+  #           --dry-run
