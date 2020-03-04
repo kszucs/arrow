@@ -17,16 +17,16 @@
 
 name: Crossbow Cron
 
-# on:
-#   push:
-#     paths:
-#       - '.github/workflows/crossbow_cron.yml'
-#   pull_request:
-#     paths:
-#       - '.github/workflows/crossbow_cron.yml'
-#   schedule:
-#     - cron: |
-#         0 */12 * * *
+on:
+  push:
+    paths:
+      - '.github/workflows/crossbow_cron.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/crossbow_cron.yml'
+  schedule:
+    - cron: |
+        0 */12 * * *
 
 jobs:
 
