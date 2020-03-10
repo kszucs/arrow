@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: Comment Bot
+name: Arrow Comment Bot
 
 on:
   issue_comment:
