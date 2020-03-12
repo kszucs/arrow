@@ -625,6 +625,15 @@ tasks:
     artifacts:
       - pyarrow-{no_rc_version}-cp38-cp38-macosx_10_9_x86_64.whl
 
+  wheel-osx-py4:
+    ci: travis
+    platform: osx
+    template: python-wheels/travis.osx.yml
+    params:
+      python_version: 3.8
+    artifacts:
+      - pyarrow-{no_rc_version}-cp38-cp38-macosx_10_9_x86_64.whl
+
   ############################## Wheel Windows ################################
 
   wheel-win-cp36m:
