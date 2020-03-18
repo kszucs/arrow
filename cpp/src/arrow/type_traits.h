@@ -452,6 +452,18 @@ using is_half_float_type = std::is_same<HalfFloatType, T>;
 template <typename T, typename R = void>
 using enable_if_half_float = enable_if_t<is_half_float_type<T>::value, R>;
 
+// template <typename T>
+// using is_float_type = std::is_same<FloatType, T>;
+
+// template <typename T, typename R = void>
+// using enable_if_float = enable_if_t<is_float_type<T>::value, R>;
+
+// template <typename T>
+// using is_double_type = std::is_same<DoubleType, T>;
+
+// template <typename T, typename R = void>
+// using enable_if_double = enable_if_t<is_double_type<T>::value, R>;
+
 // Binary Types
 
 // Base binary refers to Binary/LargeBinary/String/LargeString
@@ -617,11 +629,18 @@ template <typename T, typename R = void>
 using enable_if_8bit_int = enable_if_t<is_8bit_int<T>::value, R>;
 
 template <typename T>
-using is_paramater_free_type =
+using is_parameter_free_type =
     std::integral_constant<bool, TypeTraits<T>::is_parameter_free>;
 
 template <typename T, typename R = void>
-using enable_if_parameter_free = enable_if_t<is_paramater_free_type<T>::value, R>;
+using enable_if_parameter_free = enable_if_t<is_parameter_free_type<T>::value, R>;
+
+template <typename T>
+using is_parametric_type =
+    std::integral_constant<bool, !is_parameter_free_type<T>::value>;
+
+template <typename T, typename R = void>
+using enable_if_parametric = enable_if_t<is_parametric_type<T>::value, R>;
 
 // Physical representation quirks
 
