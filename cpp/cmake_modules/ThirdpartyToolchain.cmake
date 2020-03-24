@@ -101,9 +101,9 @@ set(ARROW_THIRDPARTY_DEPENDENCIES
 # supported when building with MSVC because of the way that
 # conda-forge packages have 4 variants of the libraries packaged
 # together
-if(MSVC AND "${GTest_SOURCE}" STREQUAL "")
-  set(GTest_SOURCE "BUNDLED")
-endif()
+# if(MSVC AND "${GTest_SOURCE}" STREQUAL "")
+#   set(GTest_SOURCE "BUNDLED")
+# endif()
 
 message(STATUS "Using ${ARROW_DEPENDENCY_SOURCE} approach to find dependencies")
 
