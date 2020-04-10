@@ -906,8 +906,6 @@ def test_open_dataset_list_of_files(tempdir):
     tables, (path1, path2) = _create_directory_of_files(tempdir)
     table = pa.concat_tables(tables)
 
-    # list of exact files needs to be passed to source() function
-    # (dataset() will interpret it as separate sources)
     datasets = [
         ds.dataset([path1, path2]),
         ds.dataset([str(path1), str(path2)])
@@ -918,7 +916,7 @@ def test_open_dataset_list_of_files(tempdir):
         assert result.equals(table)
 
 
-def test_costruct_from_single_file(tempdir):
+def test_construct_from_single_file(tempdir):
     directory = tempdir / 'single-file'
     directory.mkdir()
     table, path = _create_single_file(directory)
@@ -933,7 +931,7 @@ def test_costruct_from_single_file(tempdir):
     assert d1.to_table() == d2.to_table() == d3.to_table()
 
 
-def test_costruct_from_single_directory(tempdir):
+def test_construct_from_single_directory(tempdir):
     directory = tempdir / 'single-directory'
     directory.mkdir()
     tables, paths = _create_directory_of_files(directory)
@@ -946,7 +944,7 @@ def test_costruct_from_single_directory(tempdir):
     assert d1.to_table() == d2.to_table() == d3.to_table()
 
 
-def test_costruct_from_list_of_files(tempdir):
+def test_construct_from_list_of_files(tempdir):
     # instantiate from a list of files
     directory = tempdir / 'list-of-files'
     directory.mkdir()
