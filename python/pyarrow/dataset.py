@@ -385,6 +385,10 @@ def _ensure_single_source(path, filesystem=None):
     print(filesystem)
     print(path)
 
+    from pathlib import Path
+    p = Path(path)
+    print(p.exists())
+
     # retrieve the file descriptor if it is available already
     if file_info is None:
         file_info = filesystem.get_file_info([path])[0]
