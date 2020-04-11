@@ -342,6 +342,7 @@ def _ensure_single_source(path, filesystem=None):
     # first check if the file exists as a local (relative) file path
     # if not then try to parse the path as an URI
     file_info = None
+    prefix = None
     if filesystem is None:
         filesystem = LocalFileSystem()
         try:
@@ -389,7 +390,9 @@ def _ensure_single_source(path, filesystem=None):
     print(path)
 
     from pathlib import Path
-    p = Path(path)
+    print(prefix)
+    print(prefix / path)
+    p = Path(prefix / path)
     print(p.exists())
 
     # retrieve the file descriptor if it is available already
