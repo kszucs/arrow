@@ -370,6 +370,8 @@ def _ensure_single_source(path, filesystem=None):
         filesystem, prefix = FileSystem.from_uri(filesystem)
         prefix = _normalize_path(filesystem, prefix)
         if prefix:
+            print('$$$$$$$$$$$$$$$$$$$$$$$')
+            print(prefix)
             filesystem = SubTreeFileSystem(prefix, filesystem)
     elif not isinstance(filesystem, FileSystem):
         raise TypeError(
@@ -379,9 +381,13 @@ def _ensure_single_source(path, filesystem=None):
 
     # ensure that the path is normalized before passing to dataset discovery
     path = _normalize_path(filesystem, path)
+    print('-----------------------------')
+    print(filesystem)
+    print(path)
 
-    # retrieve the file descriptor
-    file_info = filesystem.get_file_info([path])[0]
+    # retrieve the file descriptor if it is available already
+    if file_info is None:
+        file_info = filesystem.get_file_info([path])[0]
 
     # depending on the path type either return with a recursive
     # directory selector or as a list containing a single file
