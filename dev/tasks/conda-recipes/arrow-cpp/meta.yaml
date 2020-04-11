@@ -30,7 +30,7 @@ requirements:
     - grpc-cpp
     - libprotobuf
     - clangdev 8.*
-    - llvmdev 8.*
+    # - llvmdev 8.*
     - lz4-c
     - numpy 1.16.*
     - orc  # [unix]
