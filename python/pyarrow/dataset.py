@@ -333,7 +333,10 @@ def _ensure_single_source(path, filesystem=None):
         FileSystem, LocalFileSystem, SubTreeFileSystem, FileType, FileSelector
     )
 
+    print('######################')
+    print(path)
     path = _stringify_path(path)
+    print(path)
 
     # if filesystem is not given try to automatically determine one
     # first check if the file exists as a local (relative) file path
@@ -392,6 +395,8 @@ def _ensure_single_source(path, filesystem=None):
     # retrieve the file descriptor if it is available already
     if file_info is None:
         file_info = filesystem.get_file_info([path])[0]
+
+    print(file_info)
 
     # depending on the path type either return with a recursive
     # directory selector or as a list containing a single file
