@@ -372,6 +372,8 @@ def _ensure_single_source(path, filesystem=None):
         # instantiate the file system from an uri, if the uri has a path
         # component then it will be treated as a path prefix
         filesystem, prefix = FileSystem.from_uri(filesystem)
+        print('PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP')
+        print(prefix)
         prefix = _normalize_path(filesystem, prefix)
         if prefix:
             print('$$$$$$$$$$$$$$$$$$$$$$$')
@@ -391,8 +393,7 @@ def _ensure_single_source(path, filesystem=None):
 
     from pathlib import Path
     print(prefix)
-    print(prefix / path)
-    p = Path(prefix / path)
+    p = Path(path)
     print(p.exists())
 
     # retrieve the file descriptor if it is available already
