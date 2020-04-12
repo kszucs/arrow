@@ -167,6 +167,7 @@ Result<std::shared_ptr<DatasetFactory>> FileSystemDatasetFactory::Make(
       parent_path = parent.info().path();
     }
 
+
     for (auto&& path :
          fs::internal::AncestorsFromBasePath(parent_path, ref.info().path())) {
       ARROW_ASSIGN_OR_RAISE(auto file, filesystem->GetFileInfo(std::move(path)));

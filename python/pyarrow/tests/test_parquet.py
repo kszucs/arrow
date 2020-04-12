@@ -3019,6 +3019,7 @@ carat        cut  color  clarity  depth  table  price     x     y     z
 def test_backwards_compatible_column_metadata_handling(
     datadir, use_legacy_dataset
 ):
+    print('QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ')
     expected = pd.DataFrame(
         {'a': [1, 2, 3], 'b': [.1, .2, .3],
          'c': pd.date_range("2017-01-01", periods=3, tz='Europe/Brussels')})
@@ -3028,11 +3029,16 @@ def test_backwards_compatible_column_metadata_handling(
         names=['index', None])
 
     path = datadir / 'v0.7.1.column-metadata-handling.parquet'
-    print('?????????????????????????????????')
+
     old = _read_table(path, use_legacy_dataset=True)
     table = _read_table(path, use_legacy_dataset=use_legacy_dataset)
     print(old.to_pandas())
     print(table.to_pandas())
+
+    from pyarrow.parquet import _ParquetDatasetV2
+    dataset = _ParquetDatasetV2(path)
+    print(len(dataset.get_fragments()))
+
     result = table.to_pandas()
     tm.assert_frame_equal(result, expected)
 
