@@ -3037,7 +3037,7 @@ def test_backwards_compatible_column_metadata_handling(
 
     from pyarrow.parquet import _ParquetDatasetV2
     dataset = _ParquetDatasetV2(path)
-    print(len(dataset.get_fragments()))
+    print(len(dataset._dataset.get_fragments()))
 
     result = table.to_pandas()
     tm.assert_frame_equal(result, expected)
