@@ -3028,7 +3028,11 @@ def test_backwards_compatible_column_metadata_handling(
         names=['index', None])
 
     path = datadir / 'v0.7.1.column-metadata-handling.parquet'
+    print('?????????????????????????????????')
+    old = _read_table(path, use_legacy_dataset=True)
     table = _read_table(path, use_legacy_dataset=use_legacy_dataset)
+    print(old.to_pandas())
+    print(table.to_pandas())
     result = table.to_pandas()
     tm.assert_frame_equal(result, expected)
 

@@ -1195,6 +1195,7 @@ cdef class FileSystemDatasetFactory(DatasetFactory):
         options = options or FileSystemFactoryOptions()
         c_options = options.unwrap()
 
+        print(paths_or_selector)
         if isinstance(paths_or_selector, FileSelector):
             with nogil:
                 selector = (<FileSelector>paths_or_selector).selector

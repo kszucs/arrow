@@ -931,6 +931,9 @@ def test_construct_from_single_file(tempdir):
     assert d1.to_table() == d2.to_table() == d3.to_table()
 
 
+# C:\Users\VssAdministrator\AppData\Local\Temp\pytest-of-VssAdministrator\pytest-0\test_construct_from_single_fil0\single-file
+
+
 def test_construct_from_single_directory(tempdir):
     directory = tempdir / 'single-directory'
     directory.mkdir()
