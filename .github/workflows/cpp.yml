@@ -128,7 +128,10 @@ jobs:
         run: ci/scripts/util_checkout.sh
       - name: Install Docker
         shell: bash
-        run: brew cask install docker
+        run: |
+          brew cask install docker
+          open /Applications/Docker.app
+          while ! timeout 1 bash -c "docker ps"; do sleep 10; done
       - name: Docker Pull
         shell: bash
         run: docker-compose pull --ignore-pull-failures ubuntu-cpp
