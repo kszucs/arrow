@@ -18,6 +18,7 @@
 #include "arrow/dataset/discovery.h"
 
 #include <algorithm>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <unordered_set>
@@ -157,7 +158,13 @@ Result<fs::PathForest> FileSystemDatasetFactory::Filter(
 Result<std::shared_ptr<DatasetFactory>> FileSystemDatasetFactory::Make(
     std::shared_ptr<fs::FileSystem> filesystem, const std::vector<std::string>& paths,
     std::shared_ptr<FileFormat> format, FileSystemFactoryOptions options) {
+  std::cout << ">>>>>>>>>>>>>>>>>>> FileSystemDatasetFactory::Make <<<<<<<<<<<<<<<<<<<<<<\n";
+
   ARROW_ASSIGN_OR_RAISE(auto files, filesystem->GetFileInfo(paths));
+  for (auto fi : files) {
+    std::cout << fi.ToString() << "\n";
+  }
+
   ARROW_ASSIGN_OR_RAISE(auto forest, fs::PathForest::Make(std::move(files)));
 
   std::unordered_set<fs::FileInfo, fs::FileInfo::ByPath> missing;
@@ -177,6 +184,11 @@ Result<std::shared_ptr<DatasetFactory>> FileSystemDatasetFactory::Make(
 
   files = std::move(forest).infos();
   std::move(missing.begin(), missing.end(), std::back_inserter(files));
+
+  std::cout << "------------------------------------------------------------------------\n";
+  for (auto fi : files) {
+    std::cout << fi.ToString() << "\n";
+  }
 
   ARROW_ASSIGN_OR_RAISE(forest, fs::PathForest::Make(std::move(files)));
 
