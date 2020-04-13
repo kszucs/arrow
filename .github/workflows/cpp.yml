@@ -131,7 +131,7 @@ jobs:
         run: |
           brew cask install docker
           open /Applications/Docker.app
-          while ! timeout 1 bash -c "docker ps"; do sleep 10; done
+          while ! docker ps; do sleep 10; done
       - name: Docker Pull
         shell: bash
         run: docker-compose pull --ignore-pull-failures ubuntu-cpp
