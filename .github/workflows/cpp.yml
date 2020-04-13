@@ -126,6 +126,9 @@ jobs:
       - name: Fetch Submodules and Tags
         shell: bash
         run: ci/scripts/util_checkout.sh
+      - name: Install Docker
+        shell: bash
+        run: brew cask install docker
       - name: Docker Pull
         shell: bash
         run: docker-compose pull --ignore-pull-failures ubuntu-cpp
