@@ -30,7 +30,9 @@
 !dev/archery/requirements*.txt
 !python/requirements*.txt
 !python/manylinux1/**
+python/manylinux1/dist/**
 !python/manylinux2010/**
+python/manylinux2010/dist/**
 !r/DESCRIPTION
 !ruby/Gemfile
 !ruby/red-arrow/Gemfile

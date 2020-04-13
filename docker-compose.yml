@@ -70,6 +70,17 @@ volumes:
   amd64-ubuntu-16.04-cache:
   amd64-ubuntu-18.04-cache:
   amd64-ubuntu-20.04-cache:
+  arm64v8-conda-cache:
+  arm64v8-cuda-9.1-cache:
+  arm64v8-cuda-10.0-cache:
+  arm64v8-cuda-10.1-cache:
+  arm64v8-debian-9-cache:
+  arm64v8-debian-10-cache:
+  arm64v8-fedora-30-cache:
+  arm64v8-ubuntu-14.04-cache:
+  arm64v8-ubuntu-16.04-cache:
+  arm64v8-ubuntu-18.04-cache:
+  arm64v8-ubuntu-20.04-cache:
   maven-cache:
 
 x-ccache: &ccache
