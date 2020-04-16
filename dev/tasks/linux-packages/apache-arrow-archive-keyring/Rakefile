@@ -33,13 +33,17 @@ class ApacheArrowArchiveKeyringPackageTask < PackageTask
 
   private
   def define_archive_task
+    base_name_no_rc = @archive_base_name.gsub(/-rc\d+\z/, "\\1")
+
     file @archive_name do
-      rm_rf(@archive_base_name)
-      mkdir(@archive_base_name)
+      rm_rf(base_name_no_rc)
+
       download("https://dist.apache.org/repos/dist/dev/arrow/KEYS",
                "#{@archive_base_name}/KEYS")
-      sh("tar", "czf", @archive_name, @archive_base_name)
-      rm_rf(@archive_base_name)
+      mv(@archive_base_name, base_name_no_rc)
+      sh("tar", "czf", @archive_name, base_name_no_rc)
+
+      rm_rf(base_name_no_rc)
     end
 
     if deb_archive_name != @archive_name
