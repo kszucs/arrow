@@ -105,6 +105,7 @@ run cat <<BUILD > build.sh
 rpmbuild -ba ${rpmbuild_options} rpmbuild/SPECS/${PACKAGE}.spec
 BUILD
 run chmod +x build.sh
+
 if [ -n "${DEVTOOLSET_VERSION:-}" ]; then
   run cat <<WHICH_STRIP > which-strip.sh
 #!/bin/bash
@@ -112,9 +113,11 @@ if [ -n "${DEVTOOLSET_VERSION:-}" ]; then
 which strip
 WHICH_STRIP
   run chmod +x which-strip.sh
+
   run cat <<USE_DEVTOOLSET_STRIP >> ~/.rpmmacros
 %__strip $(run scl enable devtoolset-${DEVTOOLSET_VERSION} ./which-strip.sh)
 USE_DEVTOOLSET_STRIP
+
   if [ "${DEBUG:-no}" = "yes" ]; then
     run scl enable devtoolset-${DEVTOOLSET_VERSION} ./build.sh
   else

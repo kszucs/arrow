@@ -45,6 +45,7 @@ jobs:
           {{ build_command }}
           popd
         env:
+          DEBUG: "no"
           ARROW_VERSION: {{ arrow.version }}
       # Using GitHub release tries to find a common ancestor between the
       # currently pushed tag and the latest tag of the GitHub repository
