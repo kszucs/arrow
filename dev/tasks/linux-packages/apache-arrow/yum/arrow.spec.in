@@ -45,6 +45,7 @@
 %define use_meson (%{_centos_ver} >= 8)
 
 %define have_rapidjson (%{_centos_ver} == 7)
+%define have_zstd (%{_centos_ver} < 8)
 
 Name:		@PACKAGE@
 Version:	@VERSION@
@@ -68,7 +69,9 @@ BuildRequires:	git
 %if %{_centos_ver} >= 7
 BuildRequires:	glog-devel
 %endif
+%if %{have_zstd}
 BuildRequires:	libzstd-devel
+%endif
 BuildRequires:	lz4-devel
 BuildRequires:	pkgconfig
 BuildRequires:	python%{python_version}-devel
@@ -708,6 +711,9 @@ Documentation for Apache Parquet GLib.
 %endif
 
 %changelog
+* Wed May 13 2020 Krisztián Szűcs <szucs.krisztian@gmail.com> - 0.17.1-1
+- New upstream release.
+
 * Wed May 13 2020 Krisztián Szűcs <szucs.krisztian@gmail.com> - 0.17.1-1
 - New upstream release.
 
