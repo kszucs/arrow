@@ -942,7 +942,6 @@ services:
     volumes: *debian-volumes
     command: &rust-command >
       /bin/bash -c "
-        mv /target/ /arrow/rust/ &&
         echo ${RUST} > /arrow/rust/rust-toolchain &&
         /arrow/ci/scripts/rust_build.sh /arrow /build &&
         /arrow/ci/scripts/rust_test.sh /arrow /build"
