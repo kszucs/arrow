@@ -44,7 +44,7 @@ RUN rustup default ${rust} && \
 # We do not compile any of the workspace or we defeat the purpose of caching - we only
 # compile their external dependencies.
 
-ENV CARGO_HOME="/cargo" \
+ENV CARGO_HOME="/rust/cargo" \
     CARGO_TARGET_DIR="/build/rust" \
     RUSTFLAGS="-D warnings"
 
