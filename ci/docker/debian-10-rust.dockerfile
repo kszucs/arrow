@@ -29,7 +29,7 @@ ARG flatbuffers=1.11.0
 RUN wget -q -O - https://github.com/google/flatbuffers/archive/v${flatbuffers}.tar.gz | tar -xzf - && \
     cd flatbuffers-${flatbuffers} && \
     cmake -G "Unix Makefiles" && \
-    make install && \
+    make install -j4 && \
     cd / && \
     rm -rf flatbuffers-${flatbuffers}
 
@@ -44,8 +44,8 @@ RUN rustup default ${rust} && \
 # We do not compile any of the workspace or we defeat the purpose of caching - we only
 # compile their external dependencies.
 
-ENV CARGO_HOME="/rust/cargo" \
-    CARGO_TARGET_DIR="/rust/target" \
+ENV CARGO_HOME="/cargo" \
+    CARGO_TARGET_DIR="/build/rust" \
     RUSTFLAGS="-D warnings"
 
 # The artifact of the steps below is a "${CARGO_TARGET_DIR}" containing
@@ -68,4 +68,4 @@ RUN mkdir \
         /arrow/rust/parquet/src/lib.rs
 
 # Finally, compile dependencies
-RUN cd /arrow/rust && cargo build --lib
+RUN cd /arrow/rust && CARGO_TARGET_DIR=/rust/dummy-build cargo build --lib
