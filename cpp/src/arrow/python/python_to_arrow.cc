@@ -91,56 +91,64 @@ using internal::checked_pointer_cast;
 // PyValueConverter<DataType>> {};
 ////////////////////////////////////////////////////////////////////////////
 
-template <typename T, typename I, typename O, typename Enable = void>
-class ValueConverter {
-  // Result<std::shared_ptr<ConverterClass>> Make(const std::shared_ptr<DataType>& type,
-  // const ConversionOptions& options) {};
- public:
-  virtual ~ValueConverter() = default;
+// template <typename T, typename I, typename O, typename Enable = void>
+// class ValueConverter {
+//   // Result<std::shared_ptr<ConverterClass>> Make(const std::shared_ptr<DataType>&
+//   type,
+//   // const ConversionOptions& options) {};
+//  public:
+//   virtual ~ValueConverter() = default;
 
-  virtual Result<std::shared_ptr<Scalar>> ToScalar(I value);
-};
+//   virtual Result<std::shared_ptr<Scalar>> ToScalar(I value);
+// };
 
 template <typename T, typename I, typename O>
-class ValueConverter<T, I, O, enable_if_parameter_free<T>> {
+class ValueConverter {
  public:
-  ValueConverter(O options) : options_(options){};
+  ValueConverter(const T& type, O options) : type_(type), options_(options){};
+  virtual ~ValueConverter() = default;
+
+  template <typename U = T>
+  bool IsNull(I);
 
   template <typename U = T>
   enable_if_has_c_type<U, Result<typename U::c_type>> Convert(I);
 
   template <typename U = T>
-  enable_if_base_binary<U, Result<util::string_view>> Convert(I);
+  enable_if_has_string_view<U, Result<util::string_view>> Convert(I);
+
+  virtual Result<std::shared_ptr<Scalar>> ToScalar(I value);
 
  protected:
+  const T& type_;
   O options_;
 };
 
-template <typename T, typename I, typename O>
-class ValueConverter<T, I, O, enable_if_parametric_temporal_type<T>> {
- public:
-  ValueConverter(TimeUnit::type unit, O options)
-      : unit_(unit), options_(options){};
+// template <typename T, typename I, typename O>
+// class ValueConverter<T, I, O, enable_if_parametric_temporal_type<T>> {
+//  public:
+//   ValueConverter(TimeUnit::type unit, O options)
+//       : unit_(unit), options_(options){};
 
-  Result<typename T::c_type> Convert(I);
+//   Result<typename T::c_type> Convert(I);
 
- protected:
-  TimeUnit::type unit_;
-  O options_;
-};
+//  protected:
+//   TimeUnit::type unit_;
+//   O options_;
+// };
 
-template <typename T, typename I, typename O>
-class ValueConverter<T, I, O, enable_if_fixed_size_binary<T>> {
- public:
-  ValueConverter(int32_t byte_width, O options)
-      : byte_width_(byte_width), options_(options){};
+// template <typename T, typename I, typename O>
+// class ValueConverter<T, I, O, enable_if_fixed_size_binary<T>> {
+//  public:
+//   ValueConverter(int32_t byte_width, O options)
+//       : byte_width_(byte_width), options_(options){};
 
-  Result<util::string_view> Convert(I);
+//   Result<util::string_view> Convert(I);
 
- protected:
-  int32_t byte_width_;
-  O options_;
-};
+//  protected:
+//   int32_t byte_width_;
+//   O options_;
+// };
 
 // template <template<class>
 
@@ -151,10 +159,10 @@ class SequenceConverter {
   // Result<std::shared_ptr<ConverterClass>> Make(const std::shared_ptr<DataType>& type,
   // const ConversionOptions& options) {};
  public:
-  SequenceConverter(std::shared_ptr<ArrayBuilder> builder)
-    : builder_(builder) {}
+  SequenceConverter(std::shared_ptr<ArrayBuilder> builder) : builder_(builder) {}
 
   virtual ~SequenceConverter() = default;
+  std::shared_ptr<ArrayBuilder> builder() { return builder_; }
 
   virtual Status Append(I value);
   virtual Result<std::shared_ptr<Array>> ToArray(I value);
@@ -174,31 +182,25 @@ class TypedSequenceConverter : public SequenceConverter<I> {
         value_converter_(std::move(value_converter)),
         typed_builder_(checked_cast<BuilderType*>(builder.get())) {}
 
-
-  Status Append(I value) override {
-    // ARROW_ASSIGN_OR_RAISE(auto e, value_converter_.Convert(value));
-    // std::cerr << "Append: " << e;
-    return Status::OK();
-  }
-
  protected:
   VC value_converter_;
   BuilderType* typed_builder_;
 };
 
-
-template <typename T, typename I>
+template <typename T, typename I, typename VC>
 class ListSequenceConverter : public SequenceConverter<I> {
  public:
-
-  ListSequenceConverter(std::shared_ptr<ArrayBuilder> builder, std::shared_ptr<SequenceConverter<I>> value_converter)
-    : SequenceConverter<I>(builder),
-      list_builder_(checked_cast<ListBuilder*>(builder.get())),
-      value_converter_(std::move(value_converter)) {}
+  ListSequenceConverter(std::shared_ptr<ArrayBuilder> builder, VC value_converter,
+                        std::shared_ptr<SequenceConverter<I>> child_converter)
+      : SequenceConverter<I>(builder),
+        list_builder_(checked_cast<ListBuilder*>(builder.get())),
+        value_converter_(std::move(value_converter)),
+        child_converter_(std::move(child_converter)) {}
 
  protected:
+  VC value_converter_;
   ListBuilder* list_builder_;
-  std::shared_ptr<SequenceConverter<I>> value_converter_;
+  std::shared_ptr<SequenceConverter<I>> child_converter_;
 };
 
 // template <template <typename> class C>
@@ -212,6 +214,11 @@ template <typename T>
 class PyValueConverter : public ValueConverter<T, PyObject*, PyConversionOptions> {
  public:
   using ValueConverter<T, PyObject*, PyConversionOptions>::ValueConverter;
+
+  template <typename U = T>
+  bool IsNull(PyObject* obj) {
+    return obj == Py_None;
+  }
 
   template <typename U = T>
   enable_if_boolean<U, Result<typename U::c_type>> Convert(PyObject* obj) {
@@ -236,7 +243,7 @@ class PyValueConverter : public ValueConverter<T, PyObject*, PyConversionOptions
   template <typename U = T>
   enable_if_timestamp<U, Result<typename U::c_type>> Convert(PyObject* obj) {
     int64_t value;
-    bool ignore_timezone = false; // TODO options
+    bool ignore_timezone = false;  // TODO options
     if (PyDateTime_Check(obj)) {
       ARROW_ASSIGN_OR_RAISE(int64_t offset, py::internal::PyDateTime_utcoffset_s(obj));
       if (ignore_timezone) {
@@ -276,59 +283,63 @@ class PyValueConverter : public ValueConverter<T, PyObject*, PyConversionOptions
   }
 
   template <typename U = T>
-  enable_if_any_binary<U, Result<util::string_view>> Convert(PyObject* obj) {
+  enable_if_string_like<U, Result<util::string_view>> Convert(PyObject* obj) {
     py::PyBytesView view;
     RETURN_NOT_OK(view.FromString(obj));
-    return std::move(view);
+    return util::string_view(view.bytes, view.size);
+  }
+
+  template <typename U = T>
+  enable_if_binary_like<U, Result<util::string_view>> Convert(PyObject* obj) {
+    py::PyBytesView view;
+    RETURN_NOT_OK(view.FromString(obj));
+    return util::string_view(view.bytes, view.size);
   }
 };
 
+template <typename I, typename O, template <typename> class VC,
+          template <typename, typename, typename> class TSC,
+          template <typename, typename, typename> class LSC>
+Result<std::shared_ptr<SequenceConverter<I>>> MakeSequenceConverter(
+    std::shared_ptr<DataType> type, MemoryPool* pool, O options);
 
-template <typename O, template <typename> class VC, typename SC,
-          template <typename> class TSC>
-Result<std::shared_ptr<SC>> MakeSequenceConverter(std::shared_ptr<DataType> type,
-                                                  MemoryPool* pool, O options);
-
-
-template <typename I, typename O, template <typename> class VC, template <typename> class TSC, template <typename> class LSC>
+// TODO: pass optional listconverter and typed converter classes as template args
+template <typename I, typename O, template <typename> class VC,
+          template <typename, typename, typename> class TSC,
+          template <typename, typename, typename> class LSC>
 struct SequenceConverterBuilder {
-
   // don't use make builder instantiate the builder manually instead
 
-  template <typename T>
-  enable_if_parameter_free<T, Status> Visit(const T&) {
-    using BuilderType = typename TypeTraits<T>::BuilderType;
-    auto builder = std::make_shared<BuilderType>(pool);
-    auto value_converter = VC<T>(options);
-    out->reset(new TSC<T>(std::move(builder), std::move(value_converter)));
-    return Status::OK();
-  }
+  // Status Visit(const NullType&) {
+  //   return Status
+  // }
 
   template <typename T>
-  enable_if_parametric_temporal_type<T, Status> Visit(const T& t) {
+  enable_if_t<has_c_type<T>::value || has_string_view<T>::value, Status> Visit(
+      const T& t) {
     using BuilderType = typename TypeTraits<T>::BuilderType;
+    using TypedConverter = TSC<T, I, VC<T>>;
     auto builder = std::make_shared<BuilderType>(type, pool);
-    auto value_converter = VC<T>(t.unit(), options);
-    out->reset(new TSC<T>(std::move(builder), std::move(value_converter)));
+    auto value_converter = VC<T>(t, options);
+    out->reset(new TypedConverter(std::move(builder), std::move(value_converter)));
     return Status::OK();
   }
 
-  // fixed size binary
-
-  // list
   template <typename T>
-  enable_if_list_like<T, Status> Visit(const T& t) {
-    // auto result = MakeSequenceConverter<O, VC, SC, TSC>(t.value_type(), pool, options);
-    // ARROW_ASSIGN_OR_RAISE(auto value_converter, result);
-
-    // std::unique_ptr<ArrayBuilder> list_builder;
-    // RETURN_NOT_OK(MakeBuilder(pool, t.value_type(), &list_builder));
-    //out->reset(new ListBuilder(pool, std::move(value_builder), type));
-    //auto value_converter = VC<T>(t.unit(), options);
-    //out->reset(new TSC<T>(std::move(value_converter), std::move(value_builder)));
+  enable_if_list_type<T, Status> Visit(const T& t) {
+    using BuilderType = typename TypeTraits<T>::BuilderType;
+    using ListConverter = LSC<T, I, VC<T>>;
+    ARROW_ASSIGN_OR_RAISE(auto child_converter, (MakeSequenceConverter<I, O, VC>(
+                                                    t.value_type(), pool, options)));
+    auto builder = std::make_shared<BuilderType>(pool, child_converter->builder(), type);
+    auto value_converter = VC<T>(t, options);
+    out->reset(new ListConverter(std::move(builder), std::move(value_converter),
+                                 std::move(child_converter)));
     return Status::OK();
   }
 
+  // Status Visit(const NestedType& t) { return Status::OK(); }
+  // Status Visit(const NullType& t) { return Status::OK(); }
   Status Visit(const DataType& t) { return Status::OK(); }
 
   // template <typename U = T>
@@ -380,51 +391,64 @@ struct SequenceConverterBuilder {
   std::shared_ptr<SequenceConverter<I>>* out;
 };
 
-template <typename I, typename O, template <typename> class VC, template <typename> class TSC, template <typename> class LSC>
-Result<std::shared_ptr<SequenceConverter<I>>> MakeSequenceConverter(std::shared_ptr<DataType> type,
-                                                  MemoryPool* pool, O options) {
+template <typename I, typename O, template <typename> class VC,
+          template <typename, typename, typename> class TSC,
+          template <typename, typename, typename> class LSC>
+Result<std::shared_ptr<SequenceConverter<I>>> MakeSequenceConverter(
+    std::shared_ptr<DataType> type, MemoryPool* pool, O options) {
   std::shared_ptr<SequenceConverter<I>> out;
   SequenceConverterBuilder<I, O, VC, TSC, LSC> visitor = {type, pool, options, &out};
   RETURN_NOT_OK(VisitTypeInline(*type, &visitor));
   return out;
 }
 
-// class PySequenceConverter : public SequenceConverter<PyObject*> {
-//   public:
-//    using SequenceConverter<PyObject*>::SequenceConverter;
-// };
-
-template <typename T>
-class PyTypedSequenceConverter : public TypedSequenceConverter<T, PyObject*, PyValueConverter<T>> {
+template <typename T, typename I = PyObject*, typename VC = PyValueConverter<T>>
+class PyTypedSequenceConverter : public TypedSequenceConverter<T, I, VC> {
  public:
-  using TypedSequenceConverter<T, PyObject*, PyValueConverter<T>>::TypedSequenceConverter;
+  using TypedSequenceConverter<T, I, VC>::TypedSequenceConverter;
+
+  Status Append(I value) override {
+    if (this->value_converter_.IsNull(value)) {
+      return this->typed_builder_->AppendNull();
+    } else {
+      ARROW_ASSIGN_OR_RAISE(auto converted, this->value_converter_.Convert(value));
+      return this->typed_builder_->Append(converted);
+    }
+  }
 };
 
-template <typename T>
-class PyListSequenceConverter : public ListSequenceConverter<T, PyObject*> {
+template <typename T, typename I = PyObject*, typename VC = PyValueConverter<T>>
+class PyListSequenceConverter : public ListSequenceConverter<T, I, VC> {
  public:
-  using ListSequenceConverter<T, PyObject*>::ListSequenceConverter;
+  using ListSequenceConverter<T, I, VC>::ListSequenceConverter;
 };
 
 Result<std::shared_ptr<SequenceConverter<PyObject*>>> MakePySequenceConverter(
     std::shared_ptr<DataType> type, MemoryPool* pool, PyConversionOptions options) {
-  return MakeSequenceConverter<PyObject*, PyConversionOptions, PyValueConverter, PyTypedSequenceConverter, PyListSequenceConverter>(type, pool, options);
+  return MakeSequenceConverter<PyObject*, PyConversionOptions, PyValueConverter,
+                               PyTypedSequenceConverter, PyListSequenceConverter>(
+      type, pool, options);
 }
 
 ////////////////////////////////////////////////////////////////////////
 
 Status pinasen() {
-//   // auto c = std::make_shared<PyValueConverter<Int64Type>>();
-//   // auto d = new PySequenceConverter<Int64Type>(*int64(), PyValueConverter<Int64Type>());
-//   auto options = PyConversionOptions();
-//   ARROW_ASSIGN_OR_RAISE(auto e,
-//                         MakePySequenceConverter(int64(), default_memory_pool(), options));
-//   ARROW_ASSIGN_OR_RAISE(auto f, MakePySequenceConverter(timestamp(TimeUnit::MICRO),
-//                                                         default_memory_pool(), options));
+  //   // auto c = std::make_shared<PyValueConverter<Int64Type>>();
+  //   // auto d = new PySequenceConverter<Int64Type>(*int64(),
+  //   PyValueConverter<Int64Type>());
+  auto options = PyConversionOptions();
+  ARROW_ASSIGN_OR_RAISE(auto e,
+                        MakePySequenceConverter(int64(), default_memory_pool(), options));
+
+  ARROW_ASSIGN_OR_RAISE(auto f, MakePySequenceConverter(list(list(int64())),
+                                                        default_memory_pool(), options));
+  //   ARROW_ASSIGN_OR_RAISE(auto f, MakePySequenceConverter(timestamp(TimeUnit::MICRO),
+  //                                                         default_memory_pool(),
+  //                                                         options));
   auto o = PyConversionOptions();
-  auto vc = PyValueConverter<Int64Type>(o);
-  auto b = std::make_shared<Int64Builder>(default_memory_pool());
-  auto e = new PyTypedSequenceConverter<Int64Type>(b, vc);
+  // auto vc = PyValueConverter<Int64Type>(int64(), o);
+  // auto b = std::make_shared<Int64Builder>(default_memory_pool());
+  // auto e = new PyTypedSequenceConverter<Int64Type>(b, vc);
   return Status::OK();
 }
 
