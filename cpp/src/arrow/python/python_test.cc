@@ -40,6 +40,12 @@ namespace arrow {
 
 using internal::checked_cast;
 
+
+TEST(Converter, Pinasen) {
+  ASSERT_OK(pinasen());
+}
+
+
 namespace py {
 
 TEST(OwnedRef, TestMoves) {
