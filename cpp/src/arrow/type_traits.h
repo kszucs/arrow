@@ -687,8 +687,24 @@ template <typename T>
 using is_parameter_free_type =
     std::integral_constant<bool, TypeTraits<T>::is_parameter_free>;
 
+template <typename T>
+using is_parametric_type =
+    std::integral_constant<bool, !TypeTraits<T>::is_parameter_free>;
+
 template <typename T, typename R = void>
 using enable_if_parameter_free = enable_if_t<is_parameter_free_type<T>::value, R>;
+
+template <typename T, typename R = void>
+using enable_if_parametric_type = enable_if_t<is_parametric_type<T>::value, R>;
+
+template <typename T>
+using is_parametric_temporal_type =
+    std::integral_constant<bool,
+                           is_parametric_type<T>::value && is_temporal_type<T>::value>;
+
+template <typename T, typename R = void>
+using enable_if_parametric_temporal_type =
+    enable_if_t<is_parametric_temporal_type<T>::value, R>;
 
 // Physical representation quirks
 
