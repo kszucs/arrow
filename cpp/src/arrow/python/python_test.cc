@@ -40,9 +40,11 @@ namespace arrow {
 
 using internal::checked_cast;
 
-TEST(Converter, Pinasen) { ASSERT_OK(pinasen()); }
-
 namespace py {
+
+TEST(Converter, Pinasen) {
+  ASSERT_OK(pinasen());
+}
 
 TEST(OwnedRef, TestMoves) {
   std::vector<OwnedRef> vec;

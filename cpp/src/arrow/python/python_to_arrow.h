@@ -80,9 +80,9 @@ ARROW_PYTHON_EXPORT
 Status ConvertPySequence(PyObject* obj, const PyConversionOptions& options,
                          std::shared_ptr<ChunkedArray>* out);
 
-}  // namespace py
-
-ARROW_EXPORT
+ARROW_PYTHON_EXPORT
 Status pinasen();
+
+}  // namespace py
 
 }  // namespace arrow
