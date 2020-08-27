@@ -544,6 +544,9 @@ using is_string_like_type =
 template <typename T, typename R = void>
 using enable_if_string_like = enable_if_t<is_string_like_type<T>::value, R>;
 
+template <typename T, typename U, typename R = void>
+using enable_if_same = enable_if_t<std::is_same<T, U>::value, R>;
+
 // Note that this also includes DecimalType
 template <typename T>
 using is_fixed_size_binary_type = std::is_base_of<FixedSizeBinaryType, T>;
