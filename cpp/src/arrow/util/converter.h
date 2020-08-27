@@ -156,20 +156,33 @@ struct SequenceConverterBuilder {
     return Status::OK();
   }
 
-  template <typename T>
-  enable_if_t<has_c_type<T>::value && !is_interval_type<T>::value, Status> Visit(
-      const T& t) {
-    // TODO: should be mergable with the string view variant below
-    using BuilderType = typename TypeTraits<T>::BuilderType;
-    using TypedConverter = TSC<T, I, VC<T>>;
-    auto builder = std::make_shared<BuilderType>(type, pool);
-    auto value_converter = VC<T>(t, options);
-    out->reset(new TypedConverter(std::move(builder), std::move(value_converter)));
-    return Status::OK();
-  }
+  // template <typename T>
+  // enable_if_t<has_c_type<T>::value && !is_interval_type<T>::value, Status> Visit(
+  //     const T& t) {
+  //   // TODO: should be mergable with the string view variant below
+  //   using BuilderType = typename TypeTraits<T>::BuilderType;
+  //   using TypedConverter = TSC<T, I, VC<T>>;
+  //   auto builder = std::make_shared<BuilderType>(type, pool);
+  //   auto value_converter = VC<T>(t, options);
+  //   out->reset(new TypedConverter(std::move(builder), std::move(value_converter)));
+  //   return Status::OK();
+  // }
+
+  // template <typename T>
+  // enable_if_t<has_string_view<T>::value, Status> Visit(const T& t) {
+  //   using BuilderType = typename TypeTraits<T>::BuilderType;
+  //   using TypedConverter = TSC<T, I, VC<T>>;
+  //   auto builder = std::make_shared<BuilderType>(type, pool);
+  //   auto value_converter = VC<T>(t, options);
+  //   out->reset(new TypedConverter(std::move(builder), std::move(value_converter)));
+  //   return Status::OK();
+  // }
 
   template <typename T>
-  enable_if_t<has_string_view<T>::value, Status> Visit(const T& t) {
+  enable_if_t<!is_nested_type<T>::value && !is_interval_type<T>::value &&
+                  !is_dictionary_type<T>::value && !is_extension_type<T>::value,
+              Status>
+  Visit(const T& t) {
     using BuilderType = typename TypeTraits<T>::BuilderType;
     using TypedConverter = TSC<T, I, VC<T>>;
     auto builder = std::make_shared<BuilderType>(type, pool);

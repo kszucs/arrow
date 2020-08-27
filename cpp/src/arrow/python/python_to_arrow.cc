@@ -131,6 +131,13 @@ class PyValueConverter : public ValueConverter<T, PyObject*, PyConversionOptions
   }
 
   template <typename U = T>
+  enable_if_decimal<U, Result<Decimal128>> Convert(PyObject* obj) {
+    Decimal128 value;
+    RETURN_NOT_OK(internal::DecimalFromPyObject(obj, this->type_, &value));
+    return value;
+  }
+
+  template <typename U = T>
   enable_if_same<U, Date32Type, Result<int32_t>> Convert(PyObject* obj) {
     int32_t value;
     if (PyDate_Check(obj)) {
@@ -308,7 +315,8 @@ class PyValueConverter : public ValueConverter<T, PyObject*, PyConversionOptions
   }
 
   template <typename U = T>
-  enable_if_fixed_size_binary<U, Result<util::string_view>> Convert(PyObject* obj) {
+  enable_if_same<U, FixedSizeBinaryType, Result<util::string_view>> Convert(
+      PyObject* obj) {
     PyBytesView view;
     RETURN_NOT_OK(view.FromString(obj));
     if (ARROW_PREDICT_TRUE(view.size == this->type_.byte_width())) {
@@ -744,23 +752,6 @@ Status pinasen() {
 //   }
 // };
 
-// template <NullCoding null_coding>
-// class FixedSizeBinaryConverter
-//     : public BinaryLikeConverter<FixedSizeBinaryType, null_coding> {
-//  public:
-//   explicit FixedSizeBinaryConverter(int32_t byte_width) : byte_width_(byte_width) {}
-
-//   Status AppendValue(PyObject* obj) override {
-//     ARROW_ASSIGN_OR_RAISE(
-//         this->string_view_,
-//         ValueConverter<FixedSizeBinaryType>::FromPython(obj, byte_width_));
-//     return this->AppendString(this->string_view_);
-//   }
-
-//  protected:
-//   int32_t byte_width_;
-// };
-
 // // For String/UTF8, if strict_conversions enabled, we reject any non-UTF8,
 // // otherwise we allow but return results as BinaryArray
 // template <typename Type, bool Strict, NullCoding null_coding>
@@ -952,13 +943,6 @@ Status pinasen() {
 //   const bool from_pandas_;
 //   const bool strict_conversions_;
 //   const bool ignore_timezone_;
-// };
-
-// template <typename TypeClass, NullCoding null_coding>
-// class ListConverter : public BaseListConverter<TypeClass, null_coding> {
-//  public:
-//   using BASE = BaseListConverter<TypeClass, null_coding>;
-//   using BASE::BASE;
 // };
 
 // template <NullCoding null_coding>
@@ -1201,27 +1185,6 @@ Status pinasen() {
 //   bool from_pandas_;
 //   bool strict_conversions_;
 //   bool ignore_timezone_;
-// };
-
-// template <NullCoding null_coding>
-// class DecimalConverter : public TypedConverter<arrow::Decimal128Type, null_coding> {
-//  public:
-//   using BASE = TypedConverter<arrow::Decimal128Type, null_coding>;
-
-//   Status Init(ArrayBuilder* builder) override {
-//     RETURN_NOT_OK(BASE::Init(builder));
-//     decimal_type_ = checked_pointer_cast<DecimalType>(this->typed_builder_->type());
-//     return Status::OK();
-//   }
-
-//   Status AppendValue(PyObject* obj) override {
-//     Decimal128 value;
-//     RETURN_NOT_OK(internal::DecimalFromPyObject(obj, *decimal_type_, &value));
-//     return this->typed_builder_->Append(value);
-//   }
-
-//  private:
-//   std::shared_ptr<DecimalType> decimal_type_;
 // };
 
 // #define PRIMITIVE(TYPE_ENUM, TYPE)                                                   \
