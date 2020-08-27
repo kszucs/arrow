@@ -381,16 +381,29 @@ class PyValueConverter : public ValueConverter<T, PyObject*, PyConversionOptions
 
   template <typename U = T>
   enable_if_string_like<U, Result<util::string_view>> Convert(PyObject* obj) {
-    py::PyBytesView view;
+    PyBytesView view;
     RETURN_NOT_OK(view.FromString(obj));
     return util::string_view(view.bytes, view.size);
   }
 
   template <typename U = T>
-  enable_if_binary_like<U, Result<util::string_view>> Convert(PyObject* obj) {
-    py::PyBytesView view;
+  enable_if_any_binary<U, Result<util::string_view>> Convert(PyObject* obj) {
+    PyBytesView view;
     RETURN_NOT_OK(view.FromString(obj));
     return util::string_view(view.bytes, view.size);
+  }
+
+  template <typename U = T>
+  enable_if_fixed_size_binary<U, Result<util::string_view>> Convert(PyObject* obj) {
+    PyBytesView view;
+    RETURN_NOT_OK(view.FromString(obj));
+    if (ARROW_PREDICT_TRUE(view.size == this->type_.byte_width())) {
+      return util::string_view(view.bytes, view.size);
+    } else {
+      std::stringstream ss;
+      ss << "expected to be length " << this->type_.byte_width() << " was " << view.size;
+      return internal::InvalidValue(obj, ss.str());
+    }
   }
 };
 
@@ -407,7 +420,6 @@ template <typename I, typename O, template <typename> class VC,
           template <typename, typename, typename> class LSC,
           template <typename, typename, typename> class SSC>
 struct SequenceConverterBuilder {
-
   Status Visit(const NullType& t) {
     using T = NullType;
     using BuilderType = typename TypeTraits<T>::BuilderType;
@@ -419,8 +431,7 @@ struct SequenceConverterBuilder {
   }
 
   template <typename T>
-  enable_if_t<is_primitive_ctype<T>::value, Status> Visit(
-      const T& t) {
+  enable_if_t<is_primitive_ctype<T>::value, Status> Visit(const T& t) {
     using BuilderType = typename TypeTraits<T>::BuilderType;
     using TypedConverter = TSC<T, I, VC<T>>;
     auto builder = std::make_shared<BuilderType>(type, pool);
@@ -430,8 +441,7 @@ struct SequenceConverterBuilder {
   }
 
   template <typename T>
-  enable_if_t<has_string_view<T>::value, Status> Visit(
-      const T& t) {
+  enable_if_t<has_string_view<T>::value, Status> Visit(const T& t) {
     using BuilderType = typename TypeTraits<T>::BuilderType;
     using TypedConverter = TSC<T, I, VC<T>>;
     auto builder = std::make_shared<BuilderType>(type, pool);
@@ -533,10 +543,10 @@ class PyListSequenceConverter : public ListSequenceConverter<T, I, VC> {
   // or pass an Iterator type which produces size and an iterator of PyObject*
   // objects
   Status Append(I value) override {
-    RETURN_NOT_OK(this->typed_builder_->Append());
     if (this->value_converter_.IsNull(value)) {
       return this->typed_builder_->AppendNull();
     } else {
+      RETURN_NOT_OK(this->typed_builder_->Append());
       int64_t size = static_cast<int64_t>(PySequence_Size(value));
       return this->child_converter_->Extend(value, size);
     }
