@@ -70,7 +70,7 @@ class ValueConverter {
   template <typename U = T>
   enable_if_has_string_view<U, Result<util::string_view>> Convert(I);
 
-  //virtual Result<std::shared_ptr<Scalar>> ToScalar(I value);
+  // virtual Result<std::shared_ptr<Scalar>> ToScalar(I value);
 
  protected:
   const T& type_;
@@ -131,6 +131,55 @@ class ListSequenceConverter : public TypedSequenceConverter<T, I, VC> {
  protected:
   std::shared_ptr<SequenceConverter<I>> child_converter_;
 };
+
+template <typename T, typename I, typename VC>
+class StructSequenceConverter : public TypedSequenceConverter<T, I, VC> {
+ public:
+  StructSequenceConverter(
+      std::shared_ptr<ArrayBuilder> builder, VC value_converter,
+      std::vector<std::shared_ptr<SequenceConverter<I>>> child_converters)
+      : TypedSequenceConverter<T, I, VC>(builder, value_converter),
+        child_converters_(std::move(child_converters)) {}
+
+ protected:
+  std::vector<std::shared_ptr<SequenceConverter<I>>> child_converters_;
+};
+
+//   Status Init(ArrayBuilder* builder) override {
+//     this->builder_ = builder;
+//     this->typed_builder_ = checked_cast<StructBuilder*>(builder);
+//     auto struct_type = checked_pointer_cast<StructType>(builder->type());
+
+//     num_fields_ = this->typed_builder_->num_fields();
+//     DCHECK_EQ(num_fields_, struct_type->num_fields());
+
+//     field_name_bytes_list_.reset(PyList_New(num_fields_));
+//     field_name_unicode_list_.reset(PyList_New(num_fields_));
+//     RETURN_IF_PYERROR();
+
+//     // Initialize the child converters and field names
+//     for (int i = 0; i < num_fields_; i++) {
+//       const std::string& field_name(struct_type->field(i)->name());
+//       std::shared_ptr<DataType> field_type(struct_type->field(i)->type());
+
+//       std::unique_ptr<SeqConverter> value_converter;
+//       RETURN_NOT_OK(GetConverter(field_type, from_pandas_, strict_conversions_,
+//                                  ignore_timezone_, &value_converter));
+//       RETURN_NOT_OK(value_converter->Init(this->typed_builder_->field_builder(i)));
+//       value_converters_.push_back(std::move(value_converter));
+
+//       // Store the field name as a PyObject, for dict matching
+//       PyObject* bytesobj =
+//           PyBytes_FromStringAndSize(field_name.c_str(), field_name.size());
+//       PyObject* unicodeobj =
+//           PyUnicode_FromStringAndSize(field_name.c_str(), field_name.size());
+//       RETURN_IF_PYERROR();
+//       PyList_SET_ITEM(field_name_bytes_list_.obj(), i, bytesobj);
+//       PyList_SET_ITEM(field_name_unicode_list_.obj(), i, unicodeobj);
+//     }
+
+//     return Status::OK();
+//   }
 
 template <typename T>
 class PyValueConverter : public ValueConverter<T, PyObject*, PyConversionOptions> {
@@ -221,14 +270,16 @@ class PyValueConverter : public ValueConverter<T, PyObject*, PyConversionOptions
 
 template <typename I, typename O, template <typename> class VC,
           template <typename, typename, typename> class TSC,
-          template <typename, typename, typename> class LSC>
+          template <typename, typename, typename> class LSC,
+          template <typename, typename, typename> class SSC>
 Result<std::shared_ptr<SequenceConverter<I>>> MakeSequenceConverter(
     std::shared_ptr<DataType> type, MemoryPool* pool, O options);
 
 // TODO: pass optional listconverter and typed converter classes as template args
 template <typename I, typename O, template <typename> class VC,
           template <typename, typename, typename> class TSC,
-          template <typename, typename, typename> class LSC>
+          template <typename, typename, typename> class LSC,
+          template <typename, typename, typename> class SSC>
 struct SequenceConverterBuilder {
   // Status Visit(const NullType&) {
   //   return Status
@@ -246,11 +297,13 @@ struct SequenceConverterBuilder {
   }
 
   template <typename T>
-  enable_if_t<is_list_like_type<T>::value && !std::is_same<T, MapType>::value, Status> Visit(const T& t) {
+  enable_if_t<is_list_like_type<T>::value && !std::is_same<T, MapType>::value, Status>
+  Visit(const T& t) {
     using BuilderType = typename TypeTraits<T>::BuilderType;
     using ListConverter = LSC<T, I, VC<T>>;
-    ARROW_ASSIGN_OR_RAISE(auto child_converter, (MakeSequenceConverter<I, O, VC, TSC, LSC>(
-                                                    t.value_type(), pool, options)));
+    ARROW_ASSIGN_OR_RAISE(
+        auto child_converter,
+        (MakeSequenceConverter<I, O, VC, TSC, LSC, SSC>(t.value_type(), pool, options)));
     auto builder = std::make_shared<BuilderType>(pool, child_converter->builder(), type);
     auto value_converter = VC<T>(t, options);
     out->reset(new ListConverter(std::move(builder), std::move(value_converter),
@@ -258,9 +311,32 @@ struct SequenceConverterBuilder {
     return Status::OK();
   }
 
-  Status Visit(const DataType& t) {
-    return Status::NotImplemented("e");
+  Status Visit(const StructType& t) {
+    using T = StructType;
+    using StructConverter = SSC<T, I, VC<T>>;
+
+    std::shared_ptr<SequenceConverter<I>> child_converter;
+    std::vector<std::shared_ptr<SequenceConverter<I>>> child_converters;
+    std::vector<std::shared_ptr<ArrayBuilder>> child_builders;
+
+    for (const auto& field : t.fields()) {
+      ARROW_ASSIGN_OR_RAISE(
+          child_converter,
+          (MakeSequenceConverter<I, O, VC, TSC, LSC, SSC>(field->type(), pool, options)));
+
+      // TODO: use move
+      child_converters.emplace_back(child_converter);
+      child_builders.emplace_back(child_converter->builder());
+    }
+
+    auto builder = std::make_shared<StructBuilder>(type, pool, child_builders);
+    auto value_converter = VC<T>(t, options);
+    out->reset(new StructConverter(std::move(builder), std::move(value_converter),
+                                   std::move(child_converters)));
+    return Status::OK();
   }
+
+  Status Visit(const DataType& t) { return Status::NotImplemented("e"); }
 
   const std::shared_ptr<DataType>& type;
   MemoryPool* pool;
@@ -270,11 +346,12 @@ struct SequenceConverterBuilder {
 
 template <typename I, typename O, template <typename> class VC,
           template <typename, typename, typename> class TSC,
-          template <typename, typename, typename> class LSC>
+          template <typename, typename, typename> class LSC,
+          template <typename, typename, typename> class SSC>
 Result<std::shared_ptr<SequenceConverter<I>>> MakeSequenceConverter(
     std::shared_ptr<DataType> type, MemoryPool* pool, O options) {
   std::shared_ptr<SequenceConverter<I>> out;
-  SequenceConverterBuilder<I, O, VC, TSC, LSC> visitor = {type, pool, options, &out};
+  SequenceConverterBuilder<I, O, VC, TSC, LSC, SSC> visitor = {type, pool, options, &out};
   RETURN_NOT_OK(VisitTypeInline(*type, &visitor));
   std::cerr << "made";
   return out;
@@ -331,11 +408,37 @@ class PyListSequenceConverter : public ListSequenceConverter<T, I, VC> {
   }
 };
 
+template <typename T, typename I = PyObject*, typename VC = PyValueConverter<T>>
+class PyStructSequenceConverter : public StructSequenceConverter<T, I, VC> {
+ public:
+  using StructSequenceConverter<T, I, VC>::StructSequenceConverter;
+
+  Status Append(I value) override {
+    RETURN_NOT_OK(this->typed_builder_->Append());
+    // if (this->value_converter_.IsNull(value)) {
+    //   return this->typed_builder_->AppendNull();
+    // } else {
+    //   int64_t size = static_cast<int64_t>(PySequence_Size(value));
+    //   return this->child_converter_->Extend(value, size);
+    // }
+    return Status::OK();
+  }
+
+  Status Extend(I obj, int64_t size) override {
+    // /// Ensure we've allocated enough space
+    // RETURN_NOT_OK(this->typed_builder_->Reserve(size));
+    // // Iterate over the items adding each one
+    // return py::internal::VisitSequence(
+    //     obj, [this](I item, bool* /* unused */) { return this->Append(item); });
+    return Status::OK();
+  }
+};
+
 Result<std::shared_ptr<SequenceConverter<PyObject*>>> MakePySequenceConverter(
     std::shared_ptr<DataType> type, MemoryPool* pool, PyConversionOptions options) {
   return MakeSequenceConverter<PyObject*, PyConversionOptions, PyValueConverter,
-                               PyTypedSequenceConverter, PyListSequenceConverter>(
-      type, pool, options);
+                               PyTypedSequenceConverter, PyListSequenceConverter,
+                               PyStructSequenceConverter>(type, pool, options);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -350,8 +453,8 @@ PyObject* create_list() {
 
 Status pinasen() {
   auto options = PyConversionOptions();
-  ARROW_ASSIGN_OR_RAISE(
-      auto f, MakePySequenceConverter(utf8(), default_memory_pool(), options));
+  ARROW_ASSIGN_OR_RAISE(auto f,
+                        MakePySequenceConverter(utf8(), default_memory_pool(), options));
 
   auto lst = create_list();
 
@@ -372,11 +475,10 @@ Status pinasen() {
   std::cerr << "EEEEEEEEEE\n";
   std::cerr << b->ToString();
 
-
   return Status::OK();
 }
 
-//namespace py {
+// namespace py {
 
 // ----------------------------------------------------------------------
 // NullCoding
@@ -535,7 +637,8 @@ Status pinasen() {
 //       }
 //     } else {
 //       // TODO(kszucs): validate maximum value?
-//       RETURN_NOT_OK(internal::CIntFromPython(obj, &value, "Integer too large for int32"));
+//       RETURN_NOT_OK(internal::CIntFromPython(obj, &value, "Integer too large for
+//       int32"));
 //     }
 //     return value;
 //   }
@@ -560,7 +663,8 @@ Status pinasen() {
 //       }
 //     } else {
 //       // TODO(kszucs): validate maximum value?
-//       RETURN_NOT_OK(internal::CIntFromPython(obj, &value, "Integer too large for int64"));
+//       RETURN_NOT_OK(internal::CIntFromPython(obj, &value, "Integer too large for
+//       int64"));
 //     }
 //     return value;
 //   }
@@ -591,11 +695,13 @@ Status pinasen() {
 //           // Conversion to nanoseconds can overflow -> check multiply of microseconds
 //           value = internal::PyDateTime_to_us(dt);
 //           if (arrow::internal::MultiplyWithOverflow(value, 1000, &value)) {
-//             return internal::InvalidValue(obj, "out of bounds for nanosecond resolution");
+//             return internal::InvalidValue(obj, "out of bounds for nanosecond
+//             resolution");
 //           }
 //           if (arrow::internal::SubtractWithOverflow(value, offset * 1000 * 1000 * 1000,
 //                                                     &value)) {
-//             return internal::InvalidValue(obj, "out of bounds for nanosecond resolution");
+//             return internal::InvalidValue(obj, "out of bounds for nanosecond
+//             resolution");
 //           }
 //           break;
 //         default:
@@ -766,23 +872,23 @@ Status pinasen() {
 //   // virtual version
 //   virtual Status ExtendMasked(PyObject* seq, PyObject* mask, int64_t size) = 0;
 
-  // virtual Status Close() {
-  //   if (chunks_.size() == 0 || builder_->length() > 0) {
-  //     std::shared_ptr<Array> last_chunk;
-  //     RETURN_NOT_OK(builder_->Finish(&last_chunk));
-  //     chunks_.emplace_back(std::move(last_chunk));
-  //   }
-  //   return Status::OK();
-  // }
+// virtual Status Close() {
+//   if (chunks_.size() == 0 || builder_->length() > 0) {
+//     std::shared_ptr<Array> last_chunk;
+//     RETURN_NOT_OK(builder_->Finish(&last_chunk));
+//     chunks_.emplace_back(std::move(last_chunk));
+//   }
+//   return Status::OK();
+// }
 
-  // virtual Status GetResult(std::shared_ptr<ChunkedArray>* out) {
-  //   // Still some accumulated data in the builder. If there are no chunks, we
-  //   // always call Finish to deal with the edge case where a size-0 sequence
-  //   // was converted with a specific output type, like array([], type=t)
-  //   RETURN_NOT_OK(Close());
-  //   *out = std::make_shared<ChunkedArray>(this->chunks_, builder_->type());
-  //   return Status::OK();
-  // }
+// virtual Status GetResult(std::shared_ptr<ChunkedArray>* out) {
+//   // Still some accumulated data in the builder. If there are no chunks, we
+//   // always call Finish to deal with the edge case where a size-0 sequence
+//   // was converted with a specific output type, like array([], type=t)
+//   RETURN_NOT_OK(Close());
+//   *out = std::make_shared<ChunkedArray>(this->chunks_, builder_->type());
+//   return Status::OK();
+// }
 
 //   ArrayBuilder* builder() const { return builder_; }
 
@@ -819,7 +925,8 @@ Status pinasen() {
 //     RETURN_NOT_OK(typed_builder_->Reserve(size));
 //     // Iterate over the items adding each one
 //     return internal::VisitSequence(
-//         obj, [this](PyObject* item, bool* /* unused */) { return this->Append(item); });
+//         obj, [this](PyObject* item, bool* /* unused */) { return this->Append(item);
+//         });
 //   }
 
 //   Status ExtendMasked(PyObject* obj, PyObject* mask, int64_t size) override {
@@ -876,7 +983,8 @@ Status pinasen() {
 //   // TODO(kszucs): support numpy values for date and time converters
 //   Status AppendValue(PyObject* obj) override {
 //     ARROW_ASSIGN_OR_RAISE(auto value,
-//                           ValueConverter<Type>::FromPython(obj, unit_, ignore_timezone_));
+//                           ValueConverter<Type>::FromPython(obj, unit_,
+//                           ignore_timezone_));
 //     return this->typed_builder_->Append(value);
 //   }
 
@@ -959,7 +1067,8 @@ Status pinasen() {
 
 //     // now we can safely append the value to the builder
 //     RETURN_NOT_OK(
-//         this->typed_builder_->Append(::arrow::util::string_view(view.bytes, view.size)));
+//         this->typed_builder_->Append(::arrow::util::string_view(view.bytes,
+//         view.size)));
 
 //     return Status::OK();
 //   }
@@ -1056,9 +1165,9 @@ Status pinasen() {
 //     return value_converter_->Extend(obj, value_length); \
 //   }
 
-// // Base class for ListConverter and FixedSizeListConverter (to have both work with CRTP)
-// template <typename TypeClass, NullCoding null_coding>
-// class BaseListConverter : public TypedConverter<TypeClass, null_coding> {
+// // Base class for ListConverter and FixedSizeListConverter (to have both work with
+// CRTP) template <typename TypeClass, NullCoding null_coding> class BaseListConverter :
+// public TypedConverter<TypeClass, null_coding> {
 //  public:
 //   using BuilderType = typename TypeTraits<TypeClass>::BuilderType;
 
@@ -1197,7 +1306,8 @@ Status pinasen() {
 // };
 
 // template <NullCoding null_coding>
-// class FixedSizeListConverter : public BaseListConverter<FixedSizeListType, null_coding> {
+// class FixedSizeListConverter : public BaseListConverter<FixedSizeListType, null_coding>
+// {
 //  public:
 //   using BASE = BaseListConverter<FixedSizeListType, null_coding>;
 //   using BASE::BASE;
@@ -1246,8 +1356,10 @@ Status pinasen() {
 //  public:
 //   using BASE = BaseListConverter<MapType, null_coding>;
 
-//   explicit MapConverter(bool from_pandas, bool strict_conversions, bool ignore_timezone)
-//       : BASE(from_pandas, strict_conversions, ignore_timezone), key_builder_(nullptr) {}
+//   explicit MapConverter(bool from_pandas, bool strict_conversions, bool
+//   ignore_timezone)
+//       : BASE(from_pandas, strict_conversions, ignore_timezone), key_builder_(nullptr)
+//       {}
 
 //   Status Append(PyObject* obj) override {
 //     RETURN_NOT_OK(BASE::Append(obj));
@@ -1489,7 +1601,8 @@ Status pinasen() {
 //     SIMPLE_CONVERTER_CASE(DECIMAL, DecimalConverter);
 //     case Type::BINARY:
 //       *out =
-//           std::unique_ptr<SeqConverter>(new BinaryConverter<BinaryType, null_coding>());
+//           std::unique_ptr<SeqConverter>(new BinaryConverter<BinaryType,
+//           null_coding>());
 //       break;
 //     case Type::LARGE_BINARY:
 //       *out = std::unique_ptr<SeqConverter>(
@@ -1538,7 +1651,8 @@ Status pinasen() {
 //     case Type::DURATION: {
 //       auto unit = checked_cast<const DurationType&>(*type).unit();
 //       *out =
-//           std::unique_ptr<SeqConverter>(new TemporalConverter<DurationType, null_coding>(
+//           std::unique_ptr<SeqConverter>(new TemporalConverter<DurationType,
+//           null_coding>(
 //               unit, /*ignore_timezone=*/false));
 //       break;
 //     }
@@ -1584,7 +1698,8 @@ Status pinasen() {
 //     case Type::MAP:
 //       if (from_pandas) {
 //         *out =
-//             std::unique_ptr<SeqConverter>(new MapConverter<NullCoding::PANDAS_SENTINELS>(
+//             std::unique_ptr<SeqConverter>(new
+//             MapConverter<NullCoding::PANDAS_SENTINELS>(
 //                 from_pandas, strict_conversions, ignore_timezone));
 //       } else {
 //         *out = std::unique_ptr<SeqConverter>(new MapConverter<NullCoding::NONE_ONLY>(
@@ -1608,7 +1723,8 @@ Status pinasen() {
 //             new StructConverter<NullCoding::PANDAS_SENTINELS>(
 //                 from_pandas, strict_conversions, ignore_timezone));
 //       } else {
-//         *out = std::unique_ptr<SeqConverter>(new StructConverter<NullCoding::NONE_ONLY>(
+//         *out = std::unique_ptr<SeqConverter>(new
+//         StructConverter<NullCoding::NONE_ONLY>(
 //             from_pandas, strict_conversions, ignore_timezone));
 //       }
 //       return Status::OK();
@@ -1617,8 +1733,10 @@ Status pinasen() {
 //   }
 
 //   if (from_pandas) {
-//     RETURN_NOT_OK(GetConverterFlat<NullCoding::PANDAS_SENTINELS>(type, strict_conversions,
-//                                                                  ignore_timezone, out));
+//     RETURN_NOT_OK(GetConverterFlat<NullCoding::PANDAS_SENTINELS>(type,
+//     strict_conversions,
+//                                                                  ignore_timezone,
+//                                                                  out));
 //   } else {
 //     RETURN_NOT_OK(GetConverterFlat<NullCoding::NONE_ONLY>(type, strict_conversions,
 //                                                           ignore_timezone, out));

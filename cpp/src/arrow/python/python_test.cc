@@ -42,9 +42,7 @@ using internal::checked_cast;
 
 namespace py {
 
-TEST(Converter, Pinasen) {
-  ASSERT_OK(pinasen());
-}
+TEST(Converter, Pinasen) { ASSERT_OK(pinasen()); }
 
 TEST(OwnedRef, TestMoves) {
   std::vector<OwnedRef> vec;
