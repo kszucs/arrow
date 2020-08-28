@@ -44,38 +44,18 @@ namespace arrow {
 using internal::checked_cast;
 using internal::checked_pointer_cast;
 
-template <typename T, typename I, typename O>
-class ARROW_EXPORT ValueConverter {
+template <typename I, typename O>
+class ARROW_EXPORT ArrayConverter {
  public:
-  ValueConverter(const T& type, O options) : type_(type), options_(options){};
-  virtual ~ValueConverter() = default;
+  ArrayConverter(std::shared_ptr<ArrayBuilder> builder, O options)
+      : builder_(builder), options_(options) {}
 
-  template <typename U = T>
-  bool IsNull(I);
-
-  template <typename U = T>
-  enable_if_has_c_type<U, Result<typename U::c_type>> Convert(I);
-
-  template <typename U = T>
-  enable_if_has_string_view<U, Result<util::string_view>> Convert(I);
-
-  // virtual Result<std::shared_ptr<Scalar>> ToScalar(I value);
-
- protected:
-  const T& type_;
-  O options_;
-};
-
-template <typename I>
-class ARROW_EXPORT SequenceConverter {
- public:
-  SequenceConverter(std::shared_ptr<ArrayBuilder> builder) : builder_(builder) {}
-
-  virtual ~SequenceConverter() = default;
+  virtual ~ArrayConverter() = default;
   std::shared_ptr<ArrayBuilder> builder() { return builder_; }
+  O options() { return options_; }
 
   virtual Status Append(I value) = 0;
-  virtual Status Extend(PyObject* seq, int64_t size) = 0;
+  virtual Status Extend(I seq, int64_t size) = 0;
 
   virtual Result<std::shared_ptr<Array>> Finish() = 0;
 
@@ -84,16 +64,17 @@ class ARROW_EXPORT SequenceConverter {
 
  protected:
   std::shared_ptr<ArrayBuilder> builder_;
+  O options_;
 };
 
-template <typename T, typename I, typename VC>
-class ARROW_EXPORT TypedSequenceConverter : public SequenceConverter<I> {
+template <typename T, typename I, typename O>
+class ARROW_EXPORT TypedArrayConverter : public ArrayConverter<I, O> {
  public:
   using BuilderType = typename TypeTraits<T>::BuilderType;
 
-  TypedSequenceConverter(std::shared_ptr<ArrayBuilder> builder, VC value_converter)
-      : SequenceConverter<I>(builder),
-        value_converter_(std::move(value_converter)),
+  TypedArrayConverter(std::shared_ptr<ArrayBuilder> builder, O options)
+      : ArrayConverter<I, O>(builder, options),
+        type_(checked_cast<const T&>(*builder->type())),
         typed_builder_(checked_cast<BuilderType*>(builder.get())) {}
 
   Result<std::shared_ptr<Array>> Finish() {
@@ -103,80 +84,59 @@ class ARROW_EXPORT TypedSequenceConverter : public SequenceConverter<I> {
   }
 
  protected:
-  VC value_converter_;
+  const T& type_;
   BuilderType* typed_builder_;
 };
 
-template <typename T, typename I, typename VC>
-class ARROW_EXPORT ListSequenceConverter : public TypedSequenceConverter<T, I, VC> {
+template <typename T, typename I, typename O>
+class ARROW_EXPORT ListArrayConverter : public TypedArrayConverter<T, I, O> {
  public:
-  ListSequenceConverter(std::shared_ptr<ArrayBuilder> builder, VC value_converter,
-                        std::shared_ptr<SequenceConverter<I>> child_converter)
-      : TypedSequenceConverter<T, I, VC>(builder, value_converter),
+  ListArrayConverter(std::shared_ptr<ArrayBuilder> builder,
+                     std::shared_ptr<ArrayConverter<I, O>> child_converter, O options)
+      : TypedArrayConverter<T, I, O>(builder, options),
         child_converter_(std::move(child_converter)) {}
 
  protected:
-  std::shared_ptr<SequenceConverter<I>> child_converter_;
+  std::shared_ptr<ArrayConverter<I, O>> child_converter_;
 };
 
-template <typename T, typename I, typename VC>
-class ARROW_EXPORT StructSequenceConverter : public TypedSequenceConverter<T, I, VC> {
+template <typename T, typename I, typename O>
+class ARROW_EXPORT StructArrayConverter : public TypedArrayConverter<T, I, O> {
  public:
-  StructSequenceConverter(
-      std::shared_ptr<ArrayBuilder> builder, VC value_converter,
-      std::vector<std::shared_ptr<SequenceConverter<I>>> child_converters)
-      : TypedSequenceConverter<T, I, VC>(builder, value_converter),
+  StructArrayConverter(
+      std::shared_ptr<ArrayBuilder> builder,
+      std::vector<std::shared_ptr<ArrayConverter<I, O>>> child_converters, O options)
+      : TypedArrayConverter<T, I, O>(builder, options),
         child_converters_(std::move(child_converters)) {}
 
  protected:
-  std::vector<std::shared_ptr<SequenceConverter<I>>> child_converters_;
+  std::vector<std::shared_ptr<ArrayConverter<I, O>>> child_converters_;
 };
 
-template <typename I, typename O, template <typename> class VC,
-          template <typename, typename, typename> class TSC,
-          template <typename, typename, typename> class LSC,
-          template <typename, typename, typename> class SSC>
-Result<std::shared_ptr<SequenceConverter<I>>> MakeSequenceConverter(
-    std::shared_ptr<DataType> type, MemoryPool* pool, O options);
+// template <typename I, typename O,
+//           template <typename, typename, typename> class TAC,
+//           template <typename, typename, typename> class LAC,
+//           template <typename, typename, typename> class SAC>
+// Result<std::shared_ptr<ArrayConverter<I, O>>> MakeArrayConverter(
+//     std::shared_ptr<DataType> type, MemoryPool* pool, O options);
 
 // TODO: pass optional listconverter and typed converter classes as template args
-template <typename I, typename O, template <typename> class VC,
-          template <typename, typename, typename> class TSC,
-          template <typename, typename, typename> class LSC,
-          template <typename, typename, typename> class SSC>
-struct SequenceConverterBuilder {
+template <typename I, typename O, template <typename, typename, typename> class TAC,
+          template <typename, typename, typename> class LAC,
+          template <typename, typename, typename> class SAC>
+struct ArrayConverterBuilder {
+  using Self = ArrayConverterBuilder<I, O, TAC, LAC, SAC>;
+  using ArrayConverterPtr = std::shared_ptr<ArrayConverter<I, O>>;
+
   Status Visit(const NullType& t) {
     // TODO: merge with the primitive c_type variant below
     using T = NullType;
     using BuilderType = typename TypeTraits<T>::BuilderType;
-    using TypedConverter = TSC<T, I, VC<T>>;
+    using TypedConverter = TAC<T, I, O>;
     auto builder = std::make_shared<BuilderType>(pool);
-    auto value_converter = VC<T>(t, options);
-    out->reset(new TypedConverter(std::move(builder), std::move(value_converter)));
+    out->reset(new TypedConverter(std::move(builder), options));
     return Status::OK();
   }
-
-  // template <typename T>
-  // enable_if_t<has_c_type<T>::value && !is_interval_type<T>::value, Status> Visit(
-  //     const T& t) {
-  //   // TODO: should be mergable with the string view variant below
-  //   using BuilderType = typename TypeTraits<T>::BuilderType;
-  //   using TypedConverter = TSC<T, I, VC<T>>;
-  //   auto builder = std::make_shared<BuilderType>(type, pool);
-  //   auto value_converter = VC<T>(t, options);
-  //   out->reset(new TypedConverter(std::move(builder), std::move(value_converter)));
-  //   return Status::OK();
-  // }
-
-  // template <typename T>
-  // enable_if_t<has_string_view<T>::value, Status> Visit(const T& t) {
-  //   using BuilderType = typename TypeTraits<T>::BuilderType;
-  //   using TypedConverter = TSC<T, I, VC<T>>;
-  //   auto builder = std::make_shared<BuilderType>(type, pool);
-  //   auto value_converter = VC<T>(t, options);
-  //   out->reset(new TypedConverter(std::move(builder), std::move(value_converter)));
-  //   return Status::OK();
-  // }
 
   template <typename T>
   enable_if_t<!is_nested_type<T>::value && !is_interval_type<T>::value &&
@@ -184,10 +144,9 @@ struct SequenceConverterBuilder {
               Status>
   Visit(const T& t) {
     using BuilderType = typename TypeTraits<T>::BuilderType;
-    using TypedConverter = TSC<T, I, VC<T>>;
+    using TypedConverter = TAC<T, I, O>;
     auto builder = std::make_shared<BuilderType>(type, pool);
-    auto value_converter = VC<T>(t, options);
-    out->reset(new TypedConverter(std::move(builder), std::move(value_converter)));
+    out->reset(new TypedConverter(std::move(builder), options));
     return Status::OK();
   }
 
@@ -195,29 +154,25 @@ struct SequenceConverterBuilder {
   enable_if_t<is_list_like_type<T>::value && !std::is_same<T, MapType>::value, Status>
   Visit(const T& t) {
     using BuilderType = typename TypeTraits<T>::BuilderType;
-    using ListConverter = LSC<T, I, VC<T>>;
-    ARROW_ASSIGN_OR_RAISE(
-        auto child_converter,
-        (MakeSequenceConverter<I, O, VC, TSC, LSC, SSC>(t.value_type(), pool, options)));
+    using ListConverter = LAC<T, I, O>;
+    ARROW_ASSIGN_OR_RAISE(auto child_converter,
+                          (Self::Make(t.value_type(), pool, options)));
     auto builder = std::make_shared<BuilderType>(pool, child_converter->builder(), type);
-    auto value_converter = VC<T>(t, options);
-    out->reset(new ListConverter(std::move(builder), std::move(value_converter),
-                                 std::move(child_converter)));
+    out->reset(
+        new ListConverter(std::move(builder), std::move(child_converter), options));
     return Status::OK();
   }
 
   Status Visit(const StructType& t) {
     using T = StructType;
-    using StructConverter = SSC<T, I, VC<T>>;
+    using StructConverter = SAC<T, I, O>;
 
-    std::shared_ptr<SequenceConverter<I>> child_converter;
-    std::vector<std::shared_ptr<SequenceConverter<I>>> child_converters;
+    ArrayConverterPtr child_converter;
+    std::vector<ArrayConverterPtr> child_converters;
     std::vector<std::shared_ptr<ArrayBuilder>> child_builders;
 
     for (const auto& field : t.fields()) {
-      ARROW_ASSIGN_OR_RAISE(
-          child_converter,
-          (MakeSequenceConverter<I, O, VC, TSC, LSC, SSC>(field->type(), pool, options)));
+      ARROW_ASSIGN_OR_RAISE(child_converter, (Self::Make(field->type(), pool, options)));
 
       // TODO: use move
       child_converters.emplace_back(child_converter);
@@ -225,30 +180,25 @@ struct SequenceConverterBuilder {
     }
 
     auto builder = std::make_shared<StructBuilder>(type, pool, child_builders);
-    auto value_converter = VC<T>(t, options);
-    out->reset(new StructConverter(std::move(builder), std::move(value_converter),
-                                   std::move(child_converters)));
+    out->reset(
+        new StructConverter(std::move(builder), std::move(child_converters), options));
     return Status::OK();
   }
 
   Status Visit(const DataType& t) { return Status::NotImplemented(t.name()); }
 
+  static Result<ArrayConverterPtr> Make(std::shared_ptr<DataType> type, MemoryPool* pool,
+                                        O options) {
+    ArrayConverterPtr out;
+    Self visitor = {type, pool, options, &out};
+    RETURN_NOT_OK(VisitTypeInline(*type, &visitor));
+    return out;
+  }
+
   const std::shared_ptr<DataType>& type;
   MemoryPool* pool;
   O options;
-  std::shared_ptr<SequenceConverter<I>>* out;
+  ArrayConverterPtr* out;
 };
-
-template <typename I, typename O, template <typename> class VC,
-          template <typename, typename, typename> class TSC,
-          template <typename, typename, typename> class LSC,
-          template <typename, typename, typename> class SSC>
-Result<std::shared_ptr<SequenceConverter<I>>> MakeSequenceConverter(
-    std::shared_ptr<DataType> type, MemoryPool* pool, O options) {
-  std::shared_ptr<SequenceConverter<I>> out;
-  SequenceConverterBuilder<I, O, VC, TSC, LSC, SSC> visitor = {type, pool, options, &out};
-  RETURN_NOT_OK(VisitTypeInline(*type, &visitor));
-  return out;
-}
 
 }  // namespace arrow
