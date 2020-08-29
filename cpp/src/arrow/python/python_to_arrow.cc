@@ -57,12 +57,26 @@ using internal::checked_pointer_cast;
 
 namespace py {
 
-class PyValueConverter {
+class PyValue {
  public:
   using I = PyObject*;
   using O = PyConversionOptions;
 
-  static bool IsNull(PyObject* obj, const O&) { return obj == Py_None; }
+  static bool IsNull(const DataType&, const O& options, I obj) {
+    if (options.from_pandas) {
+      return internal::PandasObjectIsNull(obj);
+    } else {
+      return obj == Py_None;
+    }
+  }
+
+  // static bool IsNull(const TimestampType&, const O&, I obj) {
+  //   internal::npy_traits<NPY_DATETIME>::isnull(v);
+  // }
+
+  // static bool IsNull(const DurationType&, const O&, I obj) {
+  //   internal::npy_traits<NPY_TIMEDELTA>::isnull(v);
+  // }
 
   static Result<std::nullptr_t> Convert(const NullType&, const O&, I obj) {
     if (obj == Py_None) {
@@ -84,13 +98,13 @@ class PyValueConverter {
     }
   }
 
-  // template <typename T>
-  // static enable_if_integer<T, Result<typename T::c_type>> Convert(const T&, const O&, I
-  // obj) {
-  //   typename T::c_type value;
-  //   RETURN_NOT_OK(py::internal::CIntFromPython(obj, &value));
-  //   return value;
-  //}
+  template <typename T>
+  static enable_if_integer<T, Result<typename T::c_type>> Convert(const T&, const O&,
+                                                                  I obj) {
+    typename T::c_type value;
+    RETURN_NOT_OK(py::internal::CIntFromPython(obj, &value));
+    return value;
+  }
 
   static Result<uint16_t> Convert(const HalfFloatType&, const O&, I obj) {
     uint16_t value;
@@ -176,6 +190,13 @@ class PyValueConverter {
         default:
           return Status::UnknownError("Invalid time unit");
       }
+    //     if (PyArray_CheckAnyScalarExact(obj)) {
+    //       // convert np.datetime64 / np.timedelta64 depending on Type
+    //       ARROW_ASSIGN_OR_RAISE(value, ValueConverter<Type>::FromNumpy(obj, this->unit_));
+    //       if (NumpyType<Type>::isnull(value)) {
+    //         // checks numpy NaT sentinel after conversion
+    //         return this->typed_builder_->AppendNull();
+    //       }
     } else {
       // TODO(kszucs): validate maximum value?
       RETURN_NOT_OK(internal::CIntFromPython(obj, &value, "Integer too large for int32"));
@@ -197,9 +218,95 @@ class PyValueConverter {
         default:
           return Status::UnknownError("Invalid time unit");
       }
+    //     if (PyArray_CheckAnyScalarExact(obj)) {
+    //       // convert np.datetime64 / np.timedelta64 depending on Type
+    //       ARROW_ASSIGN_OR_RAISE(value, ValueConverter<Type>::FromNumpy(obj, this->unit_));
+    //       if (NumpyType<Type>::isnull(value)) {
+    //         // checks numpy NaT sentinel after conversion
+    //         return this->typed_builder_->AppendNull();
+    //       }
     } else {
       // TODO(kszucs): validate maximum value?
       RETURN_NOT_OK(internal::CIntFromPython(obj, &value, "Integer too large for int64"));
+    }
+    return value;
+  }
+
+  static Result<int64_t> Convert(const TimestampType& type, const O& options, I obj) {
+    int64_t value;
+    if (PyDateTime_Check(obj)) {
+      ARROW_ASSIGN_OR_RAISE(int64_t offset, py::internal::PyDateTime_utcoffset_s(obj));
+      if (options.ignore_timezone) {
+        offset = 0;
+      }
+      auto dt = reinterpret_cast<PyDateTime_DateTime*>(obj);
+      switch (type.unit()) {
+        case TimeUnit::SECOND:
+          value = internal::PyDateTime_to_s(dt) - offset;
+          break;
+        case TimeUnit::MILLI:
+          value = internal::PyDateTime_to_ms(dt) - offset * 1000;
+          break;
+        case TimeUnit::MICRO:
+          value = internal::PyDateTime_to_us(dt) - offset * 1000 * 1000;
+          break;
+        case TimeUnit::NANO:
+          // Conversion to nanoseconds can overflow -> check multiply of microseconds
+          value = internal::PyDateTime_to_us(dt);
+          if (arrow::internal::MultiplyWithOverflow(value, 1000, &value)) {
+            return internal::InvalidValue(obj, "out of bounds for nanosecond resolution");
+          }
+          if (arrow::internal::SubtractWithOverflow(value, offset * 1000 * 1000 * 1000,
+                                                    &value)) {
+            return internal::InvalidValue(obj, "out of bounds for nanosecond resolution");
+          }
+          break;
+        default:
+          return Status::UnknownError("Invalid time unit");
+      }
+    // } else if (PyArray_CheckAnyScalarExact(obj)) {
+    //   // validate that the numpy scalar has np.datetime64 dtype
+    //   std::shared_ptr<DataType> type;
+    //   RETURN_NOT_OK(NumPyDtypeToArrow(PyArray_DescrFromScalar(obj), &type));
+    //   if (type->id() != TimestampType::type_id) {
+    //     // TODO(kszucs): the message should highlight the received numpy dtype
+    //     return Status::Invalid("Expected np.datetime64 but got: ", type->ToString());
+    //   }
+    //   // validate that the time units are matching
+    //   if (unit != checked_cast<const TimestampType&>(*type).unit()) {
+    //     return Status::NotImplemented(
+    //         "Cannot convert NumPy np.datetime64 objects with differing unit");
+    //   }
+    //   // convert the numpy value
+    //   return reinterpret_cast<PyDatetimeScalarObject*>(obj)->obval;
+    } else {
+      RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
+    }
+    return value;
+  }
+
+  static Result<int64_t> Convert(const DurationType& type, const O&, I obj) {
+    int64_t value;
+    if (PyDelta_Check(obj)) {
+      auto dt = reinterpret_cast<PyDateTime_Delta*>(obj);
+      switch (type.unit()) {
+        case TimeUnit::SECOND:
+          value = internal::PyDelta_to_s(dt);
+          break;
+        case TimeUnit::MILLI:
+          value = internal::PyDelta_to_ms(dt);
+          break;
+        case TimeUnit::MICRO:
+          value = internal::PyDelta_to_us(dt);
+          break;
+        case TimeUnit::NANO:
+          value = internal::PyDelta_to_ns(dt);
+          break;
+        default:
+          return Status::UnknownError("Invalid time unit");
+      }
+    } else {
+      RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
     }
     return value;
   }
@@ -228,77 +335,6 @@ class PyValueConverter {
   }
 
   // template <typename U = T>
-  // enable_if_timestamp<U, Result<int64_t>> Convert(PyObject* obj) {
-  //   int64_t value;
-  //   bool ignore_timezone = false;  // TODO options
-  //   if (PyDateTime_Check(obj)) {
-  //     ARROW_ASSIGN_OR_RAISE(int64_t offset, py::internal::PyDateTime_utcoffset_s(obj));
-  //     if (ignore_timezone) {
-  //       offset = 0;
-  //     }
-  //     auto dt = reinterpret_cast<PyDateTime_DateTime*>(obj);
-  //     switch (this->type_.unit()) {
-  //       case TimeUnit::SECOND:
-  //         value = py::internal::PyDateTime_to_s(dt) - offset;
-  //         break;
-  //       case TimeUnit::MILLI:
-  //         value = py::internal::PyDateTime_to_ms(dt) - offset * 1000;
-  //         break;
-  //       case TimeUnit::MICRO:
-  //         value = py::internal::PyDateTime_to_us(dt) - offset * 1000 * 1000;
-  //         break;
-  //       case TimeUnit::NANO:
-  //         // Conversion to nanoseconds can overflow -> check multiply of microseconds
-  //         value = py::internal::PyDateTime_to_us(dt);
-  //         if (arrow::internal::MultiplyWithOverflow(value, 1000, &value)) {
-  //           return py::internal::InvalidValue(obj,
-  //                                             "out of bounds for nanosecond
-  //                                             resolution");
-  //         }
-  //         if (arrow::internal::SubtractWithOverflow(value, offset * 1000 * 1000 * 1000,
-  //                                                   &value)) {
-  //           return py::internal::InvalidValue(obj,
-  //                                             "out of bounds for nanosecond
-  //                                             resolution");
-  //         }
-  //         break;
-  //       default:
-  //         return Status::UnknownError("Invalid time unit");
-  //     }
-  //   } else {
-  //     RETURN_NOT_OK(py::internal::CIntFromPython(obj, &value));
-  //   }
-  //   return value;
-  // }
-
-  // template <typename U = T>
-  // enable_if_duration<U, Result<int64_t>> Convert(PyObject* obj) {
-  //   int64_t value;
-  //   if (PyDelta_Check(obj)) {
-  //     auto dt = reinterpret_cast<PyDateTime_Delta*>(obj);
-  //     switch (this->type_.unit()) {
-  //       case TimeUnit::SECOND:
-  //         value = internal::PyDelta_to_s(dt);
-  //         break;
-  //       case TimeUnit::MILLI:
-  //         value = internal::PyDelta_to_ms(dt);
-  //         break;
-  //       case TimeUnit::MICRO:
-  //         value = internal::PyDelta_to_us(dt);
-  //         break;
-  //       case TimeUnit::NANO:
-  //         value = internal::PyDelta_to_ns(dt);
-  //         break;
-  //       default:
-  //         return Status::UnknownError("Invalid time unit");
-  //     }
-  //   } else {
-  //     RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
-  //   }
-  //   return value;
-  // }
-
-  // template <typename U = T>
   // enable_if_interval<U, Result<int64_t>> Convert(PyObject* obj) {
   //   return Status::NotImplemented("Interval");
   //   // // validate that the numpy scalar has np.timedelta64 dtype
@@ -316,13 +352,6 @@ class PyValueConverter {
   //   // // convert the numpy value
   //   // return reinterpret_cast<PyTimedeltaScalarObject*>(obj)->obval;
   // }
-
-  // template <typename U = T>
-  // enable_if_any_binary<U, Result<util::string_view>> Convert(PyObject* obj) {
-  //   PyBytesView view;
-  //   RETURN_NOT_OK(view.FromString(obj));
-  //   return util::string_view(view.bytes, view.size);
-  // }
 };
 
 template <typename T, typename I = PyObject*, typename O = PyConversionOptions>
@@ -332,23 +361,39 @@ class PyTypedArrayConverter : public TypedArrayConverter<T, I, O> {
 
   // TODO: move it to the parent class
   Status Append(I value) override {
-    if (PyValueConverter::IsNull(value, this->options_)) {
-      return this->typed_builder_->AppendNull();
+    if (PyValue::IsNull(this->type_, this->options_, value)) {
+      return this->builder_->AppendNull();
     } else {
-      ARROW_ASSIGN_OR_RAISE(
-          auto converted, PyValueConverter::Convert(this->type_, this->options_, value));
-      return this->typed_builder_->Append(converted);
+      ARROW_ASSIGN_OR_RAISE(auto converted,
+                            PyValue::Convert(this->type_, this->options_, value));
+      return this->builder_->Append(converted);
     }
   }
 
   Status Extend(I values, int64_t size) override {
     /// Ensure we've allocated enough space
-    RETURN_NOT_OK(this->typed_builder_->Reserve(size));
+    RETURN_NOT_OK(this->builder_->Reserve(size));
     // Iterate over the items adding each one
-    return py::internal::VisitSequence(
+    return internal::VisitSequence(
         values, [this](I item, bool* /* unused */) { return this->Append(item); });
   }
 };
+
+// If the value type does not match the expected NumPy dtype, then fall through
+// to a slower PySequence-based path
+#define LIST_FAST_CASE(TYPE_ID, TYPE, NUMPY_TYPE)         \
+  case Type::TYPE_ID: {                                   \
+    if (PyArray_DESCR(ndarray)->type_num != NUMPY_TYPE) { \
+      return this->value_converter_->Extend(value, size); \
+    }                                                     \
+    return AppendNdarrayTyped<TYPE, NUMPY_TYPE>(ndarray); \
+  }
+
+// Use internal::VisitSequence, fast for NPY_OBJECT but slower otherwise
+#define LIST_SLOW_CASE(TYPE_ID)                         \
+  case Type::TYPE_ID: {                                 \
+    return this->value_converter_->Extend(value, size); \
+  }
 
 template <typename T, typename I = PyObject*, typename O = PyConversionOptions>
 class PyListArrayConverter : public ListArrayConverter<T, I, O> {
@@ -359,21 +404,114 @@ class PyListArrayConverter : public ListArrayConverter<T, I, O> {
   // or pass an Iterator type which produces size and an iterator of PyObject*
   // objects
   Status Append(I value) override {
-    if (PyValueConverter::IsNull(value, this->options_)) {
-      return this->typed_builder_->AppendNull();
+    if (PyValue::IsNull(this->type_, this->options_, value)) {
+      return this->builder_->AppendNull();
+    } else if (PyArray_Check(value)) {
+      return AppendNdarray(value);
+    } else if (PySequence_Check(value)) {
+      return AppendSequence(value);
     } else {
-      RETURN_NOT_OK(this->typed_builder_->Append());
-      int64_t size = static_cast<int64_t>(PySequence_Size(value));
-      return this->child_converter_->Extend(value, size);
+      return internal::InvalidType(
+          value, "was not a sequence or recognized null for conversion to list type");
     }
   }
 
   Status Extend(I values, int64_t size) override {
     /// Ensure we've allocated enough space
-    RETURN_NOT_OK(this->typed_builder_->Reserve(size));
+    RETURN_NOT_OK(this->builder_->Reserve(size));
     // Iterate over the items adding each one
-    return py::internal::VisitSequence(
+    return internal::VisitSequence(
         values, [this](I item, bool* /* unused */) { return this->Append(item); });
+  }
+
+  Status AppendSequence(I value) {
+    RETURN_NOT_OK(this->builder_->Append());
+    int64_t size = static_cast<int64_t>(PySequence_Size(value));
+    RETURN_NOT_OK(this->ValidateSize(this->type_, size));
+    return this->value_converter_->Extend(value, size);
+  }
+
+  Status AppendNdarray(I value) {
+    PyArrayObject* ndarray = reinterpret_cast<PyArrayObject*>(value);
+    if (PyArray_NDIM(ndarray) != 1) {
+      return Status::Invalid("Can only convert 1-dimensional array values");
+    }
+    const int64_t size = PyArray_SIZE(ndarray);
+    RETURN_NOT_OK(this->ValidateSize(this->type_, size));
+
+    const auto value_type = this->value_converter_->builder()->type();
+    switch (value_type->id()) {
+      LIST_SLOW_CASE(NA)
+      LIST_FAST_CASE(UINT8, UInt8Type, NPY_UINT8)
+      LIST_FAST_CASE(INT8, Int8Type, NPY_INT8)
+      LIST_FAST_CASE(UINT16, UInt16Type, NPY_UINT16)
+      LIST_FAST_CASE(INT16, Int16Type, NPY_INT16)
+      LIST_FAST_CASE(UINT32, UInt32Type, NPY_UINT32)
+      LIST_FAST_CASE(INT32, Int32Type, NPY_INT32)
+      LIST_FAST_CASE(UINT64, UInt64Type, NPY_UINT64)
+      LIST_FAST_CASE(INT64, Int64Type, NPY_INT64)
+      LIST_FAST_CASE(HALF_FLOAT, HalfFloatType, NPY_FLOAT16)
+      LIST_FAST_CASE(FLOAT, FloatType, NPY_FLOAT)
+      LIST_FAST_CASE(DOUBLE, DoubleType, NPY_DOUBLE)
+      LIST_FAST_CASE(TIMESTAMP, TimestampType, NPY_DATETIME)
+      LIST_FAST_CASE(DURATION, DurationType, NPY_TIMEDELTA)
+      LIST_SLOW_CASE(DATE32)
+      LIST_SLOW_CASE(DATE64)
+      LIST_SLOW_CASE(TIME32)
+      LIST_SLOW_CASE(TIME64)
+      LIST_SLOW_CASE(BINARY)
+      LIST_SLOW_CASE(FIXED_SIZE_BINARY)
+      LIST_SLOW_CASE(STRING)
+      case Type::LIST: {
+        if (PyArray_DESCR(ndarray)->type_num != NPY_OBJECT) {
+          return Status::Invalid(
+              "Can only convert list types from NumPy object array input");
+        }
+        return internal::VisitSequence(value, [this](PyObject* item, bool*) {
+          return this->value_converter_->Append(item);
+        });
+      }
+      default: {
+        return Status::TypeError("Unknown list item type: ", value_type->ToString());
+      }
+    }
+  }
+
+  template <typename ArrowType, int NUMPY_TYPE>
+  Status AppendNdarrayTyped(PyArrayObject* arr) {
+    // no need to go through the conversion
+    using NumpyTrait = internal::npy_traits<NUMPY_TYPE>;
+    using NumpyType = typename NumpyTrait::value_type;
+    using ValueBuilderType = typename TypeTraits<ArrowType>::BuilderType;
+
+    RETURN_NOT_OK(this->builder_->Append());
+
+    const bool null_sentinels_possible =
+        // Always treat Numpy's NaT as null
+        NUMPY_TYPE == NPY_DATETIME || NUMPY_TYPE == NPY_TIMEDELTA ||
+        // Observing pandas's null sentinels
+        (this->options_.from_pandas && NumpyTrait::supports_nulls);
+
+    auto value_builder =
+        checked_cast<ValueBuilderType*>(this->value_converter_->builder().get());
+
+    // TODO(wesm): Vector append when not strided
+    Ndarray1DIndexer<NumpyType> values(arr);
+    if (null_sentinels_possible) {
+      for (int64_t i = 0; i < values.size(); ++i) {
+        if (NumpyTrait::isnull(values[i])) {
+          RETURN_NOT_OK(value_builder->AppendNull());
+        } else {
+          RETURN_NOT_OK(value_builder->Append(values[i]));
+        }
+      }
+    } else {
+      // TODO(kszucs): use AppendValues() instead?
+      for (int64_t i = 0; i < values.size(); ++i) {
+        RETURN_NOT_OK(value_builder->Append(values[i]));
+      }
+    }
+    return Status::OK();
   }
 };
 
@@ -383,7 +521,7 @@ class PyStructArrayConverter : public StructArrayConverter<T, I, O> {
   using StructArrayConverter<T, I, O>::StructArrayConverter;
 
   Status Append(I value) override {
-    RETURN_NOT_OK(this->typed_builder_->Append());
+    RETURN_NOT_OK(this->builder_->Append());
     // if (this->value_converter_.IsNull(value)) {
     //   return this->typed_builder_->AppendNull();
     // } else {
@@ -413,60 +551,21 @@ PyObject* create_list() {
   PyObject* listall;
   // NOTE: you don't need to specify the object's type again,
   // since it was already defined above
-  listall = Py_BuildValue("[sss]", "pka", "pkb", "iselement");
+  listall = Py_BuildValue("[sss]", "pka", "pkb", "ise");
   return listall;
 }
 
 Status pinasen() {
-  // auto options = PyConversionOptions();
-  // ARROW_ASSIGN_OR_RAISE(auto f,
-  //                       PyArrayConverterBuilder::Make(boolean(), default_memory_pool(),
-  //                       options));
-
-  // RETURN_NOT_OK(f->Append(Py_True));
-  // auto lst = create_list();
-
-  // RETURN_NOT_OK(f->Append(Py_None));
-  // RETURN_NOT_OK(f->Extend(lst, 3));
-
-  // ARROW_ASSIGN_OR_RAISE(auto r, f->Finish());
-  // std::cerr << r->ToString();
-  // ARROW_ASSIGN_OR_RAISE(
-  //     auto h, MakePyArrayConverter(list(utf8()), default_memory_pool(), options));
-  // RETURN_NOT_OK(h->Append(lst));
-  // RETURN_NOT_OK(h->Append(lst));
-  // RETURN_NOT_OK(h->Append(lst));
-  // ARROW_ASSIGN_OR_RAISE(auto b, h->Finish());
-  // std::cerr << b->ToString();
-
-  // ARROW_ASSIGN_OR_RAISE(
-  //     auto v, MakePyArrayConverter(binary(), default_memory_pool(), options));
-
-  // ARROW_ASSIGN_OR_RAISE(
-  //     auto w, MakePyArrayConverter(boolean(), default_memory_pool(), options));
+  auto options = PyConversionOptions();
+  ARROW_ASSIGN_OR_RAISE(auto f,
+                        PyArrayConverterBuilder::Make(fixed_size_list(utf8(), 3),
+                                                      default_memory_pool(), options));
+  auto lst = create_list();
+  RETURN_NOT_OK(f->Append(lst));
+  RETURN_NOT_OK(f->Append(lst));
 
   return Status::OK();
 }
-
-// namespace py {
-
-// ----------------------------------------------------------------------
-// NullCoding
-
-// enum class NullCoding : char { NONE_ONLY, PANDAS_SENTINELS };
-
-// template <NullCoding kind>
-// struct NullChecker {};
-
-// template <>
-// struct NullChecker<NullCoding::NONE_ONLY> {
-//   static inline bool Check(PyObject* obj) { return obj == Py_None; }
-// };
-
-// template <>
-// struct NullChecker<NullCoding::PANDAS_SENTINELS> {
-//   static inline bool Check(PyObject* obj) { return internal::PandasObjectIsNull(obj); }
-// };
 
 // ----------------------------------------------------------------------
 // ValueConverters
@@ -477,35 +576,6 @@ Status pinasen() {
 // The FromPython medthod is responsible to convert the python object to the
 // C++ value counterpart which can be directly appended to the ArrayBuilder or
 // Scalar can be constructed from.
-
-// template <>
-// struct ValueConverter<TimestampType> {
-//   static inline Result<int64_t> FromNumpy(PyObject* obj, TimeUnit::type unit) {
-//     // validate that the numpy scalar has np.datetime64 dtype
-//     std::shared_ptr<DataType> type;
-//     RETURN_NOT_OK(NumPyDtypeToArrow(PyArray_DescrFromScalar(obj), &type));
-//     if (type->id() != TimestampType::type_id) {
-//       // TODO(kszucs): the message should highlight the received numpy dtype
-//       return Status::Invalid("Expected np.datetime64 but got: ", type->ToString());
-//     }
-//     // validate that the time units are matching
-//     if (unit != checked_cast<const TimestampType&>(*type).unit()) {
-//       return Status::NotImplemented(
-//           "Cannot convert NumPy np.datetime64 objects with differing unit");
-//     }
-//     // convert the numpy value
-//     return reinterpret_cast<PyDatetimeScalarObject*>(obj)->obval;
-//   }
-// };
-
-// template <typename Type>
-// struct ValueConverter<Type, enable_if_any_binary<Type>> {
-//   static inline Result<PyBytesView> FromPython(PyObject* obj) {
-//     PyBytesView view;
-//     RETURN_NOT_OK(view.FromString(obj));
-//     return std::move(view);
-//   }
-// };
 
 // template <typename Type>
 // struct ValueConverter<Type, enable_if_string_like<Type>> {
@@ -538,161 +608,14 @@ Status pinasen() {
 //   }
 // };
 
-// template <typename Type>
-// struct ValueConverter<Type, enable_if_fixed_size_binary<Type>> {
-//   static inline Result<PyBytesView> FromPython(PyObject* obj, int32_t byte_width) {
-//     PyBytesView view;
-//     RETURN_NOT_OK(view.FromString(obj));
-//     if (ARROW_PREDICT_FALSE(view.size != byte_width)) {
-//       std::stringstream ss;
-//       ss << "expected to be length " << byte_width << " was " << view.size;
-//       return internal::InvalidValue(obj, ss.str());
-//     } else {
-//       return std::move(view);
-//     }
-//   }
-// };
-
-// // ----------------------------------------------------------------------
-// // Sequence converter base and CRTP "middle" subclasses
-
-// class SeqConverter;
-
-// // Forward-declare converter factory
-// Status GetConverter(const std::shared_ptr<DataType>& type, bool from_pandas,
-//                     bool strict_conversions, bool ignore_timezone,
-//                     std::unique_ptr<SeqConverter>* out);
-
-// // Marshal Python sequence (list, tuple, etc.) to Arrow array
-// class SeqConverter {
-//  public:
-//   virtual ~SeqConverter() = default;
-
-//   // Initialize the sequence converter with an ArrayBuilder created
-//   // externally. The reason for this interface is that we have
-//   // arrow::MakeBuilder which also creates child builders for nested types, so
-//   // we have to pass in the child builders to child SeqConverter in the case of
-//   // converting Python objects to Arrow nested types
-//   virtual Status Init(ArrayBuilder* builder) = 0;
-
-//   // Append a single null value to the builder
-//   virtual Status AppendNull() = 0;
-
-//   // Append a valid value
-//   virtual Status AppendValue(PyObject* seq) = 0;
-
-//   // Append a single python object handling Null values
-//   virtual Status Append(PyObject* seq) = 0;
-
-//   // Append the contents of a Python sequence to the underlying builder,
-//   // virtual version
-//   virtual Status Extend(PyObject* seq, int64_t size) = 0;
-
 //   // Append the contents of a Python sequence to the underlying builder,
 //   // virtual version
 //   virtual Status ExtendMasked(PyObject* seq, PyObject* mask, int64_t size) = 0;
-
-// virtual Status Close() {
-//   if (chunks_.size() == 0 || builder_->length() > 0) {
-//     std::shared_ptr<Array> last_chunk;
-//     RETURN_NOT_OK(builder_->Finish(&last_chunk));
-//     chunks_.emplace_back(std::move(last_chunk));
-//   }
-//   return Status::OK();
-// }
-
-// virtual Status GetResult(std::shared_ptr<ChunkedArray>* out) {
-//   // Still some accumulated data in the builder. If there are no chunks, we
-//   // always call Finish to deal with the edge case where a size-0 sequence
-//   // was converted with a specific output type, like array([], type=t)
-//   RETURN_NOT_OK(Close());
-//   *out = std::make_shared<ChunkedArray>(this->chunks_, builder_->type());
-//   return Status::OK();
-// }
-
-//   ArrayBuilder* builder() const { return builder_; }
-
-//   int num_chunks() const { return static_cast<int>(chunks_.size()); }
 
 //  protected:
 //   ArrayBuilder* builder_;
 //   bool unfinished_builder_;
 //   std::vector<std::shared_ptr<Array>> chunks_;
-// };
-
-// // ----------------------------------------------------------------------
-// // Sequence converter for null type
-
-// template <NullCoding null_coding>
-// class NullConverter : public TypedConverter<NullType, null_coding> {
-//  public:
-//   Status AppendValue(PyObject* obj) override {
-//     return internal::InvalidValue(obj, "converting to null type");
-//   }
-// };
-
-// // ----------------------------------------------------------------------
-// // Sequence converters for temporal types
-
-// template <typename Type, NullCoding null_coding>
-// class TimeConverter : public TypedConverter<Type, null_coding> {
-//  public:
-//   explicit TimeConverter(TimeUnit::type unit, bool ignore_timezone)
-//       : unit_(unit), ignore_timezone_(ignore_timezone) {}
-
-//   // TODO(kszucs): support numpy values for date and time converters
-//   Status AppendValue(PyObject* obj) override {
-//     ARROW_ASSIGN_OR_RAISE(auto value,
-//                           ValueConverter<Type>::FromPython(obj, unit_,
-//                           ignore_timezone_));
-//     return this->typed_builder_->Append(value);
-//   }
-
-//  protected:
-//   TimeUnit::type unit_;
-//   bool ignore_timezone_;
-// };
-
-// // TODO(kszucs): move it to the type_traits
-// template <typename T>
-// struct NumpyType {};
-
-// template <>
-// struct NumpyType<TimestampType> {
-//   static inline bool isnull(int64_t v) {
-//     return internal::npy_traits<NPY_DATETIME>::isnull(v);
-//   }
-// };
-
-// template <>
-// struct NumpyType<DurationType> {
-//   static inline bool isnull(int64_t v) {
-//     return internal::npy_traits<NPY_TIMEDELTA>::isnull(v);
-//   }
-// };
-
-// template <typename Type, NullCoding null_coding>
-// class TemporalConverter : public TimeConverter<Type, null_coding> {
-//  public:
-//   using TimeConverter<Type, null_coding>::TimeConverter;
-
-//   Status AppendValue(PyObject* obj) override {
-//     int64_t value;
-//     if (PyArray_CheckAnyScalarExact(obj)) {
-//       // convert np.datetime64 / np.timedelta64 depending on Type
-//       ARROW_ASSIGN_OR_RAISE(value, ValueConverter<Type>::FromNumpy(obj, this->unit_));
-//       if (NumpyType<Type>::isnull(value)) {
-//         // checks numpy NaT sentinel after conversion
-//         return this->typed_builder_->AppendNull();
-//       }
-//     } else {
-//       ARROW_ASSIGN_OR_RAISE(
-//           value,
-//           ValueConverter<Type>::FromPython(
-//               obj, this->unit_, TimeConverter<Type, null_coding>::ignore_timezone_));
-//     }
-//     return this->typed_builder_->Append(value);
-//   }
 // };
 
 // // ----------------------------------------------------------------------
@@ -739,15 +662,6 @@ Status pinasen() {
 //   PyBytesView string_view_;
 // };
 
-// template <typename Type, NullCoding null_coding>
-// class BinaryConverter : public BinaryLikeConverter<Type, null_coding> {
-//  public:
-//   Status AppendValue(PyObject* obj) override {
-//     ARROW_ASSIGN_OR_RAISE(auto view, ValueConverter<Type>::FromPython(obj));
-//     return this->AppendString(view);
-//   }
-// };
-
 // // For String/UTF8, if strict_conversions enabled, we reject any non-UTF8,
 // // otherwise we allow but return results as BinaryArray
 // template <typename Type, bool Strict, NullCoding null_coding>
@@ -787,199 +701,6 @@ Status pinasen() {
 
 //  protected:
 //   int64_t binary_count_;
-// };
-
-// // ----------------------------------------------------------------------
-// // Convert lists (NumPy arrays containing lists or ndarrays as values)
-
-// // If the value type does not match the expected NumPy dtype, then fall through
-// // to a slower PySequence-based path
-// #define LIST_FAST_CASE(TYPE, NUMPY_TYPE, ArrowType)            \
-//   case Type::TYPE: {                                           \
-//     if (PyArray_DESCR(arr)->type_num != NUMPY_TYPE) {          \
-//       return value_converter_->Extend(obj, value_length);      \
-//     }                                                          \
-//     return AppendNdarrayTypedItem<NUMPY_TYPE, ArrowType>(arr); \
-//   }
-
-// // Use internal::VisitSequence, fast for NPY_OBJECT but slower otherwise
-// #define LIST_SLOW_CASE(TYPE)                            \
-//   case Type::TYPE: {                                    \
-//     return value_converter_->Extend(obj, value_length); \
-//   }
-
-// // Base class for ListConverter and FixedSizeListConverter (to have both work with
-// CRTP) template <typename TypeClass, NullCoding null_coding> class BaseListConverter :
-// public TypedConverter<TypeClass, null_coding> {
-//  public:
-//   using BuilderType = typename TypeTraits<TypeClass>::BuilderType;
-
-//   explicit BaseListConverter(bool from_pandas, bool strict_conversions,
-//                              bool ignore_timezone)
-//       : from_pandas_(from_pandas),
-//         strict_conversions_(strict_conversions),
-//         ignore_timezone_(ignore_timezone) {}
-
-//   Status Init(ArrayBuilder* builder) override {
-//     this->builder_ = builder;
-//     this->typed_builder_ = checked_cast<BuilderType*>(builder);
-
-//     this->value_type_ = checked_cast<const TypeClass&>(*builder->type()).value_type();
-//     RETURN_NOT_OK(GetConverter(value_type_, from_pandas_, strict_conversions_,
-//                                ignore_timezone_, &value_converter_));
-//     return this->value_converter_->Init(this->typed_builder_->value_builder());
-//   }
-
-//   template <int NUMPY_TYPE, typename Type>
-//   Status AppendNdarrayTypedItem(PyArrayObject* arr) {
-//     using traits = internal::npy_traits<NUMPY_TYPE>;
-//     using T = typename traits::value_type;
-//     using ValueBuilderType = typename TypeTraits<Type>::BuilderType;
-
-//     const bool null_sentinels_possible =
-//         // Always treat Numpy's NaT as null
-//         NUMPY_TYPE == NPY_DATETIME || NUMPY_TYPE == NPY_TIMEDELTA ||
-//         // Observing pandas's null sentinels
-//         (from_pandas_ && traits::supports_nulls);
-
-//     auto child_builder = checked_cast<ValueBuilderType*>(value_converter_->builder());
-
-//     // TODO(wesm): Vector append when not strided
-//     Ndarray1DIndexer<T> values(arr);
-//     if (null_sentinels_possible) {
-//       for (int64_t i = 0; i < values.size(); ++i) {
-//         if (traits::isnull(values[i])) {
-//           RETURN_NOT_OK(child_builder->AppendNull());
-//         } else {
-//           RETURN_NOT_OK(child_builder->Append(values[i]));
-//         }
-//       }
-//     } else {
-//       for (int64_t i = 0; i < values.size(); ++i) {
-//         RETURN_NOT_OK(child_builder->Append(values[i]));
-//       }
-//     }
-//     return Status::OK();
-//   }
-
-//   Status AppendNdarrayItem(PyObject* obj) {
-//     PyArrayObject* arr = reinterpret_cast<PyArrayObject*>(obj);
-
-//     if (PyArray_NDIM(arr) != 1) {
-//       return Status::Invalid("Can only convert 1-dimensional array values");
-//     }
-
-//     const int64_t value_length = PyArray_SIZE(arr);
-
-//     switch (value_type_->id()) {
-//       LIST_SLOW_CASE(NA)
-//       LIST_FAST_CASE(UINT8, NPY_UINT8, UInt8Type)
-//       LIST_FAST_CASE(INT8, NPY_INT8, Int8Type)
-//       LIST_FAST_CASE(UINT16, NPY_UINT16, UInt16Type)
-//       LIST_FAST_CASE(INT16, NPY_INT16, Int16Type)
-//       LIST_FAST_CASE(UINT32, NPY_UINT32, UInt32Type)
-//       LIST_FAST_CASE(INT32, NPY_INT32, Int32Type)
-//       LIST_FAST_CASE(UINT64, NPY_UINT64, UInt64Type)
-//       LIST_FAST_CASE(INT64, NPY_INT64, Int64Type)
-//       LIST_SLOW_CASE(DATE32)
-//       LIST_SLOW_CASE(DATE64)
-//       LIST_SLOW_CASE(TIME32)
-//       LIST_SLOW_CASE(TIME64)
-//       LIST_FAST_CASE(TIMESTAMP, NPY_DATETIME, TimestampType)
-//       LIST_FAST_CASE(DURATION, NPY_TIMEDELTA, DurationType)
-//       LIST_FAST_CASE(HALF_FLOAT, NPY_FLOAT16, HalfFloatType)
-//       LIST_FAST_CASE(FLOAT, NPY_FLOAT, FloatType)
-//       LIST_FAST_CASE(DOUBLE, NPY_DOUBLE, DoubleType)
-//       LIST_SLOW_CASE(BINARY)
-//       LIST_SLOW_CASE(FIXED_SIZE_BINARY)
-//       LIST_SLOW_CASE(STRING)
-//       case Type::LIST: {
-//         if (PyArray_DESCR(arr)->type_num != NPY_OBJECT) {
-//           return Status::Invalid(
-//               "Can only convert list types from NumPy object "
-//               "array input");
-//         }
-//         return internal::VisitSequence(obj, [this](PyObject* item, bool*) {
-//           return value_converter_->Append(item);
-//         });
-//       }
-//       default: {
-//         return Status::TypeError("Unknown list item type: ", value_type_->ToString());
-//       }
-//     }
-//   }
-
-//   Status AppendValue(PyObject* obj) override {
-//     RETURN_NOT_OK(this->typed_builder_->Append());
-//     if (PyArray_Check(obj)) {
-//       return AppendNdarrayItem(obj);
-//     }
-//     if (!PySequence_Check(obj)) {
-//       return internal::InvalidType(obj,
-//                                    "was not a sequence or recognized null"
-//                                    " for conversion to list type");
-//     }
-//     int64_t list_size = static_cast<int64_t>(PySequence_Size(obj));
-//     return value_converter_->Extend(obj, list_size);
-//   }
-
-//   Status GetResult(std::shared_ptr<ChunkedArray>* out) override {
-//     // TODO: Improved handling of chunked children
-//     if (value_converter_->num_chunks() > 0) {
-//       return Status::Invalid("List child type ",
-//                              value_converter_->builder()->type()->ToString(),
-//                              " overflowed the capacity of a single chunk");
-//     }
-//     return SeqConverter::GetResult(out);
-//   }
-
-//  protected:
-//   std::shared_ptr<DataType> value_type_;
-//   std::unique_ptr<SeqConverter> value_converter_;
-//   const bool from_pandas_;
-//   const bool strict_conversions_;
-//   const bool ignore_timezone_;
-// };
-
-// template <NullCoding null_coding>
-// class FixedSizeListConverter : public BaseListConverter<FixedSizeListType, null_coding>
-// {
-//  public:
-//   using BASE = BaseListConverter<FixedSizeListType, null_coding>;
-//   using BASE::BASE;
-
-//   Status Init(ArrayBuilder* builder) override {
-//     RETURN_NOT_OK(BASE::Init(builder));
-//     list_size_ = checked_pointer_cast<FixedSizeListType>(builder->type())->list_size();
-//     return Status::OK();
-//   }
-
-//   Status AppendValue(PyObject* obj) override {
-//     // the same as BaseListConverter but with additional length checks
-//     RETURN_NOT_OK(this->typed_builder_->Append());
-//     if (PyArray_Check(obj)) {
-//       int64_t list_size = static_cast<int64_t>(PyArray_Size(obj));
-//       if (list_size != list_size_) {
-//         return Status::Invalid("Length of item not correct: expected ", list_size_,
-//                                " but got array of size ", list_size);
-//       }
-//       return this->AppendNdarrayItem(obj);
-//     }
-//     if (!PySequence_Check(obj)) {
-//       return internal::InvalidType(obj,
-//                                    "was not a sequence or recognized null"
-//                                    " for conversion to list type");
-//     }
-//     int64_t list_size = static_cast<int64_t>(PySequence_Size(obj));
-//     if (list_size != list_size_) {
-//       return Status::Invalid("Length of item not correct: expected ", list_size_,
-//                              " but got list of size ", list_size);
-//     }
-//     return this->value_converter_->Extend(obj, list_size);
-//   }
-
-//  protected:
-//   int64_t list_size_;
 // };
 
 // // ----------------------------------------------------------------------
@@ -1193,172 +914,6 @@ Status pinasen() {
 //     *out = std::unique_ptr<SeqConverter>(new TYPE_CLASS<null_coding>); \
 //     break;
 
-// // Dynamic constructor for sequence converters
-// template <NullCoding null_coding>
-// Status GetConverterFlat(const std::shared_ptr<DataType>& type, bool strict_conversions,
-//                         bool ignore_timezone, std::unique_ptr<SeqConverter>* out) {
-//   switch (type->id()) {
-//     SIMPLE_CONVERTER_CASE(NA, NullConverter);
-//     PRIMITIVE(BOOL, BooleanType);
-//     PRIMITIVE(INT8, Int8Type);
-//     PRIMITIVE(INT16, Int16Type);
-//     PRIMITIVE(INT32, Int32Type);
-//     PRIMITIVE(INT64, Int64Type);
-//     PRIMITIVE(UINT8, UInt8Type);
-//     PRIMITIVE(UINT16, UInt16Type);
-//     PRIMITIVE(UINT32, UInt32Type);
-//     PRIMITIVE(UINT64, UInt64Type);
-//     PRIMITIVE(HALF_FLOAT, HalfFloatType);
-//     PRIMITIVE(FLOAT, FloatType);
-//     PRIMITIVE(DOUBLE, DoubleType);
-//     PRIMITIVE(DATE32, Date32Type);
-//     PRIMITIVE(DATE64, Date64Type);
-//     SIMPLE_CONVERTER_CASE(DECIMAL, DecimalConverter);
-//     case Type::BINARY:
-//       *out =
-//           std::unique_ptr<SeqConverter>(new BinaryConverter<BinaryType,
-//           null_coding>());
-//       break;
-//     case Type::LARGE_BINARY:
-//       *out = std::unique_ptr<SeqConverter>(
-//           new BinaryConverter<LargeBinaryType, null_coding>());
-//       break;
-//     case Type::FIXED_SIZE_BINARY:
-//       *out = std::unique_ptr<SeqConverter>(new FixedSizeBinaryConverter<null_coding>(
-//           checked_cast<const FixedSizeBinaryType&>(*type).byte_width()));
-//       break;
-//     case Type::STRING:
-//       if (strict_conversions) {
-//         *out = std::unique_ptr<SeqConverter>(
-//             new StringConverter<StringType, true, null_coding>());
-//       } else {
-//         *out = std::unique_ptr<SeqConverter>(
-//             new StringConverter<StringType, false, null_coding>());
-//       }
-//       break;
-//     case Type::LARGE_STRING:
-//       if (strict_conversions) {
-//         *out = std::unique_ptr<SeqConverter>(
-//             new StringConverter<LargeStringType, true, null_coding>());
-//       } else {
-//         *out = std::unique_ptr<SeqConverter>(
-//             new StringConverter<LargeStringType, false, null_coding>());
-//       }
-//       break;
-//     case Type::TIME32: {
-//       auto unit = checked_cast<const Time32Type&>(*type).unit();
-//       *out = std::unique_ptr<SeqConverter>(
-//           new TimeConverter<Time32Type, null_coding>(unit, ignore_timezone));
-//       break;
-//     }
-//     case Type::TIME64: {
-//       auto unit = checked_cast<const Time64Type&>(*type).unit();
-//       *out = std::unique_ptr<SeqConverter>(
-//           new TimeConverter<Time64Type, null_coding>(unit, ignore_timezone));
-//       break;
-//     }
-//     case Type::TIMESTAMP: {
-//       auto unit = checked_cast<const TimestampType&>(*type).unit();
-//       *out = std::unique_ptr<SeqConverter>(
-//           new TemporalConverter<TimestampType, null_coding>(unit, ignore_timezone));
-//       break;
-//     }
-//     case Type::DURATION: {
-//       auto unit = checked_cast<const DurationType&>(*type).unit();
-//       *out =
-//           std::unique_ptr<SeqConverter>(new TemporalConverter<DurationType,
-//           null_coding>(
-//               unit, /*ignore_timezone=*/false));
-//       break;
-//     }
-//     default:
-//       return Status::NotImplemented("Sequence converter for type ", type->ToString(),
-//                                     " not implemented");
-//   }
-//   return Status::OK();
-// }
-
-// Status GetConverter(const std::shared_ptr<DataType>& type, bool from_pandas,
-//                     bool strict_conversions, bool ignore_timezone,
-//                     std::unique_ptr<SeqConverter>* out) {
-//   if (from_pandas) {
-//     // ARROW-842: If pandas is not installed then null checks will be less
-//     // comprehensive, but that is okay.
-//     internal::InitPandasStaticData();
-//   }
-
-//   switch (type->id()) {
-//     case Type::LIST:
-//       if (from_pandas) {
-//         *out = std::unique_ptr<SeqConverter>(
-//             new ListConverter<ListType, NullCoding::PANDAS_SENTINELS>(
-//                 from_pandas, strict_conversions, ignore_timezone));
-//       } else {
-//         *out = std::unique_ptr<SeqConverter>(
-//             new ListConverter<ListType, NullCoding::NONE_ONLY>(
-//                 from_pandas, strict_conversions, ignore_timezone));
-//       }
-//       return Status::OK();
-//     case Type::LARGE_LIST:
-//       if (from_pandas) {
-//         *out = std::unique_ptr<SeqConverter>(
-//             new ListConverter<LargeListType, NullCoding::PANDAS_SENTINELS>(
-//                 from_pandas, strict_conversions, ignore_timezone));
-//       } else {
-//         *out = std::unique_ptr<SeqConverter>(
-//             new ListConverter<LargeListType, NullCoding::NONE_ONLY>(
-//                 from_pandas, strict_conversions, ignore_timezone));
-//       }
-//       return Status::OK();
-//     case Type::MAP:
-//       if (from_pandas) {
-//         *out =
-//             std::unique_ptr<SeqConverter>(new
-//             MapConverter<NullCoding::PANDAS_SENTINELS>(
-//                 from_pandas, strict_conversions, ignore_timezone));
-//       } else {
-//         *out = std::unique_ptr<SeqConverter>(new MapConverter<NullCoding::NONE_ONLY>(
-//             from_pandas, strict_conversions, ignore_timezone));
-//       }
-//       return Status::OK();
-//     case Type::FIXED_SIZE_LIST:
-//       if (from_pandas) {
-//         *out = std::unique_ptr<SeqConverter>(
-//             new FixedSizeListConverter<NullCoding::PANDAS_SENTINELS>(
-//                 from_pandas, strict_conversions, ignore_timezone));
-//       } else {
-//         *out = std::unique_ptr<SeqConverter>(
-//             new FixedSizeListConverter<NullCoding::NONE_ONLY>(
-//                 from_pandas, strict_conversions, ignore_timezone));
-//       }
-//       return Status::OK();
-//     case Type::STRUCT:
-//       if (from_pandas) {
-//         *out = std::unique_ptr<SeqConverter>(
-//             new StructConverter<NullCoding::PANDAS_SENTINELS>(
-//                 from_pandas, strict_conversions, ignore_timezone));
-//       } else {
-//         *out = std::unique_ptr<SeqConverter>(new
-//         StructConverter<NullCoding::NONE_ONLY>(
-//             from_pandas, strict_conversions, ignore_timezone));
-//       }
-//       return Status::OK();
-//     default:
-//       break;
-//   }
-
-//   if (from_pandas) {
-//     RETURN_NOT_OK(GetConverterFlat<NullCoding::PANDAS_SENTINELS>(type,
-//     strict_conversions,
-//                                                                  ignore_timezone,
-//                                                                  out));
-//   } else {
-//     RETURN_NOT_OK(GetConverterFlat<NullCoding::NONE_ONLY>(type, strict_conversions,
-//                                                           ignore_timezone, out));
-//   }
-//   return Status::OK();
-// }
-
 // // ----------------------------------------------------------------------
 
 // Convert *obj* to a sequence if necessary
@@ -1425,10 +980,11 @@ Status ConvertPySequence(PyObject* sequence_source, PyObject* mask,
 
   if (options.type == nullptr) {
     RETURN_NOT_OK(InferArrowType(seq, mask, options.from_pandas, &real_type));
-    if (options.ignore_timezone && real_type->id() == Type::TIMESTAMP) {
-      const auto& ts_type = checked_cast<const TimestampType&>(*real_type);
-      real_type = timestamp(ts_type.unit());
-    }
+    // TODO(kszucs): remove this
+    // if (options.ignore_timezone && real_type->id() == Type::TIMESTAMP) {
+    //   const auto& ts_type = checked_cast<const TimestampType&>(*real_type);
+    //   real_type = timestamp(ts_type.unit());
+    // }
   } else {
     real_type = options.type;
     strict_conversions = true;
