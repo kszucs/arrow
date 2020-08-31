@@ -59,7 +59,11 @@ class ARROW_EXPORT ArrayConverter {
   std::shared_ptr<ArrayBuilder> type() { return sp_type_; }
   O options() { return options_; }
 
+  virtual Status Reserve(int64_t additional_capacity) = 0;
+
   virtual Status Append(I value) = 0;
+  virtual Status AppendNull() = 0;
+
   virtual Status Extend(I seq, int64_t size) = 0;
 
   virtual Result<std::shared_ptr<Array>> Finish() = 0;
@@ -85,6 +89,12 @@ class ARROW_EXPORT TypedArrayConverter : public AC {
       : AC(type, builder, options),
         type_(checked_cast<const T&>(*type)),
         builder_(checked_cast<BuilderType*>(builder.get())) {}
+
+  Status Reserve(int64_t additional_capacity) override {
+    return this->builder_->Reserve(additional_capacity);
+  }
+
+  Status AppendNull() override { return this->builder_->AppendNull(); }
 
   Result<std::shared_ptr<Array>> Finish() override {
     std::shared_ptr<Array> out;
@@ -143,9 +153,9 @@ class ARROW_EXPORT MapArrayConverter : public TypedArrayConverter<T, AC> {
 };
 
 // TODO: pass optional listconverter and typed converter classes as template args
-template <typename O, typename AC, template <typename> class PAC,
-          template <typename> class LAC, template <typename> class SAC,
-          template <typename> class MAC>
+template <typename O, typename AC, template <typename...> class PAC,
+          template <typename...> class LAC, template <typename...> class SAC,
+          template <typename...> class MAC>
 struct ArrayConverterBuilder {
   using Self = ArrayConverterBuilder<O, AC, PAC, LAC, SAC, MAC>;
 
@@ -194,20 +204,19 @@ struct ArrayConverterBuilder {
     return Status::OK();
   }
 
-  // Status Visit(const MapType& t) {
-  //   using T = MapType;
-  //   using MapConverter = MAC<T>;
+  Status Visit(const MapType& t) {
+    using T = MapType;
+    using MapConverter = MAC<T>;
 
-  //   ARROW_ASSIGN_OR_RAISE(auto key_converter, Self::Make(t.key_type(), pool, options));
-  //   ARROW_ASSIGN_OR_RAISE(auto item_converter, Self::Make(t.item_type(), pool,
-  //   options));
+    ARROW_ASSIGN_OR_RAISE(auto key_converter, Self::Make(t.key_type(), pool, options));
+    ARROW_ASSIGN_OR_RAISE(auto item_converter, Self::Make(t.item_type(), pool, options));
 
-  //   auto builder = std::make_shared<MapBuilder>(pool, key_converter->builder(),
-  //                                               item_converter->builder(), type);
-  //   out->reset(new MapConverter(type, std::move(builder), std::move(key_converter),
-  //                               std::move(item_converter), options));
-  //   return Status::OK();
-  // }
+    auto builder = std::make_shared<MapBuilder>(pool, key_converter->builder(),
+                                                item_converter->builder(), type);
+    out->reset(new MapConverter(type, std::move(builder), std::move(key_converter),
+                                std::move(item_converter), options));
+    return Status::OK();
+  }
 
   Status Visit(const StructType& t) {
     using T = StructType;
