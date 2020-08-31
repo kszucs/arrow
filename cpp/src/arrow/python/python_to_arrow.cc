@@ -354,13 +354,27 @@ class PyValue {
   // }
 };
 
-template <typename T, typename I = PyObject*, typename O = PyConversionOptions>
-class PyTypedArrayConverter : public TypedArrayConverter<T, I, O> {
+class PyArrayConverter : public ArrayConverter<PyObject*, PyConversionOptions> {
  public:
-  using TypedArrayConverter<T, I, O>::TypedArrayConverter;
+  using ArrayConverter<PyObject*, PyConversionOptions>::ArrayConverter;
+
+  Status Extend(PyObject* values, int64_t size) override {
+    /// Ensure we've allocated enough space
+    RETURN_NOT_OK(this->sp_builder_->Reserve(size));
+    // Iterate over the items adding each one
+    return internal::VisitSequence(values, [this](PyObject* item, bool* /* unused */) {
+      return this->Append(item);
+    });
+  }
+};
+
+template <typename T>
+class PyPrimitiveArrayConverter : public TypedArrayConverter<T, PyArrayConverter> {
+ public:
+  using TypedArrayConverter<T, PyArrayConverter>::TypedArrayConverter;
 
   // TODO: move it to the parent class
-  Status Append(I value) override {
+  Status Append(PyObject* value) override {
     if (PyValue::IsNull(this->type_, this->options_, value)) {
       return this->builder_->AppendNull();
     } else {
@@ -369,15 +383,7 @@ class PyTypedArrayConverter : public TypedArrayConverter<T, I, O> {
       return this->builder_->Append(converted);
     }
   }
-
-  Status Extend(I values, int64_t size) override {
-    /// Ensure we've allocated enough space
-    RETURN_NOT_OK(this->builder_->Reserve(size));
-    // Iterate over the items adding each one
-    return internal::VisitSequence(
-        values, [this](I item, bool* /* unused */) { return this->Append(item); });
-  }
-};
+};  // namespace py
 
 // If the value type does not match the expected NumPy dtype, then fall through
 // to a slower PySequence-based path
@@ -395,15 +401,26 @@ class PyTypedArrayConverter : public TypedArrayConverter<T, I, O> {
     return this->value_converter_->Extend(value, size); \
   }
 
-template <typename T, typename I = PyObject*, typename O = PyConversionOptions>
-class PyListArrayConverter : public ListArrayConverter<T, I, O> {
+template <typename T>
+class PyListArrayConverter : public ListArrayConverter<T, PyArrayConverter> {
  public:
-  using ListArrayConverter<T, I, O>::ListArrayConverter;
+  using ListArrayConverter<T, PyArrayConverter>::ListArrayConverter;
+
+  Status ValidateSize(const FixedSizeListType& type, int64_t size) {
+    if (type.list_size() != size) {
+      return Status::Invalid("Length of item not correct: expected ", type.list_size(),
+                             " but got array of size ", size);
+    } else {
+      return Status::OK();
+    }
+  }
+
+  Status ValidateSize(const BaseListType&, int64_t size) { return Status::OK(); }
 
   // TODO: move it to the parent class and enforce the implementation of Extend
   // or pass an Iterator type which produces size and an iterator of PyObject*
   // objects
-  Status Append(I value) override {
+  Status Append(PyObject* value) override {
     if (PyValue::IsNull(this->type_, this->options_, value)) {
       return this->builder_->AppendNull();
     } else if (PyArray_Check(value)) {
@@ -416,22 +433,14 @@ class PyListArrayConverter : public ListArrayConverter<T, I, O> {
     }
   }
 
-  Status Extend(I values, int64_t size) override {
-    /// Ensure we've allocated enough space
-    RETURN_NOT_OK(this->builder_->Reserve(size));
-    // Iterate over the items adding each one
-    return internal::VisitSequence(
-        values, [this](I item, bool* /* unused */) { return this->Append(item); });
-  }
-
-  Status AppendSequence(I value) {
+  Status AppendSequence(PyObject* value) {
     RETURN_NOT_OK(this->builder_->Append());
     int64_t size = static_cast<int64_t>(PySequence_Size(value));
     RETURN_NOT_OK(this->ValidateSize(this->type_, size));
     return this->value_converter_->Extend(value, size);
   }
 
-  Status AppendNdarray(I value) {
+  Status AppendNdarray(PyObject* value) {
     PyArrayObject* ndarray = reinterpret_cast<PyArrayObject*>(value);
     if (PyArray_NDIM(ndarray) != 1) {
       return Status::Invalid("Can only convert 1-dimensional array values");
@@ -515,12 +524,12 @@ class PyListArrayConverter : public ListArrayConverter<T, I, O> {
   }
 };
 
-template <typename T, typename I = PyObject*, typename O = PyConversionOptions>
-class PyStructArrayConverter : public StructArrayConverter<T, I, O> {
+template <typename T>
+class PyStructArrayConverter : public StructArrayConverter<T, PyArrayConverter> {
  public:
-  using StructArrayConverter<T, I, O>::StructArrayConverter;
+  using StructArrayConverter<T, PyArrayConverter>::StructArrayConverter;
 
-  Status Append(I value) override {
+  Status Append(PyObject* value) override {
     RETURN_NOT_OK(this->builder_->Append());
     // if (this->value_converter_.IsNull(value)) {
     //   return this->typed_builder_->AppendNull();
@@ -530,34 +539,23 @@ class PyStructArrayConverter : public StructArrayConverter<T, I, O> {
     // }
     return Status::OK();
   }
-
-  Status Extend(I obj, int64_t size) override {
-    // /// Ensure we've allocated enough space
-    // RETURN_NOT_OK(this->typed_builder_->Reserve(size));
-    // // Iterate over the items adding each one
-    // return py::internal::VisitSequence(
-    //     obj, [this](I item, bool* /* unused */) { return this->Append(item); });
-    return Status::OK();
-  }
 };
 
-template <typename T, typename I = PyObject*, typename O = PyConversionOptions>
-class PyMapArrayConverter : public MapArrayConverter<T, I, O> {
+template <typename T>
+class PyMapArrayConverter : public MapArrayConverter<T, PyArrayConverter> {
  public:
-  using MapArrayConverter<T, I, O>::MapArrayConverter;
+  using MapArrayConverter<T, PyArrayConverter>::MapArrayConverter;
 
-  Status Append(I value) override {
+  Status Append(PyObject* value) override {
     RETURN_NOT_OK(this->builder_->Append());
     return Status::NotImplemented("");
   }
-
-  Status Extend(I obj, int64_t size) override { return Status::NotImplemented(""); }
 };
 
 using PyArrayConverterBuilder =
-    ArrayConverterBuilder<PyObject*, PyConversionOptions, PyTypedArrayConverter,
-                          PyListArrayConverter, PyStructArrayConverter,
-                          PyMapArrayConverter>;
+    ArrayConverterBuilder<PyConversionOptions, PyArrayConverter,
+                          PyPrimitiveArrayConverter, PyListArrayConverter,
+                          PyStructArrayConverter, PyMapArrayConverter>;
 
 ////////////////////////////////////////////////////////////////////////
 
