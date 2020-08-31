@@ -190,13 +190,13 @@ class PyValue {
         default:
           return Status::UnknownError("Invalid time unit");
       }
-    //     if (PyArray_CheckAnyScalarExact(obj)) {
-    //       // convert np.datetime64 / np.timedelta64 depending on Type
-    //       ARROW_ASSIGN_OR_RAISE(value, ValueConverter<Type>::FromNumpy(obj, this->unit_));
-    //       if (NumpyType<Type>::isnull(value)) {
-    //         // checks numpy NaT sentinel after conversion
-    //         return this->typed_builder_->AppendNull();
-    //       }
+      //     if (PyArray_CheckAnyScalarExact(obj)) {
+      //       // convert np.datetime64 / np.timedelta64 depending on Type
+      //       ARROW_ASSIGN_OR_RAISE(value, ValueConverter<Type>::FromNumpy(obj,
+      //       this->unit_)); if (NumpyType<Type>::isnull(value)) {
+      //         // checks numpy NaT sentinel after conversion
+      //         return this->typed_builder_->AppendNull();
+      //       }
     } else {
       // TODO(kszucs): validate maximum value?
       RETURN_NOT_OK(internal::CIntFromPython(obj, &value, "Integer too large for int32"));
@@ -218,13 +218,13 @@ class PyValue {
         default:
           return Status::UnknownError("Invalid time unit");
       }
-    //     if (PyArray_CheckAnyScalarExact(obj)) {
-    //       // convert np.datetime64 / np.timedelta64 depending on Type
-    //       ARROW_ASSIGN_OR_RAISE(value, ValueConverter<Type>::FromNumpy(obj, this->unit_));
-    //       if (NumpyType<Type>::isnull(value)) {
-    //         // checks numpy NaT sentinel after conversion
-    //         return this->typed_builder_->AppendNull();
-    //       }
+      //     if (PyArray_CheckAnyScalarExact(obj)) {
+      //       // convert np.datetime64 / np.timedelta64 depending on Type
+      //       ARROW_ASSIGN_OR_RAISE(value, ValueConverter<Type>::FromNumpy(obj,
+      //       this->unit_)); if (NumpyType<Type>::isnull(value)) {
+      //         // checks numpy NaT sentinel after conversion
+      //         return this->typed_builder_->AppendNull();
+      //       }
     } else {
       // TODO(kszucs): validate maximum value?
       RETURN_NOT_OK(internal::CIntFromPython(obj, &value, "Integer too large for int64"));
@@ -264,21 +264,21 @@ class PyValue {
         default:
           return Status::UnknownError("Invalid time unit");
       }
-    // } else if (PyArray_CheckAnyScalarExact(obj)) {
-    //   // validate that the numpy scalar has np.datetime64 dtype
-    //   std::shared_ptr<DataType> type;
-    //   RETURN_NOT_OK(NumPyDtypeToArrow(PyArray_DescrFromScalar(obj), &type));
-    //   if (type->id() != TimestampType::type_id) {
-    //     // TODO(kszucs): the message should highlight the received numpy dtype
-    //     return Status::Invalid("Expected np.datetime64 but got: ", type->ToString());
-    //   }
-    //   // validate that the time units are matching
-    //   if (unit != checked_cast<const TimestampType&>(*type).unit()) {
-    //     return Status::NotImplemented(
-    //         "Cannot convert NumPy np.datetime64 objects with differing unit");
-    //   }
-    //   // convert the numpy value
-    //   return reinterpret_cast<PyDatetimeScalarObject*>(obj)->obval;
+      // } else if (PyArray_CheckAnyScalarExact(obj)) {
+      //   // validate that the numpy scalar has np.datetime64 dtype
+      //   std::shared_ptr<DataType> type;
+      //   RETURN_NOT_OK(NumPyDtypeToArrow(PyArray_DescrFromScalar(obj), &type));
+      //   if (type->id() != TimestampType::type_id) {
+      //     // TODO(kszucs): the message should highlight the received numpy dtype
+      //     return Status::Invalid("Expected np.datetime64 but got: ", type->ToString());
+      //   }
+      //   // validate that the time units are matching
+      //   if (unit != checked_cast<const TimestampType&>(*type).unit()) {
+      //     return Status::NotImplemented(
+      //         "Cannot convert NumPy np.datetime64 objects with differing unit");
+      //   }
+      //   // convert the numpy value
+      //   return reinterpret_cast<PyDatetimeScalarObject*>(obj)->obval;
     } else {
       RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
     }
@@ -541,9 +541,23 @@ class PyStructArrayConverter : public StructArrayConverter<T, I, O> {
   }
 };
 
+template <typename T, typename I = PyObject*, typename O = PyConversionOptions>
+class PyMapArrayConverter : public MapArrayConverter<T, I, O> {
+ public:
+  using MapArrayConverter<T, I, O>::MapArrayConverter;
+
+  Status Append(I value) override {
+    RETURN_NOT_OK(this->builder_->Append());
+    return Status::NotImplemented("");
+  }
+
+  Status Extend(I obj, int64_t size) override { return Status::NotImplemented(""); }
+};
+
 using PyArrayConverterBuilder =
     ArrayConverterBuilder<PyObject*, PyConversionOptions, PyTypedArrayConverter,
-                          PyListArrayConverter, PyStructArrayConverter>;
+                          PyListArrayConverter, PyStructArrayConverter,
+                          PyMapArrayConverter>;
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -557,12 +571,12 @@ PyObject* create_list() {
 
 Status pinasen() {
   auto options = PyConversionOptions();
-  ARROW_ASSIGN_OR_RAISE(auto f,
-                        PyArrayConverterBuilder::Make(fixed_size_list(utf8(), 3),
-                                                      default_memory_pool(), options));
-  auto lst = create_list();
-  RETURN_NOT_OK(f->Append(lst));
-  RETURN_NOT_OK(f->Append(lst));
+  // ARROW_ASSIGN_OR_RAISE(auto f,
+  //                       PyArrayConverterBuilder::Make(fixed_size_list(utf8(), 3),
+  //                                                     default_memory_pool(), options));
+  // auto lst = create_list();
+  // RETURN_NOT_OK(f->Append(lst));
+  // RETURN_NOT_OK(f->Append(lst));
 
   return Status::OK();
 }

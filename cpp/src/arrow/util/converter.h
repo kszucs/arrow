@@ -129,19 +129,29 @@ class ARROW_EXPORT StructArrayConverter : public TypedArrayConverter<T, I, O> {
   std::vector<std::shared_ptr<ArrayConverter<I, O>>> child_converters_;
 };
 
-// template <typename I, typename O,
-//           template <typename, typename, typename> class TAC,
-//           template <typename, typename, typename> class LAC,
-//           template <typename, typename, typename> class SAC>
-// Result<std::shared_ptr<ArrayConverter<I, O>>> MakeArrayConverter(
-//     std::shared_ptr<DataType> type, MemoryPool* pool, O options);
+template <typename T, typename I, typename O>
+class ARROW_EXPORT MapArrayConverter : public TypedArrayConverter<T, I, O> {
+ public:
+  MapArrayConverter(const std::shared_ptr<DataType>& type,
+                    std::shared_ptr<ArrayBuilder> builder,
+                    std::shared_ptr<ArrayConverter<I, O>> key_converter,
+                    std::shared_ptr<ArrayConverter<I, O>> item_converter, O options)
+      : TypedArrayConverter<T, I, O>(type, builder, options),
+        key_converter_(std::move(key_converter)),
+        item_converter_(std::move(item_converter)) {}
+
+ protected:
+  std::shared_ptr<ArrayConverter<I, O>> key_converter_;
+  std::shared_ptr<ArrayConverter<I, O>> item_converter_;
+};
 
 // TODO: pass optional listconverter and typed converter classes as template args
 template <typename I, typename O, template <typename, typename, typename> class TAC,
           template <typename, typename, typename> class LAC,
-          template <typename, typename, typename> class SAC>
+          template <typename, typename, typename> class SAC,
+          template <typename, typename, typename> class MAC>
 struct ArrayConverterBuilder {
-  using Self = ArrayConverterBuilder<I, O, TAC, LAC, SAC>;
+  using Self = ArrayConverterBuilder<I, O, TAC, LAC, SAC, MAC>;
   using ArrayConverterPtr = std::shared_ptr<ArrayConverter<I, O>>;
 
   Status Visit(const NullType& t) {
@@ -176,6 +186,20 @@ struct ArrayConverterBuilder {
     auto builder = std::make_shared<BuilderType>(pool, child_converter->builder(), type);
     out->reset(
         new ListConverter(type, std::move(builder), std::move(child_converter), options));
+    return Status::OK();
+  }
+
+  Status Visit(const MapType& t) {
+    using T = MapType;
+    using MapConverter = MAC<T, I, O>;
+
+    ARROW_ASSIGN_OR_RAISE(auto key_converter, Self::Make(t.key_type(), pool, options));
+    ARROW_ASSIGN_OR_RAISE(auto item_converter, Self::Make(t.item_type(), pool, options));
+
+    auto builder = std::make_shared<MapBuilder>(pool, key_converter->builder(),
+                                                item_converter->builder(), type);
+    out->reset(new MapConverter(type, std::move(builder), std::move(key_converter),
+                                std::move(item_converter), options));
     return Status::OK();
   }
 
