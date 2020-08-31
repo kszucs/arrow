@@ -59,6 +59,7 @@ class ARROW_EXPORT ArrayConverter {
   std::shared_ptr<ArrayBuilder> type() { return sp_type_; }
   O options() { return options_; }
 
+  virtual Status Init() { return Status::OK(); };
   virtual Status Reserve(int64_t additional_capacity) = 0;
 
   virtual Status Append(I value) = 0;
@@ -152,14 +153,11 @@ class ARROW_EXPORT MapArrayConverter : public TypedArrayConverter<T, AC> {
   std::shared_ptr<AC> item_converter_;
 };
 
-// TODO: pass optional listconverter and typed converter classes as template args
 template <typename O, typename AC, template <typename...> class PAC,
           template <typename...> class LAC, template <typename...> class SAC,
           template <typename...> class MAC>
 struct ArrayConverterBuilder {
   using Self = ArrayConverterBuilder<O, AC, PAC, LAC, SAC, MAC>;
-
-  // TODO: static assert that PAC::ArrayConverter == AC, LAC::ArrayConverter == AC, etc.
 
   Status Visit(const NullType& t) {
     // TODO: merge with the primitive c_type variant below
@@ -204,19 +202,21 @@ struct ArrayConverterBuilder {
     return Status::OK();
   }
 
-  Status Visit(const MapType& t) {
-    using T = MapType;
-    using MapConverter = MAC<T>;
+  // Status Visit(const MapType& t) {
+  //   using T = MapType;
+  //   using MapConverter = MAC<T>;
 
-    ARROW_ASSIGN_OR_RAISE(auto key_converter, Self::Make(t.key_type(), pool, options));
-    ARROW_ASSIGN_OR_RAISE(auto item_converter, Self::Make(t.item_type(), pool, options));
+  //   ARROW_ASSIGN_OR_RAISE(auto key_converter, Self::Make(t.key_type(), pool, options));
+  //   //StructConverter!!!!!!!!!!!
+  //   //ARROW_ASSIGN_OR_RAISE(auto item_converter, Self::Make(t.item_type(), pool,
+  //   options));
 
-    auto builder = std::make_shared<MapBuilder>(pool, key_converter->builder(),
-                                                item_converter->builder(), type);
-    out->reset(new MapConverter(type, std::move(builder), std::move(key_converter),
-                                std::move(item_converter), options));
-    return Status::OK();
-  }
+  //   auto builder = std::make_shared<MapBuilder>(pool, key_converter->builder(),
+  //                                               item_converter->builder(), type);
+  //   out->reset(new MapConverter(type, std::move(builder), std::move(key_converter),
+  //                               std::move(item_converter), options));
+  //   return Status::OK();
+  // }
 
   Status Visit(const StructType& t) {
     using T = StructType;
@@ -248,6 +248,7 @@ struct ArrayConverterBuilder {
     std::shared_ptr<AC> out;
     Self visitor = {type, pool, options, &out};
     RETURN_NOT_OK(VisitTypeInline(*type, &visitor));
+    RETURN_NOT_OK(out->Init());
     return out;
   }
 

@@ -21,7 +21,6 @@
 #include <datetime.h>
 
 #include <algorithm>
-#include <iostream>
 #include <limits>
 #include <map>
 #include <sstream>
@@ -221,13 +220,11 @@ class PyValue {
 
   static Result<int64_t> Convert(const TimestampType& type, const O& options, I obj) {
     int64_t value;
-    std::cerr << "TimestampType\n";
     if (PyDateTime_Check(obj)) {
       ARROW_ASSIGN_OR_RAISE(int64_t offset, py::internal::PyDateTime_utcoffset_s(obj));
       if (options.ignore_timezone) {
         offset = 0;
       }
-      std::cerr << "IT IS ONE\n";
       auto dt = reinterpret_cast<PyDateTime_DateTime*>(obj);
       switch (type.unit()) {
         case TimeUnit::SECOND:
@@ -404,17 +401,14 @@ class PyPrimitiveArrayConverter<
 #define LIST_FAST_CASE(TYPE_ID, TYPE, NUMPY_TYPE)         \
   case Type::TYPE_ID: {                                   \
     if (PyArray_DESCR(ndarray)->type_num != NUMPY_TYPE) { \
-      std::cerr << "FAST ALTER\n";                        \
       return this->value_converter_->Extend(value, size); \
     }                                                     \
-    std::cerr << "FAST\n";                                \
     return AppendNdarrayTyped<TYPE, NUMPY_TYPE>(ndarray); \
   }
 
 // Use internal::VisitSequence, fast for NPY_OBJECT but slower otherwise
 #define LIST_SLOW_CASE(TYPE_ID)                         \
   case Type::TYPE_ID: {                                 \
-    std::cerr << "SLOW\n";                              \
     return this->value_converter_->Extend(value, size); \
   }
 
@@ -444,10 +438,8 @@ class PyListArrayConverter : public ListArrayConverter<T, PyArrayConverter> {
 
     RETURN_NOT_OK(this->builder_->Append());
     if (PyArray_Check(value)) {
-      std::cerr << "AppendNdarray\n";
       return AppendNdarray(value);
     } else if (PySequence_Check(value)) {
-      std::cerr << "AppendSequence\n";
       return AppendSequence(value);
     } else {
       return internal::InvalidType(
@@ -493,13 +485,11 @@ class PyListArrayConverter : public ListArrayConverter<T, PyArrayConverter> {
       LIST_SLOW_CASE(FIXED_SIZE_BINARY)
       LIST_SLOW_CASE(STRING)
       case Type::LIST: {
-        std::cerr << "LIST\n";
         if (PyArray_DESCR(ndarray)->type_num != NPY_OBJECT) {
           return Status::Invalid(
               "Can only convert list types from NumPy object array input");
         }
         return internal::VisitSequence(value, [this](PyObject* item, bool*) {
-          std::cerr << "pina\n";
           return this->value_converter_->Append(item);
         });
       }
@@ -537,27 +527,9 @@ class PyListArrayConverter : public ListArrayConverter<T, PyArrayConverter> {
       }
     } else {
       for (int64_t i = 0; i < values.size(); ++i) {
-        std::cerr << "Append typed: " << i << " => " << values[i] << "\n";
         RETURN_NOT_OK(value_builder->Append(values[i]));
       }
     }
-    return Status::OK();
-  }
-};
-
-template <typename T>
-class PyStructArrayConverter : public StructArrayConverter<T, PyArrayConverter> {
- public:
-  using StructArrayConverter<T, PyArrayConverter>::StructArrayConverter;
-
-  Status Append(PyObject* value) override {
-    RETURN_NOT_OK(this->builder_->Append());
-    // if (this->value_converter_.IsNull(value)) {
-    //   return this->typed_builder_->AppendNull();
-    // } else {
-    //   int64_t size = static_cast<int64_t>(PySequence_Size(value));
-    //   return this->child_converter_->Extend(value, size);
-    // }
     return Status::OK();
   }
 };
@@ -568,9 +540,150 @@ class PyMapArrayConverter : public MapArrayConverter<T, PyArrayConverter> {
   using MapArrayConverter<T, PyArrayConverter>::MapArrayConverter;
 
   Status Append(PyObject* value) override {
+    // TODO(kszucs): check isnull
     RETURN_NOT_OK(this->builder_->Append());
-    return Status::NotImplemented("");
+    if (PySequence_Check(value)) {
+      int64_t size = static_cast<int64_t>(PySequence_Size(value));
+      return this->item_converter_->Extend(value, size);
+    } else {
+      return internal::InvalidType(
+          value, "was not a sequence or recognized null for conversion to list type");
+    }
   }
+};
+
+template <typename T>
+class PyStructArrayConverter : public StructArrayConverter<T, PyArrayConverter> {
+ public:
+  using StructArrayConverter<T, PyArrayConverter>::StructArrayConverter;
+
+  Status Init() override {
+    // Store the field names as a PyObjects for dict matching
+    num_fields_ = this->type_.num_fields();
+    bytes_field_names_.reset(PyList_New(num_fields_));
+    unicode_field_names_.reset(PyList_New(num_fields_));
+    RETURN_IF_PYERROR();
+
+    for (int i = 0; i < num_fields_; i++) {
+      const auto& field_name = this->type_.field(i)->name();
+      PyObject* bytes = PyBytes_FromStringAndSize(field_name.c_str(), field_name.size());
+      PyObject* unicode =
+          PyUnicode_FromStringAndSize(field_name.c_str(), field_name.size());
+      RETURN_IF_PYERROR();
+      PyList_SET_ITEM(bytes_field_names_.obj(), i, bytes);
+      PyList_SET_ITEM(unicode_field_names_.obj(), i, unicode);
+    }
+    return Status::OK();
+  }
+
+  Status InferInputKind(PyObject* value) {
+    // Infer input object's type, note that heterogeneous sequences are not allowed
+    if (ARROW_PREDICT_FALSE(input_kind_ == InputKind::UNKNOWN)) {
+      if (PyDict_Check(value)) {
+        input_kind_ = InputKind::DICTS;
+      } else if (PyTuple_Check(value)) {
+        input_kind_ = InputKind::TUPLES;
+      } else {
+        return internal::InvalidType(value,
+                                     "was not a dict, tuple, or recognized null value "
+                                     "for conversion to struct type");
+      }
+    }
+    return Status::OK();
+  }
+
+  Status Append(PyObject* value) override {
+    if (PyValue::IsNull(this->type_, this->options_, value)) {
+      return this->builder_->AppendNull();
+    }
+    RETURN_NOT_OK(InferInputKind(value));
+    RETURN_NOT_OK(this->builder_->Append());
+    return (input_kind_ == InputKind::DICTS) ? AppendDict(value) : AppendTuple(value);
+  }
+
+  Status AppendTuple(PyObject* tuple) {
+    if (!PyTuple_Check(tuple)) {
+      return internal::InvalidType(tuple, "was expecting a tuple");
+    }
+    if (PyTuple_GET_SIZE(tuple) != num_fields_) {
+      return Status::Invalid("Tuple size must be equal to number of struct fields");
+    }
+    for (int i = 0; i < num_fields_; i++) {
+      PyObject* value = PyTuple_GET_ITEM(tuple, i);
+      RETURN_NOT_OK(this->child_converters_[i]->Append(value));
+    }
+    return Status::OK();
+  }
+
+  Status InferDictKeyKind(PyObject* dict) {
+    if (ARROW_PREDICT_FALSE(dict_key_kind_ == DictKeyKind::UNKNOWN)) {
+      for (int i = 0; i < num_fields_; i++) {
+        PyObject* name = PyList_GET_ITEM(unicode_field_names_.obj(), i);
+        PyObject* value = PyDict_GetItem(dict, name);
+        if (value != NULL) {
+          dict_key_kind_ = DictKeyKind::UNICODE;
+          return Status::OK();
+        }
+        RETURN_IF_PYERROR();
+        // Unicode key not present, perhaps bytes key is?
+        name = PyList_GET_ITEM(bytes_field_names_.obj(), i);
+        value = PyDict_GetItem(dict, name);
+        if (value != NULL) {
+          dict_key_kind_ = DictKeyKind::BYTES;
+          return Status::OK();
+        }
+        RETURN_IF_PYERROR();
+      }
+    }
+    return Status::OK();
+  }
+
+  Status AppendDict(PyObject* dict) {
+    if (!PyDict_Check(dict)) {
+      return internal::InvalidType(dict, "was expecting a dict");
+    }
+    RETURN_NOT_OK(InferDictKeyKind(dict));
+
+    if (dict_key_kind_ == DictKeyKind::UNICODE) {
+      return AppendDict(dict, unicode_field_names_.obj());
+    } else if (dict_key_kind_ == DictKeyKind::BYTES) {
+      return AppendDict(dict, bytes_field_names_.obj());
+    } else {
+      // If we come here, it means all keys are absent
+      for (int i = 0; i < num_fields_; i++) {
+        RETURN_NOT_OK(this->child_converters_[i]->Append(Py_None));
+      }
+      return Status::OK();
+    }
+  }
+
+  Status AppendDict(PyObject* dict, PyObject* field_names) {
+    // NOTE we're ignoring any extraneous dict items
+    for (int i = 0; i < num_fields_; i++) {
+      PyObject* name = PyList_GET_ITEM(field_names, i);  // borrowed
+      PyObject* value = PyDict_GetItem(dict, name);      // borrowed
+      if (value == NULL) {
+        RETURN_IF_PYERROR();
+      }
+      RETURN_NOT_OK(this->child_converters_[i]->Append(value ? value : Py_None));
+    }
+    return Status::OK();
+  }
+
+ protected:
+  // Whether we're converting from a sequence of dicts or tuples
+  enum class InputKind { UNKNOWN, DICTS, TUPLES } input_kind_ = InputKind::UNKNOWN;
+  // Whether the input dictionary keys' type is python bytes or unicode
+  enum class DictKeyKind {
+    UNKNOWN,
+    BYTES,
+    UNICODE
+  } dict_key_kind_ = DictKeyKind::UNKNOWN;
+  // Store the field names as a PyObjects for dict matching
+  OwnedRef bytes_field_names_;
+  OwnedRef unicode_field_names_;
+  // Store the number of fields for later reuse
+  int num_fields_;
 };
 
 using PyArrayConverterBuilder =
@@ -713,217 +826,7 @@ using PyArrayConverterBuilder =
 //  protected:
 //   int64_t binary_count_;
 // };
-
-// // ----------------------------------------------------------------------
-// // Convert maps
-
-// // Define a MapConverter as a ListConverter that uses MapBuilder.value_builder
-// // to append struct of key/value pairs
-// template <NullCoding null_coding>
-// class MapConverter : public BaseListConverter<MapType, null_coding> {
-//  public:
-//   using BASE = BaseListConverter<MapType, null_coding>;
-
-//   explicit MapConverter(bool from_pandas, bool strict_conversions, bool
-//   ignore_timezone)
-//       : BASE(from_pandas, strict_conversions, ignore_timezone), key_builder_(nullptr)
-//       {}
-
-//   Status Append(PyObject* obj) override {
-//     RETURN_NOT_OK(BASE::Append(obj));
-//     return VerifyLastStructAppended();
-//   }
-
-//   Status Extend(PyObject* seq, int64_t size) override {
-//     RETURN_NOT_OK(BASE::Extend(seq, size));
-//     return VerifyLastStructAppended();
-//   }
-
-//   Status ExtendMasked(PyObject* seq, PyObject* mask, int64_t size) override {
-//     RETURN_NOT_OK(BASE::ExtendMasked(seq, mask, size));
-//     return VerifyLastStructAppended();
-//   }
-
-//  protected:
-//   Status VerifyLastStructAppended() {
-//     // The struct_builder may not have field_builders initialized in constructor, so
-//     // assign key_builder lazily
-//     if (key_builder_ == nullptr) {
-//       auto struct_builder =
-//           checked_cast<StructBuilder*>(BASE::value_converter_->builder());
-//       key_builder_ = struct_builder->field_builder(0);
-//     }
-//     if (key_builder_->null_count() > 0) {
-//       return Status::Invalid("Invalid Map: key field can not contain null values");
-//     }
-//     return Status::OK();
-//   }
-
-//  private:
-//   ArrayBuilder* key_builder_;
 // };
-
-// // ----------------------------------------------------------------------
-// // Convert structs
-
-// template <NullCoding null_coding>
-// class StructConverter : public TypedConverter<StructType, null_coding> {
-//  public:
-//   explicit StructConverter(bool from_pandas, bool strict_conversions,
-//                            bool ignore_timezone)
-//       : from_pandas_(from_pandas),
-//         strict_conversions_(strict_conversions),
-//         ignore_timezone_(ignore_timezone) {}
-
-//   Status Init(ArrayBuilder* builder) override {
-//     this->builder_ = builder;
-//     this->typed_builder_ = checked_cast<StructBuilder*>(builder);
-//     auto struct_type = checked_pointer_cast<StructType>(builder->type());
-
-//     num_fields_ = this->typed_builder_->num_fields();
-//     DCHECK_EQ(num_fields_, struct_type->num_fields());
-
-//     field_name_bytes_list_.reset(PyList_New(num_fields_));
-//     field_name_unicode_list_.reset(PyList_New(num_fields_));
-//     RETURN_IF_PYERROR();
-
-//     // Initialize the child converters and field names
-//     for (int i = 0; i < num_fields_; i++) {
-//       const std::string& field_name(struct_type->field(i)->name());
-//       std::shared_ptr<DataType> field_type(struct_type->field(i)->type());
-
-//       std::unique_ptr<SeqConverter> value_converter;
-//       RETURN_NOT_OK(GetConverter(field_type, from_pandas_, strict_conversions_,
-//                                  ignore_timezone_, &value_converter));
-//       RETURN_NOT_OK(value_converter->Init(this->typed_builder_->field_builder(i)));
-//       value_converters_.push_back(std::move(value_converter));
-
-//       // Store the field name as a PyObject, for dict matching
-//       PyObject* bytesobj =
-//           PyBytes_FromStringAndSize(field_name.c_str(), field_name.size());
-//       PyObject* unicodeobj =
-//           PyUnicode_FromStringAndSize(field_name.c_str(), field_name.size());
-//       RETURN_IF_PYERROR();
-//       PyList_SET_ITEM(field_name_bytes_list_.obj(), i, bytesobj);
-//       PyList_SET_ITEM(field_name_unicode_list_.obj(), i, unicodeobj);
-//     }
-
-//     return Status::OK();
-//   }
-
-//   Status AppendValue(PyObject* obj) override {
-//     RETURN_NOT_OK(this->typed_builder_->Append());
-//     // Note heterogeneous sequences are not allowed
-//     if (ARROW_PREDICT_FALSE(source_kind_ == SourceKind::UNKNOWN)) {
-//       if (PyDict_Check(obj)) {
-//         source_kind_ = SourceKind::DICTS;
-//       } else if (PyTuple_Check(obj)) {
-//         source_kind_ = SourceKind::TUPLES;
-//       }
-//     }
-//     if (PyDict_Check(obj) && source_kind_ == SourceKind::DICTS) {
-//       return AppendDictItem(obj);
-//     } else if (PyTuple_Check(obj) && source_kind_ == SourceKind::TUPLES) {
-//       return AppendTupleItem(obj);
-//     } else {
-//       return internal::InvalidType(obj,
-//                                    "was not a dict, tuple, or recognized null value"
-//                                    " for conversion to struct type");
-//     }
-//   }
-
-//   // Append a missing item
-//   Status AppendNull() override { return this->typed_builder_->AppendNull(); }
-
-//  protected:
-//   Status AppendDictItem(PyObject* obj) {
-//     if (dict_key_kind_ == DictKeyKind::UNICODE) {
-//       return AppendDictItemWithUnicodeKeys(obj);
-//     }
-//     if (dict_key_kind_ == DictKeyKind::BYTES) {
-//       return AppendDictItemWithBytesKeys(obj);
-//     }
-//     for (int i = 0; i < num_fields_; i++) {
-//       PyObject* nameobj = PyList_GET_ITEM(field_name_unicode_list_.obj(), i);
-//       PyObject* valueobj = PyDict_GetItem(obj, nameobj);
-//       if (valueobj != NULL) {
-//         dict_key_kind_ = DictKeyKind::UNICODE;
-//         return AppendDictItemWithUnicodeKeys(obj);
-//       }
-//       RETURN_IF_PYERROR();
-//       // Unicode key not present, perhaps bytes key is?
-//       nameobj = PyList_GET_ITEM(field_name_bytes_list_.obj(), i);
-//       valueobj = PyDict_GetItem(obj, nameobj);
-//       if (valueobj != NULL) {
-//         dict_key_kind_ = DictKeyKind::BYTES;
-//         return AppendDictItemWithBytesKeys(obj);
-//       }
-//       RETURN_IF_PYERROR();
-//     }
-//     // If we come here, it means all keys are absent
-//     for (int i = 0; i < num_fields_; i++) {
-//       RETURN_NOT_OK(value_converters_[i]->Append(Py_None));
-//     }
-//     return Status::OK();
-//   }
-
-//   Status AppendDictItemWithBytesKeys(PyObject* obj) {
-//     return AppendDictItem(obj, field_name_bytes_list_.obj());
-//   }
-
-//   Status AppendDictItemWithUnicodeKeys(PyObject* obj) {
-//     return AppendDictItem(obj, field_name_unicode_list_.obj());
-//   }
-
-//   Status AppendDictItem(PyObject* obj, PyObject* field_name_list) {
-//     // NOTE we're ignoring any extraneous dict items
-//     for (int i = 0; i < num_fields_; i++) {
-//       PyObject* nameobj = PyList_GET_ITEM(field_name_list, i);  // borrowed
-//       PyObject* valueobj = PyDict_GetItem(obj, nameobj);        // borrowed
-//       if (valueobj == NULL) {
-//         RETURN_IF_PYERROR();
-//       }
-//       RETURN_NOT_OK(value_converters_[i]->Append(valueobj ? valueobj : Py_None));
-//     }
-//     return Status::OK();
-//   }
-
-//   Status AppendTupleItem(PyObject* obj) {
-//     if (PyTuple_GET_SIZE(obj) != num_fields_) {
-//       return Status::Invalid("Tuple size must be equal to number of struct fields");
-//     }
-//     for (int i = 0; i < num_fields_; i++) {
-//       PyObject* valueobj = PyTuple_GET_ITEM(obj, i);
-//       RETURN_NOT_OK(value_converters_[i]->Append(valueobj));
-//     }
-//     return Status::OK();
-//   }
-
-//   std::vector<std::unique_ptr<SeqConverter>> value_converters_;
-//   OwnedRef field_name_unicode_list_;
-//   OwnedRef field_name_bytes_list_;
-//   int num_fields_;
-//   // Whether we're converting from a sequence of dicts or tuples
-//   enum class SourceKind { UNKNOWN, DICTS, TUPLES } source_kind_ = SourceKind::UNKNOWN;
-//   enum class DictKeyKind {
-//     UNKNOWN,
-//     BYTES,
-//     UNICODE
-//   } dict_key_kind_ = DictKeyKind::UNKNOWN;
-//   bool from_pandas_;
-//   bool strict_conversions_;
-//   bool ignore_timezone_;
-// };
-
-// #define PRIMITIVE(TYPE_ENUM, TYPE)                                                   \
-//   case Type::TYPE_ENUM:                                                              \
-//     *out = std::unique_ptr<SeqConverter>(new PrimitiveConverter<TYPE, null_coding>); \
-//     break;
-
-// #define SIMPLE_CONVERTER_CASE(TYPE_ENUM, TYPE_CLASS)                   \
-//   case Type::TYPE_ENUM:                                                \
-//     *out = std::unique_ptr<SeqConverter>(new TYPE_CLASS<null_coding>); \
-//     break;
 
 // // ----------------------------------------------------------------------
 
