@@ -323,6 +323,20 @@ class PyValue {
     }
   }
 
+  static Result<util::string_view> Convert(const StringType& type, const O& options,
+                                           I obj) {
+    // strict conversion, force output to be unicode / utf8 and validate that
+    // any binary values are utf8
+    bool is_utf8 = false;
+    PyBytesView view;
+    RETURN_NOT_OK(view.FromString(obj, &is_utf8));
+    // TODO(kszucs): pass strict conversion in options
+    if (!is_utf8) {
+      return internal::InvalidValue(obj, "was not a utf8 string");
+    }
+    return util::string_view(view.bytes, view.size);
+  }
+
   static Result<bool> Convert(const DataType&, const O&, I obj) {
     return Status::NotImplemented("");
   }
@@ -418,6 +432,7 @@ class PyListArrayConverter : public ListArrayConverter<T, PyArrayConverter> {
   using ListArrayConverter<T, PyArrayConverter>::ListArrayConverter;
 
   Status ValidateSize(const FixedSizeListType& type, int64_t size) {
+    // TODO(kszucs): perhaps this should be handled somewhere else
     if (type.list_size() != size) {
       return Status::Invalid("Length of item not correct: expected ", type.list_size(),
                              " but got array of size ", size);
@@ -426,6 +441,16 @@ class PyListArrayConverter : public ListArrayConverter<T, PyArrayConverter> {
     }
   }
 
+  Status ValidateBuilder(const MapType&) {
+    // TODO(kszucs): perhaps this should be handled somewhere else
+    if (this->builder_->key_builder()->null_count() > 0) {
+      return Status::Invalid("Invalid Map: key field can not contain null values");
+    } else {
+      return Status::OK();
+    }
+  }
+
+  Status ValidateBuilder(const DataType&) { return Status::OK(); }
   Status ValidateSize(const BaseListType&, int64_t size) { return Status::OK(); }
 
   // TODO: move it to the parent class and enforce the implementation of Extend
@@ -438,13 +463,14 @@ class PyListArrayConverter : public ListArrayConverter<T, PyArrayConverter> {
 
     RETURN_NOT_OK(this->builder_->Append());
     if (PyArray_Check(value)) {
-      return AppendNdarray(value);
+      RETURN_NOT_OK(AppendNdarray(value));
     } else if (PySequence_Check(value)) {
-      return AppendSequence(value);
+      RETURN_NOT_OK(AppendSequence(value));
     } else {
       return internal::InvalidType(
           value, "was not a sequence or recognized null for conversion to list type");
     }
+    return ValidateBuilder(this->type_);
   }
 
   Status AppendSequence(PyObject* value) {
@@ -531,24 +557,6 @@ class PyListArrayConverter : public ListArrayConverter<T, PyArrayConverter> {
       }
     }
     return Status::OK();
-  }
-};
-
-template <typename T>
-class PyMapArrayConverter : public MapArrayConverter<T, PyArrayConverter> {
- public:
-  using MapArrayConverter<T, PyArrayConverter>::MapArrayConverter;
-
-  Status Append(PyObject* value) override {
-    // TODO(kszucs): check isnull
-    RETURN_NOT_OK(this->builder_->Append());
-    if (PySequence_Check(value)) {
-      int64_t size = static_cast<int64_t>(PySequence_Size(value));
-      return this->item_converter_->Extend(value, size);
-    } else {
-      return internal::InvalidType(
-          value, "was not a sequence or recognized null for conversion to list type");
-    }
   }
 };
 
@@ -689,146 +697,7 @@ class PyStructArrayConverter : public StructArrayConverter<T, PyArrayConverter> 
 using PyArrayConverterBuilder =
     ArrayConverterBuilder<PyConversionOptions, PyArrayConverter,
                           PyPrimitiveArrayConverter, PyListArrayConverter,
-                          PyStructArrayConverter, PyMapArrayConverter>;
-
-// ----------------------------------------------------------------------
-// ValueConverters
-//
-// Typed conversion logic for single python objects are encapsulated in
-// ValueConverter structs using SFINAE for specialization.
-//
-// The FromPython medthod is responsible to convert the python object to the
-// C++ value counterpart which can be directly appended to the ArrayBuilder or
-// Scalar can be constructed from.
-
-// template <typename Type>
-// struct ValueConverter<Type, enable_if_string_like<Type>> {
-//   static inline Result<PyBytesView> FromPython(PyObject* obj) {
-//     // strict conversion, force output to be unicode / utf8 and validate that
-//     // any binary values are utf8
-//     bool is_utf8 = false;
-//     PyBytesView view;
-
-//     RETURN_NOT_OK(view.FromString(obj, &is_utf8));
-//     if (!is_utf8) {
-//       return internal::InvalidValue(obj, "was not a utf8 string");
-//     }
-//     return std::move(view);
-//   }
-
-//   static inline Result<PyBytesView> FromPython(PyObject* obj, bool* is_utf8) {
-//     PyBytesView view;
-
-//     // Non-strict conversion; keep track of whether values are unicode or bytes
-//     if (PyUnicode_Check(obj)) {
-//       *is_utf8 = true;
-//       RETURN_NOT_OK(view.FromUnicode(obj));
-//     } else {
-//       // If not unicode or bytes, FromBinary will error
-//       *is_utf8 = false;
-//       RETURN_NOT_OK(view.FromBinary(obj));
-//     }
-//     return std::move(view);
-//   }
-// };
-
-//   // Append the contents of a Python sequence to the underlying builder,
-//   // virtual version
-//   virtual Status ExtendMasked(PyObject* seq, PyObject* mask, int64_t size) = 0;
-
-//  protected:
-//   ArrayBuilder* builder_;
-//   bool unfinished_builder_;
-//   std::vector<std::shared_ptr<Array>> chunks_;
-// };
-
-// // ----------------------------------------------------------------------
-// // Sequence converters for Binary, FixedSizeBinary, String
-
-// template <typename Type, NullCoding null_coding>
-// class BinaryLikeConverter : public TypedConverter<Type, null_coding> {
-//  public:
-//   using BuilderType = typename TypeTraits<Type>::BuilderType;
-
-//   inline Status AutoChunk(Py_ssize_t size) {
-//     // did we reach the builder size limit?
-//     if (ARROW_PREDICT_FALSE(this->typed_builder_->value_data_length() + size >
-//                             BuilderType::memory_limit())) {
-//       // builder would be full, so need to add a new chunk
-//       std::shared_ptr<Array> chunk;
-//       RETURN_NOT_OK(this->typed_builder_->Finish(&chunk));
-//       this->chunks_.emplace_back(std::move(chunk));
-//     }
-//     return Status::OK();
-//   }
-
-//   Status AppendString(const PyBytesView& view) {
-//     // check that the value fits in the datatype
-//     if (view.size > BuilderType::memory_limit()) {
-//       return Status::Invalid("string too large for datatype");
-//     }
-//     DCHECK_GE(view.size, 0);
-
-//     // create a new chunk if the value would overflow the builder
-//     RETURN_NOT_OK(AutoChunk(view.size));
-
-//     // now we can safely append the value to the builder
-//     RETURN_NOT_OK(
-//         this->typed_builder_->Append(::arrow::util::string_view(view.bytes,
-//         view.size)));
-
-//     return Status::OK();
-//   }
-
-//  protected:
-//   // Create a single instance of PyBytesView here to prevent unnecessary object
-//   // creation/destruction
-//   PyBytesView string_view_;
-// };
-
-// // For String/UTF8, if strict_conversions enabled, we reject any non-UTF8,
-// // otherwise we allow but return results as BinaryArray
-// template <typename Type, bool Strict, NullCoding null_coding>
-// class StringConverter : public BinaryLikeConverter<Type, null_coding> {
-//  public:
-//   StringConverter() : binary_count_(0) {}
-
-//   Status AppendValue(PyObject* obj) override {
-//     if (Strict) {
-//       // raise if the object is not unicode or not an utf-8 encoded bytes
-//       ARROW_ASSIGN_OR_RAISE(this->string_view_, ValueConverter<Type>::FromPython(obj));
-//     } else {
-//       // keep track of whether values are unicode or bytes; if any bytes are
-//       // observe, the result will be bytes
-//       bool is_utf8;
-//       ARROW_ASSIGN_OR_RAISE(this->string_view_,
-//                             ValueConverter<Type>::FromPython(obj, &is_utf8));
-//       if (!is_utf8) {
-//         ++binary_count_;
-//       }
-//     }
-//     return this->AppendString(this->string_view_);
-//   }
-
-//   Status GetResult(std::shared_ptr<ChunkedArray>* out) override {
-//     RETURN_NOT_OK(SeqConverter::GetResult(out));
-
-//     // If we saw any non-unicode, cast results to BinaryArray
-//     if (binary_count_) {
-//       // We should have bailed out earlier
-//       DCHECK(!Strict);
-//       auto binary_type = TypeTraits<typename Type::PhysicalType>::type_singleton();
-//       return (*out)->View(binary_type).Value(out);
-//     }
-//     return Status::OK();
-//   }
-
-//  protected:
-//   int64_t binary_count_;
-// };
-// };
-
-// // ----------------------------------------------------------------------
+                          PyStructArrayConverter>;
 
 // Convert *obj* to a sequence if necessary
 // Fill *size* to its length.  If >= 0 on entry, *size* is an upper size

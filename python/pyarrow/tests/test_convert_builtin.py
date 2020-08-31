@@ -601,7 +601,6 @@ def test_nested_ndarray_in_object_array():
     result = pa.array([arr, arr2])
     expected = pa.array([[[1, 2], [2, 3]], [[3, 4], [5, 6]]],
                         type=expected_type)
-    print(result)
     assert result.equals(expected)
 
     # test case for len-1 arrays to ensure they are interpreted as

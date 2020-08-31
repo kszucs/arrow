@@ -136,28 +136,10 @@ class ARROW_EXPORT StructArrayConverter : public TypedArrayConverter<T, AC> {
   std::vector<std::shared_ptr<AC>> child_converters_;
 };
 
-// perhaps use LAC as base instead
-template <typename T, typename AC>
-class ARROW_EXPORT MapArrayConverter : public TypedArrayConverter<T, AC> {
- public:
-  MapArrayConverter(const std::shared_ptr<DataType>& type,
-                    std::shared_ptr<ArrayBuilder> builder,
-                    std::shared_ptr<AC> key_converter, std::shared_ptr<AC> item_converter,
-                    typename AC::OptionsType options)
-      : TypedArrayConverter<T, AC>(type, builder, options),
-        key_converter_(std::move(key_converter)),
-        item_converter_(std::move(item_converter)) {}
-
- protected:
-  std::shared_ptr<AC> key_converter_;
-  std::shared_ptr<AC> item_converter_;
-};
-
 template <typename O, typename AC, template <typename...> class PAC,
-          template <typename...> class LAC, template <typename...> class SAC,
-          template <typename...> class MAC>
+          template <typename...> class LAC, template <typename...> class SAC>
 struct ArrayConverterBuilder {
-  using Self = ArrayConverterBuilder<O, AC, PAC, LAC, SAC, MAC>;
+  using Self = ArrayConverterBuilder<O, AC, PAC, LAC, SAC>;
 
   Status Visit(const NullType& t) {
     // TODO: merge with the primitive c_type variant below
@@ -202,21 +184,26 @@ struct ArrayConverterBuilder {
     return Status::OK();
   }
 
-  // Status Visit(const MapType& t) {
-  //   using T = MapType;
-  //   using MapConverter = MAC<T>;
+  Status Visit(const MapType& t) {
+    using T = MapType;
+    using ListConverter = LAC<T>;
+    static_assert(std::is_same<typename ListConverter::ArrayConverter, AC>::value, "");
 
-  //   ARROW_ASSIGN_OR_RAISE(auto key_converter, Self::Make(t.key_type(), pool, options));
-  //   //StructConverter!!!!!!!!!!!
-  //   //ARROW_ASSIGN_OR_RAISE(auto item_converter, Self::Make(t.item_type(), pool,
-  //   options));
+    // TODO(kszucs): seems like builders not respect field nullability
+    std::vector<std::shared_ptr<Field>> struct_fields{t.key_field(), t.item_field()};
+    auto struct_type = std::make_shared<StructType>(struct_fields);
+    ARROW_ASSIGN_OR_RAISE(auto struct_converter, Self::Make(struct_type, pool, options));
 
-  //   auto builder = std::make_shared<MapBuilder>(pool, key_converter->builder(),
-  //                                               item_converter->builder(), type);
-  //   out->reset(new MapConverter(type, std::move(builder), std::move(key_converter),
-  //                               std::move(item_converter), options));
-  //   return Status::OK();
-  // }
+    auto struct_builder = struct_converter->builder();
+    auto key_builder = struct_builder->child_builder(0);
+    auto item_builder = struct_builder->child_builder(1);
+    auto builder = std::make_shared<MapBuilder>(pool, key_builder, item_builder, type);
+
+    out->reset(new ListConverter(type, std::move(builder), std::move(struct_converter),
+                                 options));
+
+    return Status::OK();
+  }
 
   Status Visit(const StructType& t) {
     using T = StructType;
@@ -228,7 +215,7 @@ struct ArrayConverterBuilder {
     std::vector<std::shared_ptr<ArrayBuilder>> child_builders;
 
     for (const auto& field : t.fields()) {
-      ARROW_ASSIGN_OR_RAISE(child_converter, (Self::Make(field->type(), pool, options)));
+      ARROW_ASSIGN_OR_RAISE(child_converter, Self::Make(field->type(), pool, options));
 
       // TODO: use move
       child_converters.emplace_back(child_converter);
