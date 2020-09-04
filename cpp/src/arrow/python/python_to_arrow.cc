@@ -841,8 +841,8 @@ Status ConvertToSequenceAndInferSize(PyObject* obj, PyObject** seq, int64_t* siz
   return Status::OK();
 }
 
-Status ConvertPySequence(PyObject* obj, PyObject* mask, const PyConversionOptions& opts,
-                         std::shared_ptr<ChunkedArray>* out) {
+Result<std::shared_ptr<Array>> ConvertPySequence(PyObject* obj, PyObject* mask,
+                                                 const PyConversionOptions& opts) {
   PyAcquireGIL lock;
 
   PyObject* seq;
@@ -883,13 +883,7 @@ Status ConvertPySequence(PyObject* obj, PyObject* mask, const PyConversionOption
   } else {
     RETURN_NOT_OK(converter->Extend(seq, size));
   }
-
-  // Retrieve result. Conversion may yield one or more array values
-  // return converter->GetResult(out);
-  ARROW_ASSIGN_OR_RAISE(auto result, converter->Finish());
-  ArrayVector chunks{result};
-  *out = std::make_shared<ChunkedArray>(chunks, real_type);
-  return Status::OK();
+  return converter->Finish();
 }
 
 }  // namespace py
