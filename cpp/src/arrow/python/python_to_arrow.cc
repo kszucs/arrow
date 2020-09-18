@@ -54,13 +54,6 @@ namespace arrow {
 using internal::checked_cast;
 using internal::checked_pointer_cast;
 
-using internal::Chunker;
-using internal::Converter;
-using internal::DictionaryConverter;
-using internal::ListConverter;
-using internal::PrimitiveConverter;
-using internal::StructConverter;
-
 namespace py {
 
 // Utility for converting single python objects to their intermediate C representations
@@ -357,31 +350,39 @@ class PyValue {
   }
 };
 
-// Forward-declare the type-family specific converters to inject them to the PyConverter
-// base class as type aliases.
+struct MakePyConverterImpl;
 
-template <typename T, typename Enable = void>
-class PyPrimitiveConverter;
-
-template <typename T, typename Enable = void>
-class PyDictionaryConverter;
-
-template <typename T>
-class PyListConverter;
-
-class PyStructConverter;
-
-// The base Converter class is a mixin with predefined behavior and constructors.
-class PyConverter : public Converter<PyObject*, PyConversionOptions, PyConverter> {
+class PyConverter {
  public:
-  // Type aliases used by the parent Converter mixin's factory.
-  template <typename T>
-  using Primitive = PyPrimitiveConverter<T>;
-  template <typename T>
-  using Dictionary = PyDictionaryConverter<T>;
-  template <typename T>
-  using List = PyListConverter<T>;
-  using Struct = PyStructConverter;
+  virtual ~PyConverter() = default;
+
+  virtual Status Init() { return Status::OK(); }
+
+  virtual Status Append(PyObject* value) {
+    return Status::NotImplemented("Converter not implemented for type ",
+                                  type()->ToString());
+  }
+
+  const std::shared_ptr<ArrayBuilder>& builder() const { return builder_; }
+
+  const std::shared_ptr<DataType>& type() const { return type_; }
+
+  PyConversionOptions options() const { return options_; }
+
+  const std::vector<std::shared_ptr<PyConverter>> children() const { return children_; }
+
+  virtual Status Reserve(int64_t additional_capacity) {
+    return builder_->Reserve(additional_capacity);
+  }
+
+  virtual Status AppendNull() { return builder_->AppendNull(); }
+
+  virtual Result<std::shared_ptr<Array>> ToArray() { return builder_->Finish(); }
+
+  virtual Result<std::shared_ptr<Array>> ToArray(int64_t length) {
+    ARROW_ASSIGN_OR_RAISE(auto arr, this->ToArray());
+    return arr->Slice(0, length);
+  }
 
   // Convert and append a sequence of values
   Status Extend(PyObject* values, int64_t size) {
@@ -409,14 +410,41 @@ class PyConverter : public Converter<PyObject*, PyConversionOptions, PyConverter
           }
         });
   }
+
+ protected:
+  friend struct MakePyConverterImpl;
+
+  std::shared_ptr<DataType> type_;
+  std::shared_ptr<ArrayBuilder> builder_;
+  std::vector<std::shared_ptr<PyConverter>> children_;
+  PyConversionOptions options_;
 };
+
+template <typename T, typename Enable = void>
+class PyTypedConverter : public PyConverter {
+ public:
+  using BuilderType = typename TypeTraits<T>::BuilderType;
+
+  Status Init() override {
+    primitive_type_ = checked_cast<const T*>(this->type_.get());
+    primitive_builder_ = checked_cast<BuilderType*>(this->builder_.get());
+    return Status::OK();
+  }
+
+ protected:
+  const T* primitive_type_;
+  BuilderType* primitive_builder_;
+};
+
+template <typename T, typename Enable = void>
+class PyPrimitiveConverter;
 
 template <typename T>
 class PyPrimitiveConverter<
     T, enable_if_t<is_null_type<T>::value || is_boolean_type<T>::value ||
                    is_number_type<T>::value || is_decimal_type<T>::value ||
                    is_date_type<T>::value || is_time_type<T>::value>>
-    : public PrimitiveConverter<T, PyConverter> {
+    : public PyTypedConverter<T> {
  public:
   Status Append(PyObject* value) override {
     if (PyValue::IsNull(this->options_, value)) {
@@ -432,7 +460,7 @@ class PyPrimitiveConverter<
 template <typename T>
 class PyPrimitiveConverter<
     T, enable_if_t<is_timestamp_type<T>::value || is_duration_type<T>::value>>
-    : public PrimitiveConverter<T, PyConverter> {
+    : public PyTypedConverter<T> {
  public:
   Status Append(PyObject* value) override {
     if (PyValue::IsNull(this->options_, value)) {
@@ -452,8 +480,7 @@ class PyPrimitiveConverter<
 };
 
 template <typename T>
-class PyPrimitiveConverter<T, enable_if_binary<T>>
-    : public PrimitiveConverter<T, PyConverter> {
+class PyPrimitiveConverter<T, enable_if_binary<T>> : public PyTypedConverter<T> {
  public:
   Status Append(PyObject* value) override {
     if (PyValue::IsNull(this->options_, value)) {
@@ -468,8 +495,7 @@ class PyPrimitiveConverter<T, enable_if_binary<T>>
 };
 
 template <typename T>
-class PyPrimitiveConverter<T, enable_if_string_like<T>>
-    : public PrimitiveConverter<T, PyConverter> {
+class PyPrimitiveConverter<T, enable_if_string_like<T>> : public PyTypedConverter<T> {
  public:
   Status Append(PyObject* value) override {
     if (PyValue::IsNull(this->options_, value)) {
@@ -487,7 +513,7 @@ class PyPrimitiveConverter<T, enable_if_string_like<T>>
   }
 
   Result<std::shared_ptr<Array>> ToArray() override {
-    ARROW_ASSIGN_OR_RAISE(auto array, (PrimitiveConverter<T, PyConverter>::ToArray()));
+    ARROW_ASSIGN_OR_RAISE(auto array, (PyTypedConverter<T>::ToArray()));
     if (observed_binary_) {
       // if we saw any non-unicode, cast results to BinaryArray
       auto binary_type = TypeTraits<typename T::PhysicalType>::type_singleton();
@@ -501,9 +527,29 @@ class PyPrimitiveConverter<T, enable_if_string_like<T>>
   bool observed_binary_ = false;
 };
 
-template <typename T>
-class PyDictionaryConverter<T, enable_if_has_c_type<T>>
-    : public DictionaryConverter<T, PyConverter> {
+template <typename U>
+class PyDictLikeConverter : public PyConverter {
+ public:
+  using BuilderType = DictionaryBuilder<U>;
+
+  Status Init() override {
+    dict_type_ = checked_cast<const DictionaryType*>(this->type_.get());
+    value_type_ = checked_cast<const U*>(dict_type_->value_type().get());
+    value_builder_ = checked_cast<BuilderType*>(this->builder_.get());
+    return Status::OK();
+  }
+
+ protected:
+  const DictionaryType* dict_type_;
+  const U* value_type_;
+  BuilderType* value_builder_;
+};
+
+template <typename U, typename Enable = void>
+class PyDictionaryConverter;
+
+template <typename U>
+class PyDictionaryConverter<U, enable_if_has_c_type<U>> : public PyDictLikeConverter<U> {
  public:
   Status Append(PyObject* value) override {
     if (PyValue::IsNull(this->options_, value)) {
@@ -516,9 +562,9 @@ class PyDictionaryConverter<T, enable_if_has_c_type<T>>
   }
 };
 
-template <typename T>
-class PyDictionaryConverter<T, enable_if_has_string_view<T>>
-    : public DictionaryConverter<T, PyConverter> {
+template <typename U>
+class PyDictionaryConverter<U, enable_if_has_string_view<U>>
+    : public PyDictLikeConverter<U> {
  public:
   Status Append(PyObject* value) override {
     if (PyValue::IsNull(this->options_, value)) {
@@ -548,8 +594,17 @@ class PyDictionaryConverter<T, enable_if_has_string_view<T>>
   }
 
 template <typename T>
-class PyListConverter : public ListConverter<T, PyConverter> {
+class PyListConverter : public PyConverter {
  public:
+  using BuilderType = typename TypeTraits<T>::BuilderType;
+
+  Status Init() override {
+    list_type_ = checked_cast<const T*>(this->type_.get());
+    list_builder_ = checked_cast<BuilderType*>(this->builder_.get());
+    value_converter_ = this->children_[0];
+    return Status::OK();
+  }
+
   Status ValidateOverflow(const MapType*, int64_t size) { return Status::OK(); }
 
   Status ValidateOverflow(const BaseListType*, int64_t size) {
@@ -669,12 +724,18 @@ class PyListConverter : public ListConverter<T, PyConverter> {
     }
     return Status::OK();
   }
+
+ protected:
+  const T* list_type_;
+  BuilderType* list_builder_;
+  std::shared_ptr<PyConverter> value_converter_;
 };
 
-class PyStructConverter : public StructConverter<PyConverter> {
+class PyStructConverter : public PyConverter {
  public:
   Status Init() override {
-    RETURN_NOT_OK(StructConverter<PyConverter>::Init());
+    struct_type_ = checked_cast<const StructType*>(this->type_.get());
+    struct_builder_ = checked_cast<StructBuilder*>(this->builder_.get());
 
     // Store the field names as a PyObjects for dict matching
     num_fields_ = this->struct_type_->num_fields();
@@ -882,7 +943,194 @@ class PyStructConverter : public StructConverter<PyConverter> {
   OwnedRef unicode_field_names_;
   // Store the number of fields for later reuse
   int num_fields_;
+
+  const StructType* struct_type_;
+  StructBuilder* struct_builder_;
 };
+
+#define DICTIONARY_CASE(TYPE_ENUM, TYPE_CLASS)                                \
+  case Type::TYPE_ENUM:                                                       \
+    return Finish<PyDictionaryConverter<TYPE_CLASS>>(std::move(builder), {}); \
+    break;
+
+template <typename PyConverter>
+class Chunker : public PyConverter {
+ public:
+  using Self = Chunker<PyConverter>;
+
+  static Result<std::shared_ptr<Self>> Make(std::shared_ptr<PyConverter> converter) {
+    auto result = std::make_shared<Self>();
+    result->type_ = converter->type();
+    result->builder_ = converter->builder();
+    result->options_ = converter->options();
+    result->children_ = converter->children();
+    result->converter_ = std::move(converter);
+    return result;
+  }
+
+  Status AppendNull() override {
+    auto status = converter_->AppendNull();
+    if (status.ok()) {
+      length_ = this->builder_->length();
+    } else if (status.IsCapacityError()) {
+      ARROW_RETURN_NOT_OK(FinishChunk());
+      return converter_->AppendNull();
+    }
+    return status;
+  }
+
+  Status Append(PyObject* value) override {
+    auto status = converter_->Append(value);
+    if (status.ok()) {
+      length_ = this->builder_->length();
+    } else if (status.IsCapacityError()) {
+      ARROW_RETURN_NOT_OK(FinishChunk());
+      return Append(value);
+    }
+    return status;
+  }
+
+  Status FinishChunk() {
+    ARROW_ASSIGN_OR_RAISE(auto chunk, converter_->ToArray(length_));
+    this->builder_->Reset();
+    length_ = 0;
+    chunks_.push_back(chunk);
+    return Status::OK();
+  }
+
+  Result<std::shared_ptr<ChunkedArray>> ToChunkedArray() {
+    ARROW_RETURN_NOT_OK(FinishChunk());
+    return std::make_shared<ChunkedArray>(chunks_);
+  }
+
+ protected:
+  int64_t length_ = 0;
+  std::shared_ptr<PyConverter> converter_;
+  std::vector<std::shared_ptr<Array>> chunks_;
+};
+static Result<std::shared_ptr<PyConverter>> MakePyConverter(
+    std::shared_ptr<DataType> type, MemoryPool* pool, PyConversionOptions options);
+struct MakePyConverterImpl {
+  Status Visit(const NullType& t) {
+    auto builder = std::make_shared<NullBuilder>(pool);
+    return Finish<PyPrimitiveConverter<NullType>>(std::move(builder), {});
+  }
+
+  template <typename T>
+  enable_if_t<!is_nested_type<T>::value && !is_interval_type<T>::value &&
+                  !is_dictionary_type<T>::value && !is_extension_type<T>::value,
+              Status>
+  Visit(const T& t) {
+    using BuilderType = typename TypeTraits<T>::BuilderType;
+    using ConverterType = PyPrimitiveConverter<T>;
+
+    auto builder = std::make_shared<BuilderType>(type, pool);
+    return Finish<ConverterType>(std::move(builder), {});
+  }
+
+  template <typename T>
+  enable_if_t<is_list_like_type<T>::value && !std::is_same<T, MapType>::value, Status>
+  Visit(const T& t) {
+    using BuilderType = typename TypeTraits<T>::BuilderType;
+    using ConverterType = PyListConverter<T>;
+
+    ARROW_ASSIGN_OR_RAISE(auto child_converter,
+                          MakePyConverter(t.value_type(), pool, options));
+    auto builder = std::make_shared<BuilderType>(pool, child_converter->builder(), type);
+    return Finish<ConverterType>(std::move(builder), {std::move(child_converter)});
+  }
+
+  Status Visit(const MapType& t) {
+    using ConverterType = PyListConverter<MapType>;
+
+    // TODO(kszucs): seems like builders not respect field nullability
+    std::vector<std::shared_ptr<Field>> struct_fields{t.key_field(), t.item_field()};
+    auto struct_type = std::make_shared<StructType>(struct_fields);
+    ARROW_ASSIGN_OR_RAISE(auto struct_converter,
+                          MakePyConverter(struct_type, pool, options));
+
+    auto struct_builder = struct_converter->builder();
+    auto key_builder = struct_builder->child_builder(0);
+    auto item_builder = struct_builder->child_builder(1);
+    auto builder = std::make_shared<MapBuilder>(pool, key_builder, item_builder, type);
+
+    return Finish<ConverterType>(std::move(builder), {std::move(struct_converter)});
+  }
+
+  Status Visit(const DictionaryType& t) {
+    std::unique_ptr<ArrayBuilder> builder;
+    ARROW_RETURN_NOT_OK(MakeDictionaryBuilder(pool, type, NULLPTR, &builder));
+
+    switch (t.value_type()->id()) {
+      DICTIONARY_CASE(BOOL, BooleanType);
+      DICTIONARY_CASE(INT8, Int8Type);
+      DICTIONARY_CASE(INT16, Int16Type);
+      DICTIONARY_CASE(INT32, Int32Type);
+      DICTIONARY_CASE(INT64, Int64Type);
+      DICTIONARY_CASE(UINT8, UInt8Type);
+      DICTIONARY_CASE(UINT16, UInt16Type);
+      DICTIONARY_CASE(UINT32, UInt32Type);
+      DICTIONARY_CASE(UINT64, UInt64Type);
+      DICTIONARY_CASE(HALF_FLOAT, HalfFloatType);
+      DICTIONARY_CASE(FLOAT, FloatType);
+      DICTIONARY_CASE(DOUBLE, DoubleType);
+      DICTIONARY_CASE(DATE32, Date32Type);
+      DICTIONARY_CASE(DATE64, Date64Type);
+      DICTIONARY_CASE(BINARY, BinaryType);
+      DICTIONARY_CASE(STRING, StringType);
+      DICTIONARY_CASE(FIXED_SIZE_BINARY, FixedSizeBinaryType);
+      default:
+        return Status::NotImplemented("DictionaryArray converter for type ", t.ToString(),
+                                      " not implemented");
+    }
+  }
+
+  Status Visit(const StructType& t) {
+    std::shared_ptr<PyConverter> child_converter;
+    std::vector<std::shared_ptr<PyConverter>> child_converters;
+    std::vector<std::shared_ptr<ArrayBuilder>> child_builders;
+
+    for (const auto& field : t.fields()) {
+      ARROW_ASSIGN_OR_RAISE(child_converter,
+                            MakePyConverter(field->type(), pool, options));
+
+      // TODO: use move
+      child_converters.push_back(child_converter);
+      child_builders.push_back(child_converter->builder());
+    }
+
+    auto builder = std::make_shared<StructBuilder>(type, pool, child_builders);
+    return Finish<PyStructConverter>(std::move(builder), std::move(child_converters));
+  }
+
+  Status Visit(const DataType& t) { return Status::NotImplemented(t.name()); }
+
+  template <typename ConverterType>
+  Status Finish(std::shared_ptr<ArrayBuilder> builder,
+                std::vector<std::shared_ptr<PyConverter>> children) {
+    auto converter = new ConverterType();
+    converter->type_ = std::move(type);
+    converter->builder_ = std::move(builder);
+    converter->options_ = options;
+    converter->children_ = std::move(children);
+    out->reset(converter);
+    return Status::OK();
+  }
+
+  const std::shared_ptr<DataType> type;
+  MemoryPool* pool;
+  PyConversionOptions options;
+  std::shared_ptr<PyConverter>* out;
+};
+
+static Result<std::shared_ptr<PyConverter>> MakePyConverter(
+    std::shared_ptr<DataType> type, MemoryPool* pool, PyConversionOptions options) {
+  std::shared_ptr<PyConverter> out;
+  MakePyConverterImpl visitor = {type, pool, options, &out};
+  ARROW_RETURN_NOT_OK(VisitTypeInline(*type, &visitor));
+  ARROW_RETURN_NOT_OK(out->Init());
+  return out;
+}
 
 // Convert *obj* to a sequence if necessary
 // Fill *size* to its length.  If >= 0 on entry, *size* is an upper size
@@ -951,7 +1199,7 @@ Result<std::shared_ptr<ChunkedArray>> ConvertPySequence(PyObject* obj, PyObject*
   }
   DCHECK_GE(size, 0);
 
-  ARROW_ASSIGN_OR_RAISE(auto converter, PyConverter::Make(options.type, pool, options));
+  ARROW_ASSIGN_OR_RAISE(auto converter, MakePyConverter(options.type, pool, options));
   ARROW_ASSIGN_OR_RAISE(auto chunked_converter, Chunker<PyConverter>::Make(converter));
 
   // Convert values
