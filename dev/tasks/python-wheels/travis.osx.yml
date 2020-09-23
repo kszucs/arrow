@@ -30,7 +30,7 @@ addons:
       - flatbuffers
       - git
       - glog
-      - grpc
+      #- grpc
       - lz4
       - ninja
       - numpy

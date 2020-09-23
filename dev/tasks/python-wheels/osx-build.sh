@@ -84,7 +84,7 @@ function build_wheel {
           -DBOOST_SOURCE=SYSTEM \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=$ARROW_HOME \
-          -DgRPC_SOURCE=SYSTEM \
+          -DgRPC_SOURCE=BUNDLED \
           -DLLVM_SOURCE=SYSTEM \
           -DMAKE=make \
           -DOPENSSL_USE_STATIC_LIBS=ON \
