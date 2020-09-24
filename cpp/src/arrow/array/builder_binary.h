@@ -419,15 +419,6 @@ class ARROW_EXPORT FixedSizeBinaryBuilder : public ArrayBuilder {
     return Append(reinterpret_cast<const uint8_t*>(value));
   }
 
-  Status Append(const char* value, int32_t size) {
-    if (ARROW_PREDICT_TRUE(size == byte_width_)) {
-      UnsafeAppend(reinterpret_cast<const uint8_t*>(value));
-      return Status::OK();
-    } else {
-      return Status::Invalid("expected to be length ", byte_width_, " was ", size);
-    }
-  }
-
   Status Append(const util::string_view& view) {
     ARROW_RETURN_NOT_OK(Reserve(1));
     UnsafeAppend(view);
@@ -483,10 +474,6 @@ class ARROW_EXPORT FixedSizeBinaryBuilder : public ArrayBuilder {
     if (ARROW_PREDICT_TRUE(byte_width_ > 0)) {
       byte_builder_.UnsafeAppend(value, byte_width_);
     }
-  }
-
-  void UnsafeAppend(const char* value, int32_t size) {
-    UnsafeAppend(reinterpret_cast<const uint8_t*>(value));
   }
 
   void UnsafeAppend(util::string_view value) {

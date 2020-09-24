@@ -276,7 +276,7 @@ class PyValue {
     } else {
       RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
     }
-    return value;
+    return std::move(value);
   }
 
   static inline Result<int64_t> Convert(const DurationType* type, const O&, I obj) {
@@ -311,7 +311,7 @@ class PyValue {
     } else {
       RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
     }
-    return value;
+    return std::move(value);
   }
 
   // The binary-like intermediate representation is PyBytesView because it keeps temporary
@@ -326,15 +326,14 @@ class PyValue {
 
   static inline Status Convert(const FixedSizeBinaryType* type, const O&, I obj,
                                PyBytesView& view) {
-    return view.ParseString(obj);
-    // ARROW_ASSIGN_OR_RAISE(auto view, PyBytesView::FromString(obj));
-    // if (view.size == type->byte_width()) {
-    //   return std::move(view);
-    // } else {
-    //   std::stringstream ss;
-    //   ss << "expected to be length " << type->byte_width() << " was " << view.size;
-    //   return internal::InvalidValue(obj, ss.str());
-    // }
+    ARROW_RETURN_NOT_OK(view.ParseString(obj));
+    if (view.size != type->byte_width()) {
+      std::stringstream ss;
+      ss << "expected to be length " << type->byte_width() << " was " << view.size;
+      return internal::InvalidValue(obj, ss.str());
+    } else {
+      return Status::OK();
+    }
   }
 
   template <typename T>
@@ -493,9 +492,28 @@ class PyPrimitiveConverter<T, enable_if_binary<T>>
     } else {
       ARROW_RETURN_NOT_OK(
           PyValue::Convert(this->primitive_type_, this->options_, value, view_));
-      // ARROW_RETURN_NOT_OK(this->primitive_builder_->ValidateOverflow(view.size));
       ARROW_RETURN_NOT_OK(this->primitive_builder_->ReserveData(view_.size));
       this->primitive_builder_->UnsafeAppend(view_.bytes, view_.size);
+    }
+    return Status::OK();
+  }
+
+ protected:
+  PyBytesView view_;
+};
+
+template <typename T>
+class PyPrimitiveConverter<T, enable_if_t<std::is_same<T, FixedSizeBinaryType>::value>>
+    : public PrimitiveConverter<T, PyConverter> {
+ public:
+  Status Append(PyObject* value) override {
+    if (PyValue::IsNull(this->options_, value)) {
+      this->primitive_builder_->UnsafeAppendNull();
+    } else {
+      ARROW_RETURN_NOT_OK(
+          PyValue::Convert(this->primitive_type_, this->options_, value, view_));
+      ARROW_RETURN_NOT_OK(this->primitive_builder_->ReserveData(view_.size));
+      this->primitive_builder_->UnsafeAppend(view_.bytes);
     }
     return Status::OK();
   }
@@ -518,10 +536,8 @@ class PyPrimitiveConverter<T, enable_if_string_like<T>>
         // observed binary value
         observed_binary_ = true;
       }
-      // ARROW_RETURN_NOT_OK(this->primitive_builder_->ValidateOverflow(view.size));
       ARROW_RETURN_NOT_OK(this->primitive_builder_->ReserveData(view_.size));
       this->primitive_builder_->UnsafeAppend(view_.bytes, view_.size);
-      // return this->primitive_builder_->Append(view.bytes, view.size);
     }
     return Status::OK();
   }
