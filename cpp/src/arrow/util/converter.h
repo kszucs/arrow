@@ -252,7 +252,7 @@ class Chunker {
 
   Status AppendNull() {
     auto status = converter_->AppendNull();
-    if (status.IsCapacityError()) {
+    if (ARROW_PREDICT_FALSE(status.IsCapacityError())) {
       ARROW_RETURN_NOT_OK(FinishChunk());
       return converter_->AppendNull();
     }
@@ -262,7 +262,7 @@ class Chunker {
 
   Status Append(InputType value) {
     auto status = converter_->Append(value);
-    if (status.IsCapacityError()) {
+    if (ARROW_PREDICT_FALSE(status.IsCapacityError())) {
       ARROW_RETURN_NOT_OK(FinishChunk());
       return Append(value);
     }
