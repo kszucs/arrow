@@ -163,21 +163,21 @@ Status CIntFromPythonImpl(PyObject* obj, Int* out, const std::string& overflow_m
 
   if (sizeof(Int) > sizeof(long)) {  // NOLINT
     const auto value = PyLong_AsLongLong(obj);
-    if (ARROW_PREDICT_FALSE(value == -1)) {
+    if (value == -1) {
       RETURN_IF_PYERROR();
     }
-    if (ARROW_PREDICT_FALSE(value < std::numeric_limits<Int>::min() ||
-                            value > std::numeric_limits<Int>::max())) {
+    if (value < std::numeric_limits<Int>::min() ||
+        value > std::numeric_limits<Int>::max()) {
       return IntegerOverflowStatus(obj, overflow_message);
     }
     *out = static_cast<Int>(value);
   } else {
     const auto value = PyLong_AsLong(obj);
-    if (ARROW_PREDICT_FALSE(value == -1)) {
+    if (value == -1) {
       RETURN_IF_PYERROR();
     }
-    if (ARROW_PREDICT_FALSE(value < std::numeric_limits<Int>::min() ||
-                            value > std::numeric_limits<Int>::max())) {
+    if (value < std::numeric_limits<Int>::min() ||
+        value > std::numeric_limits<Int>::max()) {
       return IntegerOverflowStatus(obj, overflow_message);
     }
     *out = static_cast<Int>(value);
@@ -203,19 +203,19 @@ Status CIntFromPythonImpl(PyObject* obj, Int* out, const std::string& overflow_m
   }
   if (sizeof(Int) > sizeof(unsigned long)) {  // NOLINT
     const auto value = PyLong_AsUnsignedLongLong(obj);
-    if (ARROW_PREDICT_FALSE(value == static_cast<decltype(value)>(-1))) {
+    if (value == static_cast<decltype(value)>(-1)) {
       RETURN_IF_PYERROR();
     }
-    if (ARROW_PREDICT_FALSE(value > std::numeric_limits<Int>::max())) {
+    if (value > std::numeric_limits<Int>::max()) {
       return IntegerOverflowStatus(obj, overflow_message);
     }
     *out = static_cast<Int>(value);
   } else {
     const auto value = PyLong_AsUnsignedLong(obj);
-    if (ARROW_PREDICT_FALSE(value == static_cast<decltype(value)>(-1))) {
+    if (value == static_cast<decltype(value)>(-1)) {
       RETURN_IF_PYERROR();
     }
-    if (ARROW_PREDICT_FALSE(value > std::numeric_limits<Int>::max())) {
+    if (value > std::numeric_limits<Int>::max()) {
       return IntegerOverflowStatus(obj, overflow_message);
     }
     *out = static_cast<Int>(value);

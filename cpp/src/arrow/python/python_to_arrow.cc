@@ -240,7 +240,7 @@ class PyValue {
                                         I obj) {
     int64_t value, offset;
     if (PyDateTime_Check(obj)) {
-      if (ARROW_PREDICT_FALSE(options.ignore_timezone)) {
+      if (options.ignore_timezone) {
         offset = 0;
       } else {
         ARROW_ASSIGN_OR_RAISE(offset, internal::PyDateTime_utcoffset_s(obj));
@@ -331,14 +331,15 @@ class PyValue {
 
   static inline Result<PyBytesView> Convert(const FixedSizeBinaryType* type, const O&,
                                             I obj) {
-    ARROW_ASSIGN_OR_RAISE(auto view, PyBytesView::FromString(obj));
-    if (ARROW_PREDICT_TRUE(view.size == type->byte_width())) {
-      return std::move(view);
-    } else {
-      std::stringstream ss;
-      ss << "expected to be length " << type->byte_width() << " was " << view.size;
-      return internal::InvalidValue(obj, ss.str());
-    }
+    return PyBytesView::FromString(obj);
+    // ARROW_ASSIGN_OR_RAISE(auto view, PyBytesView::FromString(obj));
+    // if (view.size == type->byte_width()) {
+    //   return std::move(view);
+    // } else {
+    //   std::stringstream ss;
+    //   ss << "expected to be length " << type->byte_width() << " was " << view.size;
+    //   return internal::InvalidValue(obj, ss.str());
+    // }
   }
 
   template <typename T>
