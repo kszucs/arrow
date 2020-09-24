@@ -435,10 +435,7 @@ struct PyConverterTrait<DictionaryType> {
 };
 
 template <typename T>
-class PyPrimitiveConverter<
-    T, enable_if_t<is_null_type<T>::value || is_boolean_type<T>::value ||
-                   is_number_type<T>::value || is_decimal_type<T>::value ||
-                   is_date_type<T>::value || is_time_type<T>::value>>
+class PyPrimitiveConverter<T, enable_if_null<T>>
     : public PrimitiveConverter<T, PyConverter> {
  public:
   Status Append(PyObject* value) override {
@@ -449,6 +446,24 @@ class PyPrimitiveConverter<
           auto converted, PyValue::Convert(this->primitive_type_, this->options_, value));
       return this->primitive_builder_->Append(converted);
     }
+  }
+};
+
+template <typename T>
+class PyPrimitiveConverter<
+    T, enable_if_t<is_boolean_type<T>::value || is_number_type<T>::value ||
+                   is_decimal_type<T>::value || is_date_type<T>::value ||
+                   is_time_type<T>::value>> : public PrimitiveConverter<T, PyConverter> {
+ public:
+  Status Append(PyObject* value) override {
+    if (PyValue::IsNull(this->options_, value)) {
+      this->primitive_builder_->UnsafeAppendNull();
+    } else {
+      ARROW_ASSIGN_OR_RAISE(
+          auto converted, PyValue::Convert(this->primitive_type_, this->options_, value));
+      this->primitive_builder_->UnsafeAppend(converted);
+    }
+    return Status::OK();
   }
 };
 
