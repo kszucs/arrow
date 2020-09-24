@@ -459,18 +459,19 @@ class PyPrimitiveConverter<
  public:
   Status Append(PyObject* value) override {
     if (PyValue::IsNull(this->options_, value)) {
-      return this->primitive_builder_->AppendNull();
+      this->primitive_builder_->UnsafeAppendNull();
     } else {
       ARROW_ASSIGN_OR_RAISE(
           auto converted, PyValue::Convert(this->primitive_type_, this->options_, value));
       // Numpy NaT sentinels can be checked after the conversion
       if (PyArray_CheckAnyScalarExact(value) &&
           PyValue::IsNaT(this->primitive_type_, converted)) {
-        return this->primitive_builder_->AppendNull();
+        this->primitive_builder_->UnsafeAppendNull();
       } else {
-        return this->primitive_builder_->Append(converted);
+        this->primitive_builder_->UnsafeAppend(converted);
       }
     }
+    return Status::OK();
   }
 };
 
@@ -480,13 +481,14 @@ class PyPrimitiveConverter<T, enable_if_binary<T>>
  public:
   Status Append(PyObject* value) override {
     if (PyValue::IsNull(this->options_, value)) {
-      return this->primitive_builder_->AppendNull();
+      this->primitive_builder_->UnsafeAppendNull();
     } else {
       ARROW_ASSIGN_OR_RAISE(
           auto view, PyValue::Convert(this->primitive_type_, this->options_, value));
       ARROW_RETURN_NOT_OK(this->primitive_builder_->ValidateOverflow(view.size));
-      return this->primitive_builder_->Append(view.bytes, view.size);
+      this->primitive_builder_->UnsafeAppend(view.bytes, view.size);
     }
+    return Status::OK();
   }
 };
 
