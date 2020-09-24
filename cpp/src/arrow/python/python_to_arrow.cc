@@ -119,13 +119,6 @@ class PyValue {
     typename T::c_type value;
     ARROW_RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
     return std::move(value);
-    // if (status.ok()) {
-    //   return value;
-    // } else if (!internal::PyIntScalar_Check(obj)) {
-    //   return internal::InvalidValue(obj, "tried to convert to int");
-    // } else {
-    //   return status;
-    // }
   }
 
   static inline Result<uint16_t> Convert(const HalfFloatType*, const O&, I obj) {
@@ -326,13 +319,14 @@ class PyValue {
   // object was unicode encoded or not, which is used for unicode -> bytes coersion if
   // there is a non-unicode object observed.
 
-  static inline Result<PyBytesView> Convert(const BaseBinaryType*, const O&, I obj) {
-    return PyBytesView::FromString(obj);
+  static inline Status Convert(const BaseBinaryType*, const O&, I obj,
+                               PyBytesView& view) {
+    return view.ParseString(obj);
   }
 
-  static inline Result<PyBytesView> Convert(const FixedSizeBinaryType* type, const O&,
-                                            I obj) {
-    return PyBytesView::FromString(obj);
+  static inline Status Convert(const FixedSizeBinaryType* type, const O&, I obj,
+                               PyBytesView& view) {
+    return view.ParseString(obj);
     // ARROW_ASSIGN_OR_RAISE(auto view, PyBytesView::FromString(obj));
     // if (view.size == type->byte_width()) {
     //   return std::move(view);
@@ -344,20 +338,19 @@ class PyValue {
   }
 
   template <typename T>
-  static inline enable_if_string<T, Result<PyBytesView>> Convert(const T*,
-                                                                 const O& options,
-                                                                 I obj) {
+  static inline enable_if_string<T, Status> Convert(const T*, const O& options, I obj,
+                                                    PyBytesView& view) {
     if (options.strict) {
       // Strict conversion, force output to be unicode / utf8 and validate that
       // any binary values are utf8
-      ARROW_ASSIGN_OR_RAISE(auto view, PyBytesView::FromString(obj, true));
+      ARROW_RETURN_NOT_OK(view.ParseString(obj, true));
       if (!view.is_utf8) {
         return internal::InvalidValue(obj, "was not a utf8 string");
       }
-      return std::move(view);
+      return Status::OK();
     } else {
       // Non-strict conversion; keep track of whether values are unicode or bytes
-      return PyBytesView::FromString(obj);
+      return view.ParseString(obj);
     }
   }
 
@@ -498,14 +491,17 @@ class PyPrimitiveConverter<T, enable_if_binary<T>>
     if (PyValue::IsNull(this->options_, value)) {
       this->primitive_builder_->UnsafeAppendNull();
     } else {
-      ARROW_ASSIGN_OR_RAISE(
-          auto view, PyValue::Convert(this->primitive_type_, this->options_, value));
+      ARROW_RETURN_NOT_OK(
+          PyValue::Convert(this->primitive_type_, this->options_, value, view_));
       // ARROW_RETURN_NOT_OK(this->primitive_builder_->ValidateOverflow(view.size));
-      ARROW_RETURN_NOT_OK(this->primitive_builder_->ReserveData(view.size));
-      this->primitive_builder_->UnsafeAppend(view.bytes, view.size);
+      ARROW_RETURN_NOT_OK(this->primitive_builder_->ReserveData(view_.size));
+      this->primitive_builder_->UnsafeAppend(view_.bytes, view_.size);
     }
     return Status::OK();
   }
+
+ protected:
+  PyBytesView view_;
 };
 
 template <typename T>
@@ -516,15 +512,15 @@ class PyPrimitiveConverter<T, enable_if_string_like<T>>
     if (PyValue::IsNull(this->options_, value)) {
       this->primitive_builder_->UnsafeAppendNull();
     } else {
-      ARROW_ASSIGN_OR_RAISE(
-          auto view, PyValue::Convert(this->primitive_type_, this->options_, value));
-      if (!view.is_utf8) {
+      ARROW_RETURN_NOT_OK(
+          PyValue::Convert(this->primitive_type_, this->options_, value, view_));
+      if (!view_.is_utf8) {
         // observed binary value
         observed_binary_ = true;
       }
       // ARROW_RETURN_NOT_OK(this->primitive_builder_->ValidateOverflow(view.size));
-      ARROW_RETURN_NOT_OK(this->primitive_builder_->ReserveData(view.size));
-      this->primitive_builder_->UnsafeAppend(view.bytes, view.size);
+      ARROW_RETURN_NOT_OK(this->primitive_builder_->ReserveData(view_.size));
+      this->primitive_builder_->UnsafeAppend(view_.bytes, view_.size);
       // return this->primitive_builder_->Append(view.bytes, view.size);
     }
     return Status::OK();
@@ -542,6 +538,7 @@ class PyPrimitiveConverter<T, enable_if_string_like<T>>
   }
 
  protected:
+  PyBytesView view_;
   bool observed_binary_ = false;
 };
 
@@ -568,11 +565,14 @@ class PyDictionaryConverter<U, enable_if_has_string_view<U>>
     if (PyValue::IsNull(this->options_, value)) {
       return this->value_builder_->AppendNull();
     } else {
-      ARROW_ASSIGN_OR_RAISE(auto view,
-                            PyValue::Convert(this->value_type_, this->options_, value));
-      return this->value_builder_->Append(view.bytes, view.size);
+      ARROW_RETURN_NOT_OK(
+          PyValue::Convert(this->value_type_, this->options_, value, view_));
+      return this->value_builder_->Append(view_.bytes, view_.size);
     }
   }
+
+ protected:
+  PyBytesView view_;
 };
 
 template <typename T>
