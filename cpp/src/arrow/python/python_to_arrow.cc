@@ -118,13 +118,13 @@ class PyValue {
                                                                          I obj) {
     typename T::c_type value;
     ARROW_RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
-    return std::move(value);
+    return value;
   }
 
   static Result<uint16_t> Convert(const HalfFloatType*, const O&, I obj) {
     uint16_t value;
     RETURN_NOT_OK(PyFloat_AsHalf(obj, &value));
-    return std::move(value);
+    return value;
   }
 
   static Result<float> Convert(const FloatType*, const O&, I obj) {
@@ -137,7 +137,7 @@ class PyValue {
     } else {
       return internal::InvalidValue(obj, "tried to convert to float32");
     }
-    return std::move(value);
+    return value;
   }
 
   static Result<double> Convert(const DoubleType*, const O&, I obj) {
@@ -153,13 +153,13 @@ class PyValue {
     } else {
       return internal::InvalidValue(obj, "tried to convert to double");
     }
-    return std::move(value);
+    return value;
   }
 
   static Result<Decimal128> Convert(const Decimal128Type* type, const O&, I obj) {
     Decimal128 value;
     RETURN_NOT_OK(internal::DecimalFromPyObject(obj, *type, &value));
-    return std::move(value);
+    return value;
   }
 
   static Result<int32_t> Convert(const Date32Type*, const O&, I obj) {
@@ -171,7 +171,7 @@ class PyValue {
       RETURN_NOT_OK(
           internal::CIntFromPython(obj, &value, "Integer too large for date32"));
     }
-    return std::move(value);
+    return value;
   }
 
   static Result<int64_t> Convert(const Date64Type*, const O&, I obj) {
@@ -189,7 +189,7 @@ class PyValue {
       RETURN_NOT_OK(
           internal::CIntFromPython(obj, &value, "Integer too large for date64"));
     }
-    return std::move(value);
+    return value;
   }
 
   static Result<int32_t> Convert(const Time32Type* type, const O&, I obj) {
@@ -208,7 +208,7 @@ class PyValue {
     } else {
       RETURN_NOT_OK(internal::CIntFromPython(obj, &value, "Integer too large for int32"));
     }
-    return std::move(value);
+    return value;
   }
 
   static Result<int64_t> Convert(const Time64Type* type, const O&, I obj) {
@@ -227,7 +227,7 @@ class PyValue {
     } else {
       RETURN_NOT_OK(internal::CIntFromPython(obj, &value, "Integer too large for int64"));
     }
-    return std::move(value);
+    return value;
   }
 
   static Result<int64_t> Convert(const TimestampType* type, const O& options,
@@ -276,7 +276,7 @@ class PyValue {
     } else {
       RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
     }
-    return std::move(value);
+    return value;
   }
 
   static Result<int64_t> Convert(const DurationType* type, const O&, I obj) {
@@ -311,7 +311,7 @@ class PyValue {
     } else {
       RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
     }
-    return std::move(value);
+    return value;
   }
 
   // The binary-like intermediate representation is PyBytesView because it keeps temporary
