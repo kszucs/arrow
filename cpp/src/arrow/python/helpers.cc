@@ -163,21 +163,21 @@ Status CIntFromPythonImpl(PyObject* obj, Int* out, const std::string& overflow_m
 
   if (sizeof(Int) > sizeof(long)) {  // NOLINT
     const auto value = PyLong_AsLongLong(obj);
-    if (value == -1) {
+    if (ARROW_PREDICT_FALSE(value == -1)) {
       RETURN_IF_PYERROR();
     }
-    if (value < std::numeric_limits<Int>::min() ||
-        value > std::numeric_limits<Int>::max()) {
+    if (ARROW_PREDICT_FALSE(value < std::numeric_limits<Int>::min() ||
+                            value > std::numeric_limits<Int>::max())) {
       return IntegerOverflowStatus(obj, overflow_message);
     }
     *out = static_cast<Int>(value);
   } else {
     const auto value = PyLong_AsLong(obj);
-    if (value == -1) {
+    if (ARROW_PREDICT_FALSE(value == -1)) {
       RETURN_IF_PYERROR();
     }
-    if (value < std::numeric_limits<Int>::min() ||
-        value > std::numeric_limits<Int>::max()) {
+    if (ARROW_PREDICT_FALSE(value < std::numeric_limits<Int>::min() ||
+                            value > std::numeric_limits<Int>::max())) {
       return IntegerOverflowStatus(obj, overflow_message);
     }
     *out = static_cast<Int>(value);
@@ -196,20 +196,26 @@ Status CIntFromPythonImpl(PyObject* obj, Int* out, const std::string& overflow_m
   // conversion from non-ints (e.g. np.uint64), so do it ourselves
   if (!PyLong_Check(obj)) {
     ref.reset(PyNumber_Long(obj));
-    RETURN_IF_PYERROR();
+    if (!ref) {
+      RETURN_IF_PYERROR();
+    }
     obj = ref.obj();
   }
   if (sizeof(Int) > sizeof(unsigned long)) {  // NOLINT
     const auto value = PyLong_AsUnsignedLongLong(obj);
-    RETURN_IF_PYERROR();
-    if (value > std::numeric_limits<Int>::max()) {
+    if (ARROW_PREDICT_FALSE(value == static_cast<decltype(value)>(-1))) {
+      RETURN_IF_PYERROR();
+    }
+    if (ARROW_PREDICT_FALSE(value > std::numeric_limits<Int>::max())) {
       return IntegerOverflowStatus(obj, overflow_message);
     }
     *out = static_cast<Int>(value);
   } else {
     const auto value = PyLong_AsUnsignedLong(obj);
-    RETURN_IF_PYERROR();
-    if (value > std::numeric_limits<Int>::max()) {
+    if (ARROW_PREDICT_FALSE(value == static_cast<decltype(value)>(-1))) {
+      RETURN_IF_PYERROR();
+    }
+    if (ARROW_PREDICT_FALSE(value > std::numeric_limits<Int>::max())) {
       return IntegerOverflowStatus(obj, overflow_message);
     }
     *out = static_cast<Int>(value);
