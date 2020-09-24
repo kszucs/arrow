@@ -61,7 +61,7 @@ class Converter {
 
   OptionsType options() const { return options_; }
 
-  Status Reserve(int64_t additional_capacity) {
+  virtual Status Reserve(int64_t additional_capacity) {
     return builder_->Reserve(additional_capacity);
   }
 
@@ -127,6 +127,14 @@ template <typename BaseConverter, template <typename...> class ConverterTrait>
 class StructConverter : public BaseConverter {
  public:
   using ConverterType = typename ConverterTrait<StructType>::type;
+
+  Status Reserve(int64_t additional_capacity) override {
+    ARROW_RETURN_NOT_OK(this->builder_->Reserve(additional_capacity));
+    for (const auto& child : children_) {
+      ARROW_RETURN_NOT_OK(child->Reserve(additional_capacity));
+    }
+    return Status::OK();
+  }
 
  protected:
   Status Init(MemoryPool* pool) override {
@@ -249,7 +257,7 @@ class Chunker {
       return converter_->AppendNull();
     }
     ++length_;
-    return status;
+    return std::move(status);
   }
 
   Status Append(InputType value) {
@@ -259,7 +267,7 @@ class Chunker {
       return Append(value);
     }
     ++length_;
-    return status;
+    return std::move(status);
   }
 
   Status FinishChunk() {

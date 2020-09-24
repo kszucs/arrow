@@ -131,7 +131,7 @@ class PyValue {
   static inline Result<uint16_t> Convert(const HalfFloatType*, const O&, I obj) {
     uint16_t value;
     RETURN_NOT_OK(PyFloat_AsHalf(obj, &value));
-    return value;
+    return std::move(value);
   }
 
   static inline Result<float> Convert(const FloatType*, const O&, I obj) {
@@ -144,7 +144,7 @@ class PyValue {
     } else {
       return internal::InvalidValue(obj, "tried to convert to float32");
     }
-    return value;
+    return std::move(value);
   }
 
   static inline Result<double> Convert(const DoubleType*, const O&, I obj) {
@@ -160,13 +160,13 @@ class PyValue {
     } else {
       return internal::InvalidValue(obj, "tried to convert to double");
     }
-    return value;
+    return std::move(value);
   }
 
   static inline Result<Decimal128> Convert(const Decimal128Type* type, const O&, I obj) {
     Decimal128 value;
     RETURN_NOT_OK(internal::DecimalFromPyObject(obj, *type, &value));
-    return value;
+    return std::move(value);
   }
 
   static inline Result<int32_t> Convert(const Date32Type*, const O&, I obj) {
@@ -178,7 +178,7 @@ class PyValue {
       RETURN_NOT_OK(
           internal::CIntFromPython(obj, &value, "Integer too large for date32"));
     }
-    return value;
+    return std::move(value);
   }
 
   static inline Result<int64_t> Convert(const Date64Type*, const O&, I obj) {
@@ -196,7 +196,7 @@ class PyValue {
       RETURN_NOT_OK(
           internal::CIntFromPython(obj, &value, "Integer too large for date64"));
     }
-    return value;
+    return std::move(value);
   }
 
   static inline Result<int32_t> Convert(const Time32Type* type, const O&, I obj) {
@@ -215,7 +215,7 @@ class PyValue {
     } else {
       RETURN_NOT_OK(internal::CIntFromPython(obj, &value, "Integer too large for int32"));
     }
-    return value;
+    return std::move(value);
   }
 
   static inline Result<int64_t> Convert(const Time64Type* type, const O&, I obj) {
@@ -234,7 +234,7 @@ class PyValue {
     } else {
       RETURN_NOT_OK(internal::CIntFromPython(obj, &value, "Integer too large for int64"));
     }
-    return value;
+    return std::move(value);
   }
 
   static inline Result<int64_t> Convert(const TimestampType* type, const O& options,
@@ -332,14 +332,15 @@ class PyValue {
 
   static inline Result<PyBytesView> Convert(const FixedSizeBinaryType* type, const O&,
                                             I obj) {
-    ARROW_ASSIGN_OR_RAISE(auto view, PyBytesView::FromString(obj));
-    if (view.size == type->byte_width()) {
-      return std::move(view);
-    } else {
-      std::stringstream ss;
-      ss << "expected to be length " << type->byte_width() << " was " << view.size;
-      return internal::InvalidValue(obj, ss.str());
-    }
+    return PyBytesView::FromString(obj);
+    // ARROW_ASSIGN_OR_RAISE(auto view, PyBytesView::FromString(obj));
+    // if (view.size == type->byte_width()) {
+    //   return std::move(view);
+    // } else {
+    //   std::stringstream ss;
+    //   ss << "expected to be length " << type->byte_width() << " was " << view.size;
+    //   return internal::InvalidValue(obj, ss.str());
+    // }
   }
 
   template <typename T>
@@ -498,7 +499,7 @@ class PyPrimitiveConverter<T, enable_if_string_like<T>>
  public:
   Status Append(PyObject* value) override {
     if (PyValue::IsNull(this->options_, value)) {
-      return this->primitive_builder_->AppendNull();
+      this->primitive_builder_->UnsafeAppendNull();
     } else {
       ARROW_ASSIGN_OR_RAISE(
           auto view, PyValue::Convert(this->primitive_type_, this->options_, value));
@@ -506,9 +507,12 @@ class PyPrimitiveConverter<T, enable_if_string_like<T>>
         // observed binary value
         observed_binary_ = true;
       }
-      ARROW_RETURN_NOT_OK(this->primitive_builder_->ValidateOverflow(view.size));
-      return this->primitive_builder_->Append(view.bytes, view.size);
+      // ARROW_RETURN_NOT_OK(this->primitive_builder_->ValidateOverflow(view.size));
+      ARROW_RETURN_NOT_OK(this->primitive_builder_->ReserveData(view.size));
+      this->primitive_builder_->UnsafeAppend(view.bytes, view.size);
+      // return this->primitive_builder_->Append(view.bytes, view.size);
     }
+    return Status::OK();
   }
 
   Result<std::shared_ptr<Array>> ToArray() override {
