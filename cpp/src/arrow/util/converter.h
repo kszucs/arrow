@@ -244,23 +244,21 @@ class Chunker {
 
   Status AppendNull() {
     auto status = converter_->AppendNull();
-    if (status.ok()) {
-      ++length_;
-    } else if (status.IsCapacityError()) {
+    if (status.IsCapacityError()) {
       ARROW_RETURN_NOT_OK(FinishChunk());
       return converter_->AppendNull();
     }
+    ++length_;
     return status;
   }
 
   Status Append(InputType value) {
     auto status = converter_->Append(value);
-    if (status.ok()) {
-      ++length_;
-    } else if (status.IsCapacityError()) {
+    if (status.IsCapacityError()) {
       ARROW_RETURN_NOT_OK(FinishChunk());
       return Append(value);
     }
+    ++length_;
     return status;
   }
 
