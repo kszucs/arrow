@@ -118,7 +118,7 @@ class PyValue {
                                                                          I obj) {
     typename T::c_type value;
     ARROW_RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
-    return value;
+    return std::move(value);
     // if (status.ok()) {
     //   return value;
     // } else if (!internal::PyIntScalar_Check(obj)) {
