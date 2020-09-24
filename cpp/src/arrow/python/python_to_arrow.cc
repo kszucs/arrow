@@ -74,7 +74,7 @@ class PyValue {
   using O = PyConversionOptions;
 
   // Used for null checking before actually converting the values
-  static inline bool IsNull(const O& options, I obj) {
+  static bool IsNull(const O& options, I obj) {
     if (options.from_pandas) {
       return internal::PandasObjectIsNull(obj);
     } else {
@@ -83,12 +83,12 @@ class PyValue {
   }
 
   // Used for post-conversion numpy NaT sentinel checking
-  static inline bool IsNaT(const TimestampType*, int64_t value) {
+  static bool IsNaT(const TimestampType*, int64_t value) {
     return internal::npy_traits<NPY_DATETIME>::isnull(value);
   }
 
   // Used for post-conversion numpy NaT sentinel checking
-  static inline bool IsNaT(const DurationType*, int64_t value) {
+  static bool IsNaT(const DurationType*, int64_t value) {
     return internal::npy_traits<NPY_TIMEDELTA>::isnull(value);
   }
 
@@ -100,7 +100,7 @@ class PyValue {
     }
   }
 
-  static inline Result<bool> Convert(const BooleanType*, const O&, I obj) {
+  static Result<bool> Convert(const BooleanType*, const O&, I obj) {
     if (obj == Py_True) {
       return true;
     } else if (obj == Py_False) {
@@ -113,7 +113,7 @@ class PyValue {
   }
 
   template <typename T>
-  static inline enable_if_integer<T, Result<typename T::c_type>> Convert(const T*,
+  static enable_if_integer<T, Result<typename T::c_type>> Convert(const T*,
                                                                          const O&,
                                                                          I obj) {
     typename T::c_type value;
@@ -121,13 +121,13 @@ class PyValue {
     return std::move(value);
   }
 
-  static inline Result<uint16_t> Convert(const HalfFloatType*, const O&, I obj) {
+  static Result<uint16_t> Convert(const HalfFloatType*, const O&, I obj) {
     uint16_t value;
     RETURN_NOT_OK(PyFloat_AsHalf(obj, &value));
     return std::move(value);
   }
 
-  static inline Result<float> Convert(const FloatType*, const O&, I obj) {
+  static Result<float> Convert(const FloatType*, const O&, I obj) {
     float value;
     if (internal::PyFloatScalar_Check(obj)) {
       value = static_cast<float>(PyFloat_AsDouble(obj));
@@ -140,7 +140,7 @@ class PyValue {
     return std::move(value);
   }
 
-  static inline Result<double> Convert(const DoubleType*, const O&, I obj) {
+  static Result<double> Convert(const DoubleType*, const O&, I obj) {
     double value;
     if (PyFloat_Check(obj)) {
       value = PyFloat_AS_DOUBLE(obj);
@@ -156,13 +156,13 @@ class PyValue {
     return std::move(value);
   }
 
-  static inline Result<Decimal128> Convert(const Decimal128Type* type, const O&, I obj) {
+  static Result<Decimal128> Convert(const Decimal128Type* type, const O&, I obj) {
     Decimal128 value;
     RETURN_NOT_OK(internal::DecimalFromPyObject(obj, *type, &value));
     return std::move(value);
   }
 
-  static inline Result<int32_t> Convert(const Date32Type*, const O&, I obj) {
+  static Result<int32_t> Convert(const Date32Type*, const O&, I obj) {
     int32_t value;
     if (PyDate_Check(obj)) {
       auto pydate = reinterpret_cast<PyDateTime_Date*>(obj);
@@ -174,7 +174,7 @@ class PyValue {
     return std::move(value);
   }
 
-  static inline Result<int64_t> Convert(const Date64Type*, const O&, I obj) {
+  static Result<int64_t> Convert(const Date64Type*, const O&, I obj) {
     int64_t value;
     if (PyDateTime_Check(obj)) {
       auto pydate = reinterpret_cast<PyDateTime_DateTime*>(obj);
@@ -192,7 +192,7 @@ class PyValue {
     return std::move(value);
   }
 
-  static inline Result<int32_t> Convert(const Time32Type* type, const O&, I obj) {
+  static Result<int32_t> Convert(const Time32Type* type, const O&, I obj) {
     int32_t value;
     if (PyTime_Check(obj)) {
       switch (type->unit()) {
@@ -211,7 +211,7 @@ class PyValue {
     return std::move(value);
   }
 
-  static inline Result<int64_t> Convert(const Time64Type* type, const O&, I obj) {
+  static Result<int64_t> Convert(const Time64Type* type, const O&, I obj) {
     int64_t value;
     if (PyTime_Check(obj)) {
       switch (type->unit()) {
@@ -230,7 +230,7 @@ class PyValue {
     return std::move(value);
   }
 
-  static inline Result<int64_t> Convert(const TimestampType* type, const O& options,
+  static Result<int64_t> Convert(const TimestampType* type, const O& options,
                                         I obj) {
     int64_t value, offset;
     if (PyDateTime_Check(obj)) {
@@ -279,7 +279,7 @@ class PyValue {
     return std::move(value);
   }
 
-  static inline Result<int64_t> Convert(const DurationType* type, const O&, I obj) {
+  static Result<int64_t> Convert(const DurationType* type, const O&, I obj) {
     int64_t value;
     if (PyDelta_Check(obj)) {
       auto dt = reinterpret_cast<PyDateTime_Delta*>(obj);
@@ -319,12 +319,12 @@ class PyValue {
   // object was unicode encoded or not, which is used for unicode -> bytes coersion if
   // there is a non-unicode object observed.
 
-  static inline Status Convert(const BaseBinaryType*, const O&, I obj,
+  static Status Convert(const BaseBinaryType*, const O&, I obj,
                                PyBytesView& view) {
     return view.ParseString(obj);
   }
 
-  static inline Status Convert(const FixedSizeBinaryType* type, const O&, I obj,
+  static Status Convert(const FixedSizeBinaryType* type, const O&, I obj,
                                PyBytesView& view) {
     ARROW_RETURN_NOT_OK(view.ParseString(obj));
     if (view.size != type->byte_width()) {
@@ -337,7 +337,7 @@ class PyValue {
   }
 
   template <typename T>
-  static inline enable_if_string<T, Status> Convert(const T*, const O& options, I obj,
+  static enable_if_string<T, Status> Convert(const T*, const O& options, I obj,
                                                     PyBytesView& view) {
     if (options.strict) {
       // Strict conversion, force output to be unicode / utf8 and validate that
@@ -353,7 +353,7 @@ class PyValue {
     }
   }
 
-  static inline Result<bool> Convert(const DataType* type, const O&, I obj) {
+  static Result<bool> Convert(const DataType* type, const O&, I obj) {
     return Status::NotImplemented("PyValue::Convert is not implemented for type ", type);
   }
 };
