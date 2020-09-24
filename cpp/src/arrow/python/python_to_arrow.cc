@@ -117,14 +117,15 @@ class PyValue {
                                                                          const O&,
                                                                          I obj) {
     typename T::c_type value;
-    auto status = internal::CIntFromPython(obj, &value);
-    if (status.ok()) {
-      return value;
-    } else if (!internal::PyIntScalar_Check(obj)) {
-      return internal::InvalidValue(obj, "tried to convert to int");
-    } else {
-      return status;
-    }
+    ARROW_RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
+    return value;
+    // if (status.ok()) {
+    //   return value;
+    // } else if (!internal::PyIntScalar_Check(obj)) {
+    //   return internal::InvalidValue(obj, "tried to convert to int");
+    // } else {
+    //   return status;
+    // }
   }
 
   static inline Result<uint16_t> Convert(const HalfFloatType*, const O&, I obj) {

@@ -196,25 +196,19 @@ Status CIntFromPythonImpl(PyObject* obj, Int* out, const std::string& overflow_m
   // conversion from non-ints (e.g. np.uint64), so do it ourselves
   if (!PyLong_Check(obj)) {
     ref.reset(PyNumber_Long(obj));
-    if (!ref) {
-      RETURN_IF_PYERROR();
-    }
+    RETURN_IF_PYERROR();
     obj = ref.obj();
   }
   if (sizeof(Int) > sizeof(unsigned long)) {  // NOLINT
     const auto value = PyLong_AsUnsignedLongLong(obj);
-    if (value == static_cast<decltype(value)>(-1)) {
-      RETURN_IF_PYERROR();
-    }
+    RETURN_IF_PYERROR();
     if (value > std::numeric_limits<Int>::max()) {
       return IntegerOverflowStatus(obj, overflow_message);
     }
     *out = static_cast<Int>(value);
   } else {
     const auto value = PyLong_AsUnsignedLong(obj);
-    if (value == static_cast<decltype(value)>(-1)) {
-      RETURN_IF_PYERROR();
-    }
+    RETURN_IF_PYERROR();
     if (value > std::numeric_limits<Int>::max()) {
       return IntegerOverflowStatus(obj, overflow_message);
     }
@@ -227,9 +221,6 @@ Status CIntFromPythonImpl(PyObject* obj, Int* out, const std::string& overflow_m
 
 template <typename Int>
 Status CIntFromPython(PyObject* obj, Int* out, const std::string& overflow_message) {
-  if (PyBool_Check(obj)) {
-    return Status::TypeError("Expected integer, got bool");
-  }
   return CIntFromPythonImpl(obj, out, overflow_message);
 }
 
