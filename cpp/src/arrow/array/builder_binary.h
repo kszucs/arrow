@@ -434,6 +434,17 @@ class ARROW_EXPORT FixedSizeBinaryBuilder : public ArrayBuilder {
     return Status::OK();
   }
 
+  /// \brief Ensures there is enough allocated capacity to append the indicated
+  /// number of bytes to the value data buffer without additional allocations
+  Status ReserveData(int64_t elements) {
+    const int64_t size = byte_builder_.length() + elements;
+    ARROW_RETURN_IF(size > memory_limit(),
+                    Status::CapacityError("Cannot reserve capacity larger than ",
+                                          memory_limit(), " bytes"));
+    return (size > byte_builder_.capacity()) ? byte_builder_.Reserve(elements)
+                                             : Status::OK();
+  }
+
   Status ValidateOverflow() { return ValidateOverflow(0); }
 
   Status ValidateOverflow(int64_t new_bytes) {

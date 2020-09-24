@@ -332,15 +332,14 @@ class PyValue {
 
   static inline Result<PyBytesView> Convert(const FixedSizeBinaryType* type, const O&,
                                             I obj) {
-    return PyBytesView::FromString(obj);
-    // ARROW_ASSIGN_OR_RAISE(auto view, PyBytesView::FromString(obj));
-    // if (view.size == type->byte_width()) {
-    //   return std::move(view);
-    // } else {
-    //   std::stringstream ss;
-    //   ss << "expected to be length " << type->byte_width() << " was " << view.size;
-    //   return internal::InvalidValue(obj, ss.str());
-    // }
+    ARROW_ASSIGN_OR_RAISE(auto view, PyBytesView::FromString(obj));
+    if (view.size == type->byte_width()) {
+      return std::move(view);
+    } else {
+      std::stringstream ss;
+      ss << "expected to be length " << type->byte_width() << " was " << view.size;
+      return internal::InvalidValue(obj, ss.str());
+    }
   }
 
   template <typename T>
@@ -485,7 +484,8 @@ class PyPrimitiveConverter<T, enable_if_binary<T>>
     } else {
       ARROW_ASSIGN_OR_RAISE(
           auto view, PyValue::Convert(this->primitive_type_, this->options_, value));
-      ARROW_RETURN_NOT_OK(this->primitive_builder_->ValidateOverflow(view.size));
+      // ARROW_RETURN_NOT_OK(this->primitive_builder_->ValidateOverflow(view.size));
+      ARROW_RETURN_NOT_OK(this->primitive_builder_->ReserveData(view.size));
       this->primitive_builder_->UnsafeAppend(view.bytes, view.size);
     }
     return Status::OK();
