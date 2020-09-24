@@ -483,7 +483,7 @@ class PyPrimitiveConverter<T, enable_if_binary<T>>
       ARROW_ASSIGN_OR_RAISE(
           auto view, PyValue::Convert(this->primitive_type_, this->options_, value));
       ARROW_RETURN_NOT_OK(this->primitive_builder_->ValidateOverflow(view.size));
-      return this->primitive_builder_->Append(util::string_view(view.bytes, view.size));
+      return this->primitive_builder_->Append(view.bytes, view.size);
     }
   }
 };
