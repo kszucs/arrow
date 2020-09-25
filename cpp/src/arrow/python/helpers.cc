@@ -227,6 +227,9 @@ Status CIntFromPythonImpl(PyObject* obj, Int* out, const std::string& overflow_m
 
 template <typename Int>
 Status CIntFromPython(PyObject* obj, Int* out, const std::string& overflow_message) {
+  if (PyBool_Check(obj)) {
+    return Status::TypeError("Expected integer, got bool");
+  }
   return CIntFromPythonImpl(obj, out, overflow_message);
 }
 

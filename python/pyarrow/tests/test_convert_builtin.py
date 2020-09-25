@@ -382,7 +382,7 @@ def test_sequence_custom_integers(seq):
 @parametrize_with_iterable_types
 def test_broken_integers(seq):
     data = [MyBrokenInt()]
-    with pytest.raises(ZeroDivisionError):
+    with pytest.raises(pa.ArrowInvalid, match="tried to convert to int"):
         pa.array(seq(data), type=pa.int64())
 
 
@@ -1778,7 +1778,7 @@ def test_map_from_dicts():
 
     # Invalid dictionary types
     for entry in [[{'key': '1', 'value': 5}], [{'key': {'value': 2}}]]:
-        with pytest.raises(TypeError, match="an integer is required"):
+        with pytest.raises(pa.ArrowInvalid, match="tried to convert to int"):
             pa.array([entry], type=pa.map_('i4', 'i4'))
 
 
