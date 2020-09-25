@@ -36,7 +36,7 @@
     "repo_subdir": "python",
 
     // Custom build commands for Arrow.
-    "build_command": ["/bin/bash {build_dir}/asv-build.sh"],
+    "build_command": ["/bin/bash {conf_dir}/asv-build.sh"],
     "install_command": ["/bin/bash {build_dir}/asv-install.sh"],
     "uninstall_command": ["/bin/bash {build_dir}/asv-uninstall.sh"],
 
@@ -85,7 +85,7 @@
     "matrix": {
         // Use older boost since it works on more editions of the project
         "aws-sdk-cpp": [],
-        "boost-cpp": ["1.68.0"],
+        "boost-cpp": [],
         "brotli": [],
         "cmake": [],
         "cython": [],
@@ -94,8 +94,9 @@
         "libprotobuf": [],
         "lz4-c": [],
         "ninja": [],
+        "libutf8proc": [],
         "numpy": [],
-        "pandas": ["0.25.1"],
+        "pandas": [],
         "pip+setuptools_scm": [],
         "rapidjson": [],
         "re2": [],
