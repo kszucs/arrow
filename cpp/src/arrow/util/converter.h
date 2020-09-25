@@ -289,8 +289,9 @@ class Chunker {
   Status FinishChunk() {
     ARROW_ASSIGN_OR_RAISE(auto chunk, converter_->ToArray(length_));
     chunks_.push_back(chunk);
-
-    // reserve space for the remaining items
+    // reserve space for the remaining items, besides being an optimization it is also
+    // required if the converter's implementation relies on unsafe builder methods in
+    // conveter->Append()
     auto remaining = reserved_ - length_;
     Reset();
     return Reserve(remaining);
