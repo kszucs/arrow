@@ -113,9 +113,8 @@ class PyValue {
   }
 
   template <typename T>
-  static enable_if_integer<T, Result<typename T::c_type>> Convert(const T*,
-                                                                         const O&,
-                                                                         I obj) {
+  static enable_if_integer<T, Result<typename T::c_type>> Convert(const T*, const O&,
+                                                                  I obj) {
     typename T::c_type value;
     ARROW_RETURN_NOT_OK(internal::CIntFromPython(obj, &value));
     return value;
@@ -230,8 +229,7 @@ class PyValue {
     return value;
   }
 
-  static Result<int64_t> Convert(const TimestampType* type, const O& options,
-                                        I obj) {
+  static Result<int64_t> Convert(const TimestampType* type, const O& options, I obj) {
     int64_t value, offset;
     if (PyDateTime_Check(obj)) {
       if (options.ignore_timezone) {
@@ -319,13 +317,12 @@ class PyValue {
   // object was unicode encoded or not, which is used for unicode -> bytes coersion if
   // there is a non-unicode object observed.
 
-  static Status Convert(const BaseBinaryType*, const O&, I obj,
-                               PyBytesView& view) {
+  static Status Convert(const BaseBinaryType*, const O&, I obj, PyBytesView& view) {
     return view.ParseString(obj);
   }
 
   static Status Convert(const FixedSizeBinaryType* type, const O&, I obj,
-                               PyBytesView& view) {
+                        PyBytesView& view) {
     ARROW_RETURN_NOT_OK(view.ParseString(obj));
     if (view.size != type->byte_width()) {
       std::stringstream ss;
@@ -338,7 +335,7 @@ class PyValue {
 
   template <typename T>
   static enable_if_string<T, Status> Convert(const T*, const O& options, I obj,
-                                                    PyBytesView& view) {
+                                             PyBytesView& view) {
     if (options.strict) {
       // Strict conversion, force output to be unicode / utf8 and validate that
       // any binary values are utf8
@@ -1005,15 +1002,24 @@ Result<std::shared_ptr<ChunkedArray>> ConvertPySequence(PyObject* obj, PyObject*
 
   ARROW_ASSIGN_OR_RAISE(auto converter, (MakeConverter<PyConverter, PyConverterTrait>(
                                             options.type, options, pool)));
-  ARROW_ASSIGN_OR_RAISE(auto chunked_converter, MakeChunker(std::move(converter)));
-
-  // Convert values
-  if (mask != nullptr && mask != Py_None) {
-    RETURN_NOT_OK(ExtendMasked(chunked_converter.get(), seq, mask, size));
+  if (converter->may_overflow()) {
+    ARROW_ASSIGN_OR_RAISE(auto chunked_converter, MakeChunker(std::move(converter)));
+    // Convert values
+    if (mask != nullptr && mask != Py_None) {
+      RETURN_NOT_OK(ExtendMasked(chunked_converter.get(), seq, mask, size));
+    } else {
+      RETURN_NOT_OK(Extend(chunked_converter.get(), seq, size));
+    }
+    return chunked_converter->ToChunkedArray();
   } else {
-    RETURN_NOT_OK(Extend(chunked_converter.get(), seq, size));
+    // Convert values
+    if (mask != nullptr && mask != Py_None) {
+      RETURN_NOT_OK(ExtendMasked(converter.get(), seq, mask, size));
+    } else {
+      RETURN_NOT_OK(Extend(converter.get(), seq, size));
+    }
+    return converter->ToChunkedArray();
   }
-  return chunked_converter->ToChunkedArray();
 }
 
 }  // namespace py

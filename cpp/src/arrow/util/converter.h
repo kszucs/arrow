@@ -61,6 +61,8 @@ class Converter {
 
   OptionsType options() const { return options_; }
 
+  bool may_overflow() const { return may_overflow_; }
+
   virtual Status Reserve(int64_t additional_capacity) {
     return builder_->Reserve(additional_capacity);
   }
@@ -74,12 +76,19 @@ class Converter {
     return arr->Slice(0, length);
   }
 
+  virtual Result<std::shared_ptr<ChunkedArray>> ToChunkedArray() {
+    ARROW_ASSIGN_OR_RAISE(auto array, ToArray());
+    std::vector<std::shared_ptr<Array>> chunks = {std::move(array)};
+    return std::make_shared<ChunkedArray>(chunks);
+  }
+
  protected:
   virtual Status Init(MemoryPool* pool) { return Status::OK(); }
 
   std::shared_ptr<DataType> type_;
   std::shared_ptr<ArrayBuilder> builder_;
   OptionsType options_;
+  bool may_overflow_ = false;
 };
 
 template <typename ArrowType, typename BaseConverter>
@@ -90,8 +99,10 @@ class PrimitiveConverter : public BaseConverter {
  protected:
   Status Init(MemoryPool* pool) override {
     this->builder_ = std::make_shared<BuilderType>(this->type_, pool);
-    this->primitive_type_ = checked_cast<const ArrowType*>(this->type_.get());
-    this->primitive_builder_ = checked_cast<BuilderType*>(this->builder_.get());
+    this->may_overflow_ =
+        is_base_binary_like(this->type_->id()) || is_fixed_size_binary(this->type_->id());
+    primitive_type_ = checked_cast<const ArrowType*>(this->type_.get());
+    primitive_builder_ = checked_cast<BuilderType*>(this->builder_.get());
     return Status::OK();
   }
 
@@ -115,6 +126,7 @@ class ListConverter : public BaseConverter {
     this->builder_ =
         std::make_shared<BuilderType>(pool, value_converter_->builder(), this->type_);
     list_builder_ = checked_cast<BuilderType*>(this->builder_.get());
+    this->may_overflow_ = true;
     return Status::OK();
   }
 
@@ -146,6 +158,7 @@ class StructConverter : public BaseConverter {
       ARROW_ASSIGN_OR_RAISE(child_converter,
                             (MakeConverter<BaseConverter, ConverterTrait>(
                                 field->type(), this->options_, pool)));
+      this->may_overflow_ |= child_converter->may_overflow();
       child_builders.push_back(child_converter->builder());
       children_.push_back(std::move(child_converter));
     }
@@ -172,6 +185,7 @@ class DictionaryConverter : public BaseConverter {
     std::unique_ptr<ArrayBuilder> builder;
     ARROW_RETURN_NOT_OK(MakeDictionaryBuilder(pool, this->type_, NULLPTR, &builder));
     this->builder_ = std::move(builder);
+    this->may_overflow_ = false;
     dict_type_ = checked_cast<const DictionaryType*>(this->type_.get());
     value_type_ = checked_cast<const ValueType*>(dict_type_->value_type().get());
     value_builder_ = checked_cast<BuilderType*>(this->builder_.get());
@@ -247,7 +261,9 @@ class Chunker {
       : converter_(std::move(converter)) {}
 
   Status Reserve(int64_t additional_capacity) {
-    return converter_->Reserve(additional_capacity);
+    ARROW_RETURN_NOT_OK(converter_->Reserve(additional_capacity));
+    reserved_ += additional_capacity;
+    return Status::OK();
   }
 
   Status AppendNull() {
@@ -272,10 +288,12 @@ class Chunker {
 
   Status FinishChunk() {
     ARROW_ASSIGN_OR_RAISE(auto chunk, converter_->ToArray(length_));
-    converter_->builder()->Reset();
-    length_ = 0;
     chunks_.push_back(chunk);
-    return Status::OK();
+
+    // reserve space for the remaining items
+    auto remaining = reserved_ - length_;
+    Reset();
+    return Reserve(remaining);
   }
 
   Result<std::shared_ptr<ChunkedArray>> ToChunkedArray() {
@@ -284,7 +302,14 @@ class Chunker {
   }
 
  protected:
+  void Reset() {
+    converter_->builder()->Reset();
+    length_ = 0;
+    reserved_ = 0;
+  }
+
   int64_t length_ = 0;
+  int64_t reserved_ = 0;
   std::unique_ptr<Converter> converter_;
   std::vector<std::shared_ptr<Array>> chunks_;
 };
