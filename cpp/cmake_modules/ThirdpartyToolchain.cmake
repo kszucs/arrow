@@ -2174,12 +2174,15 @@ macro(build_cares)
 
   set(CARES_CMAKE_ARGS
       -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-      -DCMAKE_STATIC_LINKER_FLAGS="-lresolv"
       -DCARES_STATIC=ON
       -DCARES_SHARED=OFF
       "-DCMAKE_C_FLAGS=${EP_C_FLAGS}"
       -DCMAKE_INSTALL_LIBDIR=lib
       "-DCMAKE_INSTALL_PREFIX=${CARES_PREFIX}")
+
+  if(APPLE)
+    list(APPEND CARES_CMAKE_ARGS -DCMAKE_STATIC_LINKER_FLAGS="-lresolv")
+  endif()
 
   externalproject_add(cares_ep
                       ${EP_LOG_OPTIONS}
