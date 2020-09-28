@@ -89,8 +89,8 @@ function build_wheel {
           -DProtobuf_SOURCE=SYSTEM \
           -GNinja \
           ..
-    ninja
-    ninja install
+    make -j$(sysctl -n hw.logicalcpu)
+    make install
     popd
     popd
 

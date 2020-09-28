@@ -29,7 +29,6 @@ addons:
       - flatbuffers
       - flex
       - git
-      - ninja
       - openssl@1.1
       - protobuf
       - python@3.8
