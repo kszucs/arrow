@@ -26,9 +26,12 @@ if(WIN32)
   list(APPEND ARROW_FLIGHT_STATIC_LINK_LIBS ws2_32.lib)
 elseif(APPLE)
   if(LIBRESOLV_LIBRARY)
-    list(APPEND ARROW_FLIGHT_STATIC_LINK_LIBS LIBRESOLV_LIBRARY)
+    list(APPEND ARROW_FLIGHT_STATIC_LINK_LIBS ${LIBRESOLV_LIBRARY})
   endif()
 endif()
+
+message(STATUS "===============================================")
+message(STATUS ${ARROW_FLIGHT_STATIC_LINK_LIBS})
 
 if(ARROW_TEST_LINKAGE STREQUAL "static")
   set(ARROW_FLIGHT_TEST_LINK_LIBS arrow_flight_static arrow_flight_testing_static
