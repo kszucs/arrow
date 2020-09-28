@@ -87,7 +87,6 @@ function build_wheel {
           -DMAKE=make \
           -DOPENSSL_USE_STATIC_LIBS=ON \
           -DProtobuf_SOURCE=SYSTEM \
-          -GNinja \
           ..
     make -j$(sysctl -n hw.logicalcpu)
     make install
