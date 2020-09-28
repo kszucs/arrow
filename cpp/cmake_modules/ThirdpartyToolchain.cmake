@@ -2180,6 +2180,12 @@ macro(build_cares)
       -DCMAKE_INSTALL_LIBDIR=lib
       "-DCMAKE_INSTALL_PREFIX=${CARES_PREFIX}")
 
+  if(APPLE)
+    find_library(LIBRESOLV_LIBRARY NAMES resolv libresolv)
+    message(STATUS "===============================================")
+    message(STATUS ${LIBRESOLV_LIBRARY})
+  endif()
+
   externalproject_add(cares_ep
                       ${EP_LOG_OPTIONS}
                       URL ${CARES_SOURCE_URL}
