@@ -79,6 +79,7 @@ outputs:
         - re2
         - snappy
         - thrift-cpp >=0.11
+        - xsimd
         - zlib
         - zstd
       run:
