@@ -793,8 +793,9 @@ if [ "${ARTIFACT}" == "source" ]; then
   #   tar xf ${TEST_ARCHIVE} -C ${dist_name} --strip-components=1
   # fi
   #pushd ${dist_name}
+  pushd $ARROW_DIRECTORY
   test_source_distribution
-  #popd
+  popd
 elif [ "${ARTIFACT}" == "wheels" ]; then
   import_gpg_keys
   test_wheels

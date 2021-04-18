@@ -70,7 +70,7 @@ jobs:
       - name: Run verification
         shell: bash
         run: |
-          cd arrow
-          dev/release/verify-release-candidate.sh \
+          export ARROW_DIRECTORY=`pwd`/arrow
+          arrow/dev/release/verify-release-candidate.sh \
             {{ artifact }} \
             {{ release|default("1.0.0") }} {{ rc|default("0") }}
