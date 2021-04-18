@@ -778,23 +778,23 @@ fi
 
 if [ "${ARTIFACT}" == "source" ]; then
   dist_name="apache-arrow-${VERSION}"
-  if [ ${TEST_SOURCE} -gt 0 ]; then
-    import_gpg_keys
-    if [ ! -d "${dist_name}" ]; then
-      fetch_archive ${dist_name}
-      tar xf ${dist_name}.tar.gz
-    fi
-  else
-    mkdir -p ${dist_name}
-    if [ ! -f ${TEST_ARCHIVE} ]; then
-      echo "${TEST_ARCHIVE} not found"
-      exit 1
-    fi
-    tar xf ${TEST_ARCHIVE} -C ${dist_name} --strip-components=1
-  fi
-  pushd ${dist_name}
+  # if [ ${TEST_SOURCE} -gt 0 ]; then
+  #   import_gpg_keys
+  #   if [ ! -d "${dist_name}" ]; then
+  #     fetch_archive ${dist_name}
+  #     tar xf ${dist_name}.tar.gz
+  #   fi
+  # else
+  #   mkdir -p ${dist_name}
+  #   if [ ! -f ${TEST_ARCHIVE} ]; then
+  #     echo "${TEST_ARCHIVE} not found"
+  #     exit 1
+  #   fi
+  #   tar xf ${TEST_ARCHIVE} -C ${dist_name} --strip-components=1
+  # fi
+  #pushd ${dist_name}
   test_source_distribution
-  popd
+  #popd
 elif [ "${ARTIFACT}" == "wheels" ]; then
   import_gpg_keys
   test_wheels

@@ -70,6 +70,7 @@ jobs:
       - name: Run verification
         shell: bash
         run: |
-          arrow/dev/release/verify-release-candidate.sh \
+          cd arrow
+          dev/release/verify-release-candidate.sh \
             {{ artifact }} \
             {{ release|default("1.0.0") }} {{ rc|default("0") }}
