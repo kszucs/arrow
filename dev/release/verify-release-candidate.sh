@@ -449,7 +449,7 @@ test_ruby() {
 }
 
 test_go() {
-  local VERSION=1.15.14
+  local VERSION=1.15
   local ARCH=amd64
 
   if [ "$(uname)" == "Darwin" ]; then
