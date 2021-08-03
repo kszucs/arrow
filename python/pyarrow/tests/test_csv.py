@@ -1243,7 +1243,7 @@ class BaseTestCSVRead(BaseTestCSV):
 
         # Make the interruptible workload large enough to not finish
         # before the interrupt comes, even in release mode on fast machines
-        large_csv = b"a,b,c\n" + b"1,2,3\n" * 900_000_000
+        large_csv = b"a,b,c\n" + b"1,2,3\n" * 2_000_000_000
 
         def signal_from_thread():
             time.sleep(0.2)
