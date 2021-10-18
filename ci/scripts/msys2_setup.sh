@@ -36,7 +36,7 @@ case "${target}" in
     packages+=(${MINGW_PACKAGE_PREFIX}-gtest)
     packages+=(${MINGW_PACKAGE_PREFIX}-libutf8proc)
     packages+=(${MINGW_PACKAGE_PREFIX}-libxml2)
-    packages+=(${MINGW_PACKAGE_PREFIX}-llvm)
+    packages+=(${MINGW_PACKAGE_PREFIX}-llvm-12)
     packages+=(${MINGW_PACKAGE_PREFIX}-lz4)
     packages+=(${MINGW_PACKAGE_PREFIX}-make)
     packages+=(${MINGW_PACKAGE_PREFIX}-ninja)
@@ -60,7 +60,7 @@ case "${target}" in
     ;;
 esac
 
-case "${target}" in 
+case "${target}" in
   cgo)
     packages+=(${MINGW_PACKAGE_PREFIX}-arrow)
     packages+=(${MINGW_PACKAGE_PREFIX}-gcc)
