@@ -24,10 +24,6 @@ target=$1
 packages=()
 case "${target}" in
   cpp|c_glib|ruby)
-    # workaround
-    wget http://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-llvm-12.0.1-5-any.pkg.tar.zst
-    pacman -U mingw-w64-x86_64-llvm-12.0.1-5-any.pkg.tar.zst
-
     packages+=(${MINGW_PACKAGE_PREFIX}-aws-sdk-cpp)
     packages+=(${MINGW_PACKAGE_PREFIX}-boost)
     packages+=(${MINGW_PACKAGE_PREFIX}-brotli)
@@ -52,7 +48,7 @@ case "${target}" in
     packages+=(${MINGW_PACKAGE_PREFIX}-thrift)
     packages+=(${MINGW_PACKAGE_PREFIX}-zlib)
     packages+=(${MINGW_PACKAGE_PREFIX}-zstd)
-  ;;
+    ;;
 esac
 
 case "${target}" in
@@ -76,6 +72,14 @@ pacman \
   --refresh \
   --sync \
   "${packages[@]}"
+
+case "${target}" in
+  cpp|c_glib|ruby)
+    # Workaround until arrow supports LLVM 13
+    wget http://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-llvm-12.0.1-5-any.pkg.tar.zst
+    pacman --noconfirm -U mingw-w64-x86_64-llvm-12.0.1-5-any.pkg.tar.zst
+    ;;
+esac
 
 "$(dirname $0)/ccache_setup.sh"
 echo "CCACHE_DIR=$(cygpath --absolute --windows ccache)" >> $GITHUB_ENV
