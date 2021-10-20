@@ -205,6 +205,8 @@ jobs:
       CMAKE_INSTALL_LIBDIR: bin
       CMAKE_INSTALL_PREFIX: /usr
       CMAKE_UNITY_BUILD: ON
+      MSVC_LINK_VERBOSE: ON
+      CMAKE_BUILD_TYPE: Release
       NPROC: 2
     steps:
       - name: Disable Crash Dialogs
