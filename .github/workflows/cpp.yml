@@ -176,8 +176,8 @@ jobs:
           - windows-2016
         include:
           - os: windows-2016
-            name: Windows 2019
-            generator: Visual Studio 16 2019
+            name: Windows 2016
+            generator: Visual Studio 15 2017
     env:
       ARROW_BOOST_USE_SHARED: OFF
       ARROW_BUILD_BENCHMARKS: ON
