@@ -23,6 +23,7 @@
 1
 2
 3
+4
 
 #include <arrow/ipc/feather.h>
 #include <arrow/status.h>
