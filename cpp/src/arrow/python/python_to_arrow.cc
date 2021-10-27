@@ -25,7 +25,6 @@
 #include <sstream>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "arrow/array.h"
 #include "arrow/array/builder_binary.h"
