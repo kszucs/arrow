@@ -25,6 +25,7 @@
 3
 4
 5
+6
 
 #include <arrow/ipc/feather.h>
 #include <arrow/status.h>
