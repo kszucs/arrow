@@ -46,4 +46,4 @@ jobs:
         with:
           fetch-depth: 0
       - name: Fetch Submodules and Tags
-        run: ci/scripts/util_checkout.sh
+        run: sleep 240
