@@ -700,7 +700,7 @@ function(ADD_TEST_CASE REL_TEST_NAME)
   # for executables and libraries lying in $ENV{CONDA_PREFIX}/bin or
   # $ENV{CONDA_PREFIX}/lib but our test libraries and executables are not
   # installed there.
-  if(NOT "$ENV{CONDA_PREFIX}" STREQUAL "" AND APPLE)
+  if(NOT "$ENV{CONDA_PREFIX}" STREQUAL "")
     set_target_properties(${TEST_NAME}
                           PROPERTIES BUILD_WITH_INSTALL_RPATH TRUE
                                      INSTALL_RPATH_USE_LINK_PATH TRUE
