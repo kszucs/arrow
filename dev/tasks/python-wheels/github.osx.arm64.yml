@@ -71,9 +71,12 @@ jobs:
         shell: bash
         run: echo ${VCPKG_ROOT} >> $GITHUB_PATH
 
-      - name: Install OpenSSL
+      - name: Preinstall Problematic universal2 libraries
         shell: bash
-        run: arch -arm64 vcpkg install openssl:arm64-osx-static-release
+        run: |
+          arch -arm64 vcpkg install \
+            openssl:arm64-osx-static-release \
+            abseil:arm64-osx-static-release
 
       - name: Install Packages
         run: |
@@ -97,9 +100,11 @@ jobs:
         run: |
           mkdir -p $VCPKG_ROOT/installed/universal2-osx-static-release/lib
           for arch in arm64 amd64; do
-            arch -arm64 vcpkg install openssl:${arch}-osx-static-release
+            arch -arm64 vcpkg install \
+              openssl:${arch}-osx-static-release \
+              abseil:${arch}-osx-static-release
           done
-          for lib in libcrypto libssl; do
+          for lib in libcrypto libssl libabsl; do
             lipo -create $VCPKG_ROOT/installed/arm64-osx-static-release/lib/${lib}.a \
                          $VCPKG_ROOT/installed/amd64-osx-static-release/lib/${lib}.a \
                  -output $VCPKG_ROOT/installed/universal2-osx-static-release/lib/${lib}.a
