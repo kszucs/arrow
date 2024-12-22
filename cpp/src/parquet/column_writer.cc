@@ -1325,13 +1325,15 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
   }
 
   Status WriteArrowCDC(const int16_t* def_levels, const int16_t* rep_levels,
-                       int64_t num_levels, const ::arrow::Array& leaf_array) {
+                       int64_t num_levels, const ::arrow::Array& leaf_array,
+                       ArrowWriteContext* ctx, bool leaf_field_nullable) override {
     // calculate chunks
     // go over the chunks and slice the inputs
     //   call WriteArrow
     //   close the page
 
-    // int every_n = 1;
+    int64_t every_n = 1;
+    int64_t nth_record = 0;
 
     bool has_def_levels = descr_->max_definition_level() > 0;
     bool has_rep_levels = descr_->max_repetition_level() > 0;
@@ -1346,35 +1348,70 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     ARROW_LOG(INFO) << "Leaf Array: " << leaf_array.ToString();
 
     // iterate over the levels and get the values corresponding to each level
-    int64_t level_offset = 0;
-    int64_t array_offset = 0;
-    while (level_offset < num_levels) {
-      int16_t def_level = has_def_levels ? def_levels[level_offset] : 0;
-      int16_t rep_level = has_rep_levels ? rep_levels[level_offset] : 0;
+    int64_t l = 0;
+    int64_t v = 0;
+    int64_t rl = 0;
+    int64_t rv = 0;
+    int64_t prl = 0;
+    int64_t prv = 0;
+    while (l < num_levels) {
+      int16_t def_level = has_def_levels ? def_levels[l] : 0;
+      int16_t rep_level = has_rep_levels ? rep_levels[l] : 0;
+
+      if (rep_level == 0) {
+        // record boundary
+        nth_record++;
+        rl = l;
+        rv = v;
+      }
+
+      ////
+      if (nth_record > every_n) {
+        // write trigger
+        auto level_offset = prl;
+        auto array_offset = prv;
+        auto levels_to_write = rl - prl;
+
+        ARROW_LOG(INFO) << "CDC: record boundary at level_offset = " << level_offset
+                        << ", array_offset = " << array_offset
+                        << ", levels_to_write = " << levels_to_write;
+
+        auto sliced_array = leaf_array.Slice(array_offset);
+        ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
+                                  levels_to_write, *sliced_array, ctx,
+                                  leaf_field_nullable));
+        AddDataPage();
+        prl = rl;
+        prv = rv;
+        every_n++;
+        nth_record = 1;
+      }
 
       std::string value;
       if (def_level >= has_value_level) {
-        ARROW_ASSIGN_OR_RAISE(auto e, leaf_array.GetScalar(array_offset))
+        ARROW_ASSIGN_OR_RAISE(auto e, leaf_array.GetScalar(v))
         value = e->ToString();
-        array_offset++;
       } else {
         value = "";
       }
+      ////
+
+      if (def_level >= has_value_level) {
+        v++;
+      }
+      l++;
+
       ARROW_LOG(INFO) << "CDC: def_level = " << def_level << ", rep_level = " << rep_level
-                      << ", level_offset = " << level_offset
-                      << ", array_offset = " << array_offset << " , value = " << value;
-
-      level_offset++;
-
-      // int64_t end_offset = std::min(level_offset + every_n, num_levels);
-
-      // while (end_offset < num_levels && rep_levels[end_offset] != 0) {
-      //   end_offset++;
-      // }
-
-      // ARROW_LOG(INFO) << "CDC: level_offset = " << level_offset << ", end_offset = " <<
-      // end_offset; here call WriteArrow
+                      << ", l = " << l << ", v = " << v << ", value = " << value;
     }
+
+    // write remaining
+    auto level_offset = prl;
+    auto array_offset = prv;
+    auto levels_to_write = num_levels - prl;
+    auto sliced_array = leaf_array.Slice(array_offset);
+    ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
+                              levels_to_write, *sliced_array, ctx, leaf_field_nullable));
 
     return Status::OK();
   }
@@ -1384,8 +1421,6 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
                     ArrowWriteContext* ctx, bool leaf_field_nullable) override {
     ARROW_LOG(INFO) << "WriteArrow: num_levels = " << num_levels;
     ARROW_LOG(INFO) << "WriteArrow: array type = " << leaf_array.type()->ToString();
-
-    ARROW_CHECK_OK(WriteArrowCDC(def_levels, rep_levels, num_levels, leaf_array));
 
     BEGIN_PARQUET_CATCH_EXCEPTIONS
     // Leaf nulls are canonical when there is only a single null element after a list
