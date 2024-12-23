@@ -27,6 +27,7 @@
 #include "arrow/type.h"
 #include "arrow/util/compression.h"
 #include "arrow/util/type_fwd.h"
+#include "parquet/column_chunker.h"
 #include "parquet/encryption/encryption.h"
 #include "parquet/exception.h"
 #include "parquet/parquet_version.h"
@@ -1228,6 +1229,9 @@ struct ArrowWriteContext {
 
   // We use the shared ownership of this buffer
   std::shared_ptr<ResizableBuffer> def_levels_buffer;
+
+  // place the hashers here
+  GearHash hasher;
 };
 
 PARQUET_EXPORT

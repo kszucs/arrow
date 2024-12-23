@@ -45,6 +45,7 @@
 #include "arrow/util/rle_encoding_internal.h"
 #include "arrow/util/type_traits.h"
 #include "arrow/visit_array_inline.h"
+#include "parquet/column_chunker.h"
 #include "parquet/column_page.h"
 #include "parquet/encoding.h"
 #include "parquet/encryption/encryption_internal.h"
@@ -1372,9 +1373,9 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
         auto array_offset = prv;
         auto levels_to_write = rl - prl;
 
-        ARROW_LOG(INFO) << "CDC: record boundary at level_offset = " << level_offset
-                        << ", array_offset = " << array_offset
-                        << ", levels_to_write = " << levels_to_write;
+        // ARROW_LOG(INFO) << "CDC: record boundary at level_offset = " << level_offset
+        //                 << ", array_offset = " << array_offset
+        //                 << ", levels_to_write = " << levels_to_write;
 
         auto sliced_array = leaf_array.Slice(array_offset);
         ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
@@ -1394,6 +1395,9 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
       } else {
         value = "";
       }
+      if (ctx->hasher.Update(def_level, rep_level, value)) {
+        ARROW_LOG(INFO) << "CDC: CHUNK BOUNDARY";
+      }
       ////
 
       if (def_level >= has_value_level) {
@@ -1401,8 +1405,9 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
       }
       l++;
 
-      ARROW_LOG(INFO) << "CDC: def_level = " << def_level << ", rep_level = " << rep_level
-                      << ", l = " << l << ", v = " << v << ", value = " << value;
+      // ARROW_LOG(INFO) << "CDC: def_level = " << def_level << ", rep_level = " <<
+      // rep_level
+      //                 << ", l = " << l << ", v = " << v << ", value = " << value;
     }
 
     // write remaining

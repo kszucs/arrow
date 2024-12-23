@@ -130,7 +130,7 @@ class PARQUET_EXPORT FileWriter {
   virtual ::arrow::Status Close() = 0;
   virtual ~FileWriter();
 
-  virtual MemoryPool* memory_pool() const = 0;
+  // virtual MemoryPool* memory_pool() const = 0;
   /// \brief Add key-value metadata to the file.
   /// \param[in] key_value_metadata the metadata to add.
   /// \note This will overwrite any existing metadata with the same key.

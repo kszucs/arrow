@@ -160,7 +160,6 @@ set(PARQUET_SRCS
     arrow/writer.cc
     bloom_filter.cc
     bloom_filter_reader.cc
-    column_chunker.cc
     column_reader.cc
     column_scanner.cc
     column_writer.cc
@@ -391,7 +390,6 @@ add_parquet_test(reader-test
 
 add_parquet_test(writer-test
                  SOURCES
-                 column_chunker_test.cc
                  column_writer_test.cc
                  file_serialize_test.cc
                  stream_writer_test.cc)
