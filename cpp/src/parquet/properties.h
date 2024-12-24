@@ -1232,6 +1232,8 @@ struct ArrowWriteContext {
 
   // place the hashers here
   GearHash hasher;
+
+  std::vector<GearHash> hashers;
 };
 
 PARQUET_EXPORT

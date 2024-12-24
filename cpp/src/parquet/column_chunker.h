@@ -100,13 +100,24 @@ const uint64_t GEAR_HASH_TABLE[] = {
     0x84321e13b9bbc816, 0xfb3d6fb6ab2fdd8d, 0x60305eed8e160a8d, 0xcbbf4b14e9946ce8,
     0x00004f63381b10c3, 0x07d5b7816fcc4e10, 0xe5a536726a6a8155, 0x57afb23447a07fdd,
     0x18f346f7abc9d394, 0x636dc655d61ad33d, 0xcc8bab4939f7f3f6, 0x63c7a906c1dd187b};
-const uint64_t MASK = 0xffff000000000000;
-const int MIN_LEN = 65536 / 8;
-const int MAX_LEN = 65536 * 2;
+// const uint64_t MASK = 0xffff00000000000;
+const uint64_t MASK = 0xffff00000000000;
+// const uint64_t MASK = 0xfff0000000000000;
+// const int MIN_LEN = 65536 / 8;
+// const int MAX_LEN = 65536 * 2;
+
+const int MIN_LEN = 512 * 1024;
+const int MAX_LEN = 2 * 1024 * 1024;
 
 class GearHash {
  public:
   GearHash() : hash_(0), mask_(MASK) {}
+
+  void Reset() {
+    hash_ = 0;
+    mask_ = MASK;
+    chunk_size_ = 0;
+  }
 
   // int64_t GetHash() const {
   //     return hash_;
@@ -127,7 +138,7 @@ class GearHash {
   //     return Update<byte_width>(buf);
   // }
 
-  bool Update(int16_t def, int16_t rep, std::string str) {
+  bool IsBoundary(int16_t def, int16_t rep, std::string str) {
     bool match = false;
     // update with both bytes of the def
     hash_ = (hash_ << 1) + GEAR_HASH_TABLE[def & 0xff];
@@ -139,8 +150,17 @@ class GearHash {
     match |= (hash_ & mask_) == 0;
     hash_ = (hash_ << 1) + GEAR_HASH_TABLE[(rep >> 8) & 0xff];
     match |= (hash_ & mask_) == 0;
+    chunk_size_ += 4;
     match |= Update(reinterpret_cast<const uint8_t*>(str.c_str()), str.size());
-    return match;
+    // return match;
+    if ((match && (chunk_size_ >= MIN_LEN)) || (chunk_size_ >= MAX_LEN)) {
+      // std::cout << "chunk size: " << chunk_size_ << std::endl;
+      // std::cout << "hash: " << hash_ << std::endl;
+      chunk_size_ = 0;
+      return true;
+    } else {
+      return false;
+    }
   }
 
   // template <size_t N>
@@ -153,10 +173,12 @@ class GearHash {
         match = true;
       }
     }
+    chunk_size_ += N;
     return match;
   }
 
  private:
   uint64_t hash_;
   uint64_t mask_;
+  uint64_t chunk_size_ = 0;
 };
