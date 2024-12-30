@@ -161,14 +161,13 @@ class ArrowColumnWriterV2 {
               std::shared_ptr<Array> values_array =
                   result.leaf_array->Slice(range.start, range.Size());
 
-              // return column_writer->WriteArrow(result.def_levels, result.rep_levels,
-              //                                  result.def_rep_level_count,
-              //                                  *values_array, ctx,
-              //                                  result.leaf_is_nullable);
-              return column_writer->WriteArrowCDC(
-                  leaf_idx, result.def_levels, result.rep_levels,
-                  result.def_rep_level_count, *values_array, ctx,
-                  result.leaf_is_nullable);
+              return column_writer->WriteArrow(result.def_levels, result.rep_levels,
+                                               result.def_rep_level_count, *values_array,
+                                               ctx, result.leaf_is_nullable);
+              // return column_writer->WriteArrowCDC(
+              //     leaf_idx, result.def_levels, result.rep_levels,
+              //     result.def_rep_level_count, *values_array, ctx,
+              //     result.leaf_is_nullable);
             }));
       }
 
@@ -392,10 +391,6 @@ class FileWriterImpl : public FileWriter {
                              "'");
     } else if (chunk_size > this->properties().max_row_group_length()) {
       chunk_size = this->properties().max_row_group_length();
-    }
-
-    for (int i = 0; i < table.num_columns(); i++) {
-      column_write_context_.hashers.push_back(GearHash());
     }
 
     auto WriteRowGroup = [&](int64_t offset, int64_t size) {

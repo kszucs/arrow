@@ -1332,15 +1332,19 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     // go over the chunks and slice the inputs
     //   call WriteArrow
     //   close the page
-    GearHash& hasher = ctx->hashers[leaf_idx];
+    ARROW_LOG(INFO) << "WriteArrowCDC: leaf_idx = " << leaf_idx
+                    << ", num_levels = " << num_levels;
+    ARROW_LOG(INFO) << "WriteArrowCDC: number of hashers = " << ctx->hashers.size();
+
+    GearHash& hasher = ctx->hashers.at(leaf_idx);
 
     bool has_def_levels = descr_->max_definition_level() > 0;
     bool has_rep_levels = descr_->max_repetition_level() > 0;
     int16_t has_value_level = descr_->max_definition_level() - 1;
 
-    ARROW_LOG(INFO) << "WriteArrowCDC: num_levels = " << num_levels
-                    << ", leaf_array.length = " << leaf_array.length()
-                    << ", leaf array type = " << leaf_array.type()->ToString();
+    // ARROW_LOG(INFO) << "WriteArrowCDC: num_levels = " << num_levels
+    //                 << ", leaf_array.length = " << leaf_array.length()
+    //                 << ", leaf array type = " << leaf_array.type()->ToString();
     // ARROW_LOG(INFO) << "CDC: has_def_levels = " << has_def_levels
     //                 << ", has_rep_levels = " << has_rep_levels;
 
@@ -1353,6 +1357,7 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     int64_t rv = 0;
     int64_t prl = 0;
     int64_t prv = 0;
+    int64_t e = 0;
     while (l < num_levels) {
       int16_t def_level = has_def_levels ? def_levels[l] : 0;
       int16_t rep_level = has_rep_levels ? rep_levels[l] : 0;
@@ -1372,7 +1377,9 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
       }
 
       //// action happens here
-      if (hasher.IsBoundary(def_level, rep_level, value)) {
+      hasher.IsBoundary(def_level, rep_level, value);
+      // if (hasher.IsBoundary(def_level, rep_level, value)) {
+      if (e > 1000) {
         // write trigger
         auto level_offset = prl;
         auto array_offset = prv;
@@ -1397,8 +1404,11 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
         // TODO(kszucs): disable automatic page addition or increase the page size limit
         // to inf
         AddDataPage();
+        // CommitWriteAndCheckPageLimit();
         prl = rl;
         prv = rv;
+
+        e = 0;
       }
       ////
 
@@ -1412,17 +1422,21 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
       //                 << ", l = " << l << ", v = " << v << ", value = " << value;
     }
 
-    // write remaining
-    auto level_offset = prl;
-    auto array_offset = prv;
-    auto levels_to_write = num_levels - prl;
-    auto sliced_array = leaf_array.Slice(array_offset);
-    // ARROW_LOG(INFO) << "Write1 level_offset = " << level_offset << ", array_offset = "
-    // << array_offset << ", levels_to_write = "
-    //                   << levels_to_write;
-    ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
-                              levels_to_write, *sliced_array, ctx, leaf_field_nullable));
+    // write remaining, the condition is probably not needed
+    if (prl < num_levels) {
+      auto level_offset = prl;
+      auto array_offset = prv;
+      auto levels_to_write = num_levels - prl;
+      auto sliced_array = leaf_array.Slice(array_offset);
 
+      // ARROW_LOG(INFO) << "Write1 level_offset = " << level_offset << ", array_offset =
+      // "
+      // << array_offset << ", levels_to_write = "
+      //                   << levels_to_write;
+      ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
+                                levels_to_write, *sliced_array, ctx,
+                                leaf_field_nullable));
+    }
     return Status::OK();
   }
 
@@ -1763,10 +1777,10 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     num_buffered_encoded_values_ += num_values;
     num_buffered_nulls_ += num_nulls;
 
-    // if (check_page_size &&
-    //     current_encoder_->EstimatedDataEncodedSize() >= properties_->data_pagesize()) {
-    //   AddDataPage();
-    // }
+    if (check_page_size &&
+        current_encoder_->EstimatedDataEncodedSize() >= properties_->data_pagesize()) {
+      AddDataPage();
+    }
   }
 
   void FallbackToPlainEncoding() {
