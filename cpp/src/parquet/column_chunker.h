@@ -101,14 +101,11 @@ const uint64_t GEAR_HASH_TABLE[] = {
     0x84321e13b9bbc816, 0xfb3d6fb6ab2fdd8d, 0x60305eed8e160a8d, 0xcbbf4b14e9946ce8,
     0x00004f63381b10c3, 0x07d5b7816fcc4e10, 0xe5a536726a6a8155, 0x57afb23447a07fdd,
     0x18f346f7abc9d394, 0x636dc655d61ad33d, 0xcc8bab4939f7f3f6, 0x63c7a906c1dd187b};
-// const uint64_t MASK = 0xffff00000000000;
-const uint64_t MASK = 0xffff00000000000;
-// const uint64_t MASK = 0xfff0000000000000;
-// const int MIN_LEN = 65536 / 8;
-// const int MAX_LEN = 65536 * 2;
 
-const int MIN_LEN = 512 * 1024;
-const int MAX_LEN = 2 * 1024 * 1024;
+const uint64_t MASK = 0xffff00000000000;
+
+const int MIN_LEN = 2 * 65536 / 8;
+const int MAX_LEN = 2 * 65536 * 2;
 
 class GearHash {
  public:
@@ -119,25 +116,6 @@ class GearHash {
     mask_ = MASK;
     chunk_size_ = 0;
   }
-
-  // int64_t GetHash() const {
-  //     return hash_;
-  // }
-
-  // void SetHash(int64_t hash) {
-  //     hash_ = hash;
-  // }
-
-  // bool Update(const )
-
-  // template <typename T>
-  // bool Update(const ::arrow::NumericArray<T>& array, uint64_t index) {
-  //     using byte_width = typename ::arrow::TypeTraits<typename
-  //     T::TypeClass>::bytes_required();
-  //     // get the byte represetnation of the value
-  //     auto buf = reinterpret_cast<const uint8_t*>(array.Value(index));
-  //     return Update<byte_width>(buf);
-  // }
 
   bool IsBoundary(int16_t def, int16_t rep, const std::string& str) {
     bool match = false;

@@ -1356,7 +1356,6 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     int64_t rv = 0;
     int64_t prl = 0;
     int64_t prv = 0;
-    int64_t e = 0;
     while (l < num_levels) {
       int16_t def_level = has_def_levels ? def_levels[l] : 0;
       int16_t rep_level = has_rep_levels ? rep_levels[l] : 0;
@@ -1376,17 +1375,14 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
       }
 
       //// action happens here
-      hasher.IsBoundary(def_level, rep_level, value);
-      // if (hasher.IsBoundary(def_level, rep_level, value)) {
-      if (e > 1000) {
+      if (hasher.IsBoundary(def_level, rep_level, value)) {
         // write trigger
         auto level_offset = prl;
         auto array_offset = prv;
         auto levels_to_write = rl - prl;
 
         // ARROW_LOG(INFO) << "CDC: CHUNK BOUNDARY at level " << l << " with " <<
-        // levels_to_write
-        //         << " levels";
+        // levels_to_write  << " levels";
 
         // ARROW_LOG(INFO) << "CDC: record boundary at level_offset = " << level_offset
         //                 << ", array_offset = " << array_offset
@@ -1406,8 +1402,6 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
         // CommitWriteAndCheckPageLimit();
         prl = rl;
         prv = rv;
-
-        e = 0;
       }
       ////
 
