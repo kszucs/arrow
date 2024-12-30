@@ -128,11 +128,11 @@ class ArrowColumnWriterV2 {
   // the next column is written (i.e. no buffering is assumed).
   //
   // Columns are written in DFS order.
-  Status Write(ArrowWriteContext* ctx) {
+  Status Write(ArrowWriteContext* ctx, std::vector<GearHash>& hashers) {
     for (int leaf_idx = 0; leaf_idx < leaf_count_; leaf_idx++) {
       ColumnWriter* column_writer;
+      const int column_index = start_leaf_column_index_ + leaf_idx;
       if (row_group_writer_->buffered()) {
-        const int column_index = start_leaf_column_index_ + leaf_idx;
         PARQUET_CATCH_NOT_OK(column_writer = row_group_writer_->column(column_index));
       } else {
         PARQUET_CATCH_NOT_OK(column_writer = row_group_writer_->NextColumn());
@@ -161,13 +161,15 @@ class ArrowColumnWriterV2 {
               std::shared_ptr<Array> values_array =
                   result.leaf_array->Slice(range.start, range.Size());
 
-              return column_writer->WriteArrow(result.def_levels, result.rep_levels,
-                                               result.def_rep_level_count, *values_array,
-                                               ctx, result.leaf_is_nullable);
-              // return column_writer->WriteArrowCDC(
-              //     leaf_idx, result.def_levels, result.rep_levels,
-              //     result.def_rep_level_count, *values_array, ctx,
-              //     result.leaf_is_nullable);
+              // return column_writer->WriteArrow(result.def_levels, result.rep_levels,
+              //                                  result.def_rep_level_count,
+              //                                  *values_array, ctx,
+              //                                  result.leaf_is_nullable);
+              auto hasher = hashers[column_index];
+              return column_writer->WriteArrowCDC(
+                  hasher, result.def_levels, result.rep_levels,
+                  result.def_rep_level_count, *values_array, ctx,
+                  result.leaf_is_nullable);
             }));
       }
 
@@ -313,6 +315,12 @@ class FileWriterImpl : public FileWriter {
         parallel_column_write_contexts_.emplace_back(pool, arrow_properties_.get());
       }
     }
+    // calculate the sum number of leaf columns
+    auto leaf_column_count = 0;
+    for (int i = 0; i < schema_->num_fields(); i++) {
+      leaf_column_count += CalculateLeafCount(schema_->field(i)->type().get());
+    }
+    column_hashers_.resize(leaf_column_count);
   }
 
   Status Init() {
@@ -367,7 +375,7 @@ class FileWriterImpl : public FileWriter {
           std::unique_ptr<ArrowColumnWriterV2> writer,
           ArrowColumnWriterV2::Make(*data, offset, size, schema_manifest_,
                                     row_group_writer_));
-      return writer->Write(&column_write_context_);
+      return writer->Write(&column_write_context_, column_hashers_);
     }
 
     return Status::NotImplemented("Unknown engine version.");
@@ -454,7 +462,7 @@ class FileWriterImpl : public FileWriter {
         if (arrow_properties_->use_threads()) {
           writers.emplace_back(std::move(writer));
         } else {
-          RETURN_NOT_OK(writer->Write(&column_write_context_));
+          RETURN_NOT_OK(writer->Write(&column_write_context_, column_hashers_));
         }
       }
 
@@ -462,7 +470,10 @@ class FileWriterImpl : public FileWriter {
         DCHECK_EQ(parallel_column_write_contexts_.size(), writers.size());
         RETURN_NOT_OK(::arrow::internal::ParallelFor(
             static_cast<int>(writers.size()),
-            [&](int i) { return writers[i]->Write(&parallel_column_write_contexts_[i]); },
+            [&](int i) {
+              return writers[i]->Write(&parallel_column_write_contexts_[i],
+                                       column_hashers_);
+            },
             arrow_properties_->executor()));
       }
 
@@ -522,6 +533,8 @@ class FileWriterImpl : public FileWriter {
   /// schema_->num_fields() to make it thread-safe. Otherwise, the vector is
   /// empty and column_write_context_ above is shared by all columns.
   std::vector<ArrowWriteContext> parallel_column_write_contexts_;
+
+  std::vector<GearHash> column_hashers_;
 };
 
 FileWriter::~FileWriter() {}

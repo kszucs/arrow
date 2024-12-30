@@ -1325,18 +1325,17 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
                 WriteChunk, pages_change_on_record_boundaries());
   }
 
-  Status WriteArrowCDC(int leaf_idx, const int16_t* def_levels, const int16_t* rep_levels,
-                       int64_t num_levels, const ::arrow::Array& leaf_array,
-                       ArrowWriteContext* ctx, bool leaf_field_nullable) override {
+  Status WriteArrowCDC(GearHash& hasher, const int16_t* def_levels,
+                       const int16_t* rep_levels, int64_t num_levels,
+                       const ::arrow::Array& leaf_array, ArrowWriteContext* ctx,
+                       bool leaf_field_nullable) override {
     // calculate chunks
     // go over the chunks and slice the inputs
     //   call WriteArrow
     //   close the page
-    ARROW_LOG(INFO) << "WriteArrowCDC: leaf_idx = " << leaf_idx
-                    << ", num_levels = " << num_levels;
-    ARROW_LOG(INFO) << "WriteArrowCDC: number of hashers = " << ctx->hashers.size();
-
-    GearHash& hasher = ctx->hashers.at(leaf_idx);
+    // ARROW_LOG(INFO) << "WriteArrowCDC: leaf_idx = " << leaf_idx
+    //                 << ", num_levels = " << num_levels;
+    // ARROW_LOG(INFO) << "WriteArrowCDC: number of hashers = " << ctx->hashers.size();
 
     bool has_def_levels = descr_->max_definition_level() > 0;
     bool has_rep_levels = descr_->max_repetition_level() > 0;

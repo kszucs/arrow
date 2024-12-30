@@ -141,19 +141,19 @@ class GearHash {
 
   bool IsBoundary(int16_t def, int16_t rep, const std::string& str) {
     bool match = false;
-    // // update with both bytes of the def
-    // hash_ = (hash_ << 1) + GEAR_HASH_TABLE[def & 0xff];
-    // match |= (hash_ & mask_) == 0;
-    // hash_ = (hash_ << 1) + GEAR_HASH_TABLE[(def >> 8) & 0xff];
-    // match |= (hash_ & mask_) == 0;
-    // // update with both bytes of the rep
-    // hash_ = (hash_ << 1) + GEAR_HASH_TABLE[rep & 0xff];
-    // match |= (hash_ & mask_) == 0;
-    // hash_ = (hash_ << 1) + GEAR_HASH_TABLE[(rep >> 8) & 0xff];
-    // match |= (hash_ & mask_) == 0;
-    // chunk_size_ += 4;
-    // match |= Update(reinterpret_cast<const uint8_t*>(str.c_str()), str.size());
-    // return match;
+    // update with both bytes of the def
+    hash_ = (hash_ << 1) + GEAR_HASH_TABLE[def & 0xff];
+    match |= (hash_ & mask_) == 0;
+    hash_ = (hash_ << 1) + GEAR_HASH_TABLE[(def >> 8) & 0xff];
+    match |= (hash_ & mask_) == 0;
+    // update with both bytes of the rep
+    hash_ = (hash_ << 1) + GEAR_HASH_TABLE[rep & 0xff];
+    match |= (hash_ & mask_) == 0;
+    hash_ = (hash_ << 1) + GEAR_HASH_TABLE[(rep >> 8) & 0xff];
+    match |= (hash_ & mask_) == 0;
+    chunk_size_ += 4;
+    match |= Update(reinterpret_cast<const uint8_t*>(str.c_str()), str.size());
+
     if ((match && (chunk_size_ >= MIN_LEN)) || (chunk_size_ >= MAX_LEN)) {
       // std::cout << "chunk size: " << chunk_size_ << std::endl;
       // std::cout << "hash: " << hash_ << std::endl;
@@ -164,18 +164,18 @@ class GearHash {
     }
   }
 
-  //   bool inline Update(const uint8_t* buf, size_t N) {
-  //     bool match = false;
-  //     for (size_t i = 0; i < N; ++i) {
-  //       hash_ = (hash_ << 1) + GEAR_HASH_TABLE[buf[i]];
+  bool inline Update(const uint8_t* buf, size_t N) {
+    bool match = false;
+    for (size_t i = 0; i < N; ++i) {
+      hash_ = (hash_ << 1) + GEAR_HASH_TABLE[buf[i]];
 
-  //       if ((hash_ & mask_) == 0) {
-  //         match = true;
-  //       }
-  //     }
-  //     chunk_size_ += N;
-  //     return match;
-  //   }
+      if ((hash_ & mask_) == 0) {
+        match = true;
+      }
+    }
+    chunk_size_ += N;
+    return match;
+  }
 
  private:
   uint64_t hash_ = 0;
