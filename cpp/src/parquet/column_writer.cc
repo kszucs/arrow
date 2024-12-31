@@ -1416,20 +1416,19 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     }
 
     // write remaining, the condition is probably not needed
-    if (prl < num_levels) {
-      auto level_offset = prl;
-      auto array_offset = prv;
-      auto levels_to_write = num_levels - prl;
-      auto sliced_array = leaf_array.Slice(array_offset);
 
-      // ARROW_LOG(INFO) << "Write1 level_offset = " << level_offset << ", array_offset =
-      // "
-      // << array_offset << ", levels_to_write = "
-      //                   << levels_to_write;
-      ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
-                                levels_to_write, *sliced_array, ctx,
-                                leaf_field_nullable));
-    }
+    auto level_offset = prl;
+    auto array_offset = prv;
+    auto levels_to_write = num_levels - prl;
+    auto sliced_array = leaf_array.Slice(array_offset);
+
+    // ARROW_LOG(INFO) << "Write1 level_offset = " << level_offset << ", array_offset =
+    // "
+    // << array_offset << ", levels_to_write = "
+    //                   << levels_to_write;
+    ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
+                              levels_to_write, *sliced_array, ctx, leaf_field_nullable));
+
     return Status::OK();
   }
 
