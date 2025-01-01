@@ -1329,20 +1329,8 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
                        const int16_t* rep_levels, int64_t num_levels,
                        const ::arrow::Array& leaf_array, ArrowWriteContext* ctx,
                        bool leaf_field_nullable) override {
-    // calculate chunks
-    // go over the chunks and slice the inputs
-    //   call WriteArrow
-    //   close the page
-    // ARROW_LOG(INFO) << "WriteArrowCDC: leaf_idx = " << leaf_idx
-    //                 << ", num_levels = " << num_levels;
-    // ARROW_LOG(INFO) << "WriteArrowCDC: number of hashers = " << ctx->hashers.size();
-
     bool has_def_levels = descr_->max_definition_level() > 0;
     bool has_rep_levels = descr_->max_repetition_level() > 0;
-    int16_t has_value_level = descr_->max_definition_level() - 1;
-    // if (leaf_field_nullable) {
-    //   --has_value_level;
-    // }
 
     // ARROW_LOG(INFO) << "WriteArrowCDC: num_levels = " << num_levels
     //                 << ", leaf_array.length = " << leaf_array.length()
@@ -1353,6 +1341,12 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
 
     // ARROW_LOG(INFO) << "Leaf Array: " << leaf_array.ToString();
 
+    ARROW_LOG(INFO) << "CDC: max_definition_level = " << descr_->max_definition_level()
+                    << ", max_repetition_level = " << descr_->max_repetition_level()
+                    << ", level_info_.def_level = " << level_info_.def_level
+                    << ", level_info_.repeated_ancestor_def_level = "
+                    << level_info_.repeated_ancestor_def_level;
+
     // iterate over the levels and get the values corresponding to each level
     int64_t l = 0;
     int64_t v = 0;
@@ -1361,9 +1355,7 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     int64_t prl = 0;
     int64_t prv = 0;
 
-    // int64_t e = 0;
     while (l < num_levels) {
-      // e++;
       int16_t def_level = has_def_levels ? def_levels[l] : 0;
       int16_t rep_level = has_rep_levels ? rep_levels[l] : 0;
 
@@ -1373,20 +1365,22 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
         rv = v;
       }
 
-      std::string value;
-      if (def_level >= has_value_level) {
-        ARROW_ASSIGN_OR_RAISE(auto e, leaf_array.GetScalar(v))
-        value = e->ToString();
+      std::string value = "";
+
+      l++;
+      if (has_rep_levels) {
+        // level_info_.def_level == level_info_.repeated_ancestor_def_level
+        if (def_level >= level_info_.repeated_ancestor_def_level) {
+          ARROW_ASSIGN_OR_RAISE(auto p, leaf_array.GetScalar(v));
+          value = p->ToString();
+          v++;
+        }
       } else {
-        value = "";
+        ARROW_ASSIGN_OR_RAISE(auto p, leaf_array.GetScalar(v));
+        value = p->ToString();
+        v++;
       }
 
-      // ARROW_LOG(INFO) << "CDC: def_level = " << def_level << ", rep_level = " <<
-      // rep_level
-      //                 << ", l = " << l << ", v = " << v << ", value = " << value;
-
-      //// action happens here
-      // if (e >= 10) {
       if (hasher.IsBoundary(def_level, rep_level, value)) {
         // write trigger
         auto level_offset = prl;
@@ -1414,23 +1408,8 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
           // CommitWriteAndCheckPageLimit();
           prl = rl;
           prv = rv;
-
-          // e = 0;
         }
       }
-      ////
-
-      if (!has_rep_levels) {
-        v++;
-      } else if (def_level >= has_value_level) {
-        v++;
-      }
-
-      // if (def_level >= has_value_level) {
-      //   v++;
-      // }
-      // v++;
-      l++;
     }
 
     // write remaining, the condition is probably not needed
@@ -1440,10 +1419,6 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     auto levels_to_write = num_levels - prl;
     auto sliced_array = leaf_array.Slice(array_offset);
 
-    // ARROW_LOG(INFO) << "Write1 level_offset = " << level_offset << ", array_offset =
-    // "
-    // << array_offset << ", levels_to_write = "
-    //                   << levels_to_write;
     ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
                               levels_to_write, *sliced_array, ctx, leaf_field_nullable));
 
