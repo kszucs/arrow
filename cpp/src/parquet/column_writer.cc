@@ -1340,10 +1340,14 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     bool has_def_levels = descr_->max_definition_level() > 0;
     bool has_rep_levels = descr_->max_repetition_level() > 0;
     int16_t has_value_level = descr_->max_definition_level() - 1;
+    // if (leaf_field_nullable) {
+    //   --has_value_level;
+    // }
 
     // ARROW_LOG(INFO) << "WriteArrowCDC: num_levels = " << num_levels
     //                 << ", leaf_array.length = " << leaf_array.length()
-    //                 << ", leaf array type = " << leaf_array.type()->ToString();
+    //                 << ", leaf array type = " << leaf_array.type()->ToString()
+    //                 << ", leaf_field_nullable = " << leaf_field_nullable;
     // ARROW_LOG(INFO) << "CDC: has_def_levels = " << has_def_levels
     //                 << ", has_rep_levels = " << has_rep_levels;
 
@@ -1356,7 +1360,10 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     int64_t rv = 0;
     int64_t prl = 0;
     int64_t prv = 0;
+
+    // int64_t e = 0;
     while (l < num_levels) {
+      // e++;
       int16_t def_level = has_def_levels ? def_levels[l] : 0;
       int16_t rep_level = has_rep_levels ? rep_levels[l] : 0;
 
@@ -1374,7 +1381,12 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
         value = "";
       }
 
+      // ARROW_LOG(INFO) << "CDC: def_level = " << def_level << ", rep_level = " <<
+      // rep_level
+      //                 << ", l = " << l << ", v = " << v << ", value = " << value;
+
       //// action happens here
+      // if (e >= 10) {
       if (hasher.IsBoundary(def_level, rep_level, value)) {
         // write trigger
         auto level_offset = prl;
@@ -1389,30 +1401,36 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
         //                 << ", levels_to_write = " << levels_to_write;
 
         // ARROW_LOG(INFO) << "Write0 level_offset = " << level_offset << ", array_offset
-        // = " << array_offset << ", levels_to_write = "
-        //                 << levels_to_write;
+        // = " << array_offset << ", levels_to_write = "  << levels_to_write;
 
-        auto sliced_array = leaf_array.Slice(array_offset);
-        ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
-                                  levels_to_write, *sliced_array, ctx,
-                                  leaf_field_nullable));
-        // TODO(kszucs): disable automatic page addition or increase the page size limit
-        // to inf
-        AddDataPage();
-        // CommitWriteAndCheckPageLimit();
-        prl = rl;
-        prv = rv;
+        if (levels_to_write > 0) {
+          auto sliced_array = leaf_array.Slice(array_offset);
+          ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
+                                    levels_to_write, *sliced_array, ctx,
+                                    leaf_field_nullable));
+          // TODO(kszucs): disable automatic page addition or increase the page size limit
+          // to inf
+          AddDataPage();
+          // CommitWriteAndCheckPageLimit();
+          prl = rl;
+          prv = rv;
+
+          // e = 0;
+        }
       }
       ////
 
-      if (def_level >= has_value_level) {
+      if (!has_rep_levels) {
+        v++;
+      } else if (def_level >= has_value_level) {
         v++;
       }
-      l++;
 
-      // ARROW_LOG(INFO) << "CDC: def_level = " << def_level << ", rep_level = " <<
-      // rep_level
-      //                 << ", l = " << l << ", v = " << v << ", value = " << value;
+      // if (def_level >= has_value_level) {
+      //   v++;
+      // }
+      // v++;
+      l++;
     }
 
     // write remaining, the condition is probably not needed

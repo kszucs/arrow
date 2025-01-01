@@ -104,8 +104,8 @@ const uint64_t GEAR_HASH_TABLE[] = {
 
 const uint64_t MASK = 0xffff00000000000;
 
-const int MIN_LEN = 2 * 65536 / 8;
-const int MAX_LEN = 2 * 65536 * 2;
+const int MIN_LEN = 4 * 65536 / 8;
+const int MAX_LEN = 4 * 65536 * 2;
 
 class GearHash {
  public:
