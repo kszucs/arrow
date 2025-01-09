@@ -147,28 +147,9 @@ class ArrowColumnWriterV2 {
                     "Lists with non-zero length null components are not supported");
               }
 
-              // ARROW_LOG(INFO) << "Writing leaf column " << leaf_idx;
-              // // print result.post_list_visited_elements
-              // for (size_t i = 0; i < visited_component_size; i++) {
-              //   // print each range object
-              //   ARROW_LOG(INFO) << "start: " <<
-              //   result.post_list_visited_elements[i].start
-              //                   << " end: " <<
-              //                   result.post_list_visited_elements[i].end;
-              // }
-
               const ElementRange& range = result.post_list_visited_elements[0];
               std::shared_ptr<Array> values_array =
                   result.leaf_array->Slice(range.start, range.Size());
-
-              // print result.post_list_visited_elements
-              // for (size_t i = 0; i < visited_component_size; i++) {
-              //   // print each range object
-              //   ARROW_LOG(INFO) << "start: " <<
-              //   result.post_list_visited_elements[i].start
-              //                   << " end: " <<
-              //                   result.post_list_visited_elements[i].end;
-              // }
 
               // return column_writer->WriteArrow(result.def_levels, result.rep_levels,
               //                                  result.def_rep_level_count,

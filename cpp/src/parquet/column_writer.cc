@@ -1340,7 +1340,6 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
 
       l++;
       if (has_rep_levels) {
-        // level_info_.def_level == level_info_.repeated_ancestor_def_level
         if (def_level >= level_info_.repeated_ancestor_def_level) {
           ARROW_ASSIGN_OR_RAISE(auto p, leaf_array.GetScalar(v));
           value = p->ToString();
