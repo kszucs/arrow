@@ -124,6 +124,9 @@ class PARQUET_EXPORT PageWriter {
   virtual void Compress(const Buffer& src_buffer, ResizableBuffer* dest_buffer) = 0;
 };
 
+// column writer should have a column chunker based on properties
+// there should be two column chunkers, one doing CDC and one doing page size
+// based chunking, perhaps a third with fixed size chunking for easier testing
 class PARQUET_EXPORT ColumnWriter {
  public:
   virtual ~ColumnWriter() = default;
@@ -191,7 +194,7 @@ class PARQUET_EXPORT ColumnWriter {
                                      ArrowWriteContext* ctx,
                                      bool leaf_field_nullable) = 0;
 
-  virtual ::arrow::Status WriteArrowCDC(GearHash& hasher, const int16_t* def_levels,
+  virtual ::arrow::Status WriteArrowCDC(const int16_t* def_levels,
                                         const int16_t* rep_levels, int64_t num_levels,
                                         const ::arrow::Array& leaf_array,
                                         ArrowWriteContext* ctx,

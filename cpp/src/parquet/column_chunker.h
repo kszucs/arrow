@@ -34,6 +34,10 @@
 #include "arrow/array.h"
 #include "arrow/type_traits.h"
 #include "arrow/util/logging.h"
+#include "parquet/level_conversion.h"
+
+namespace parquet {
+namespace internal {
 
 // Constants
 const uint64_t GEAR_HASH_TABLE[] = {
@@ -103,19 +107,27 @@ const uint64_t GEAR_HASH_TABLE[] = {
     0x18f346f7abc9d394, 0x636dc655d61ad33d, 0xcc8bab4939f7f3f6, 0x63c7a906c1dd187b};
 
 const uint64_t MASK = 0xffff00000000000;
-
 const int MIN_LEN = 65536 / 8;
 const int MAX_LEN = 65536 * 2;
 
+// create a fake null array class with a GetView method returning 0 always
+class FakeNullArray {
+ public:
+  uint8_t GetView(int64_t i) const { return 0; }
+};
+
 class GearHash {
  public:
-  GearHash() {}
+  GearHash(const LevelInfo& level_info, uint64_t min_len = MIN_LEN,
+           uint64_t max_len = MAX_LEN)
+      : level_info_(level_info), min_len_(min_len), max_len_(max_len) {}
 
-  void Reset() {
-    hash_ = 0;
-    mask_ = MASK;
-    chunk_size_ = 0;
-  }
+  // bool IsBoundary(int16_t def, int16_t rep, const std::string& str) {
+  //   bool match = Roll<int16_t>(reinterpret_cast<const uint8_t*>(&def));
+  //   match |= Roll<int16_t>(reinterpret_cast<const uint8_t*>(&rep));
+  //   match |= Roll(reinterpret_cast<const uint8_t*>(str.c_str()), str.size());
+  //   return Check(match);
+  // }
 
   bool IsBoundary(int16_t def, int16_t rep, const std::string& str) {
     bool match = false;
@@ -146,7 +158,6 @@ class GearHash {
     bool match = false;
     for (size_t i = 0; i < N; ++i) {
       hash_ = (hash_ << 1) + GEAR_HASH_TABLE[buf[i]];
-
       if ((hash_ & mask_) == 0) {
         match = true;
       }
@@ -155,8 +166,158 @@ class GearHash {
     return match;
   }
 
+  template <typename T>
+  bool inline Roll(const T value) {
+    constexpr size_t BYTE_WIDTH = sizeof(T);
+    auto bytes = reinterpret_cast<const uint8_t*>(&value);
+    bool match = false;
+    for (size_t i = 0; i < BYTE_WIDTH; ++i) {
+      hash_ = (hash_ << 1) + GEAR_HASH_TABLE[bytes[i]];
+      if ((hash_ & mask_) == 0) {
+        match = true;
+      }
+    }
+    chunk_size_ += BYTE_WIDTH;
+    return match;
+  }
+
+  bool inline Roll(std::string_view value) {
+    bool match = false;
+    for (size_t i = 0; i < value.size(); ++i) {
+      hash_ = (hash_ << 1) + GEAR_HASH_TABLE[static_cast<uint8_t>(value[i])];
+      if ((hash_ & mask_) == 0) {
+        match = true;
+      }
+    }
+    chunk_size_ += value.size();
+    return match;
+  }
+
+  bool inline Check(bool match) {
+    if ((match && (chunk_size_ >= min_len_)) || (chunk_size_ >= max_len_)) {
+      chunk_size_ = 0;
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  template <typename T>
+  const std::vector<std::tuple<int64_t, int64_t, int64_t>> GetBoundaries(
+      const int16_t* def_levels, const int16_t* rep_levels, int64_t num_levels,
+      const T& leaf_array) {
+    // TODO(kszucs): check for def_levels and rep_levels if they are nullptrs then pick a
+    // fast path
+    std::vector<std::tuple<int64_t, int64_t, int64_t>> result;
+    bool has_def_levels = level_info_.def_level > 0;
+    bool has_rep_levels = level_info_.rep_level > 0;
+
+    bool is_match;
+    int64_t level_offset = 0;
+    int64_t value_offset = 0;
+    int64_t record_level_offset = 0;
+    int64_t record_value_offset = 0;
+    int64_t prev_record_level_offset = 0;
+    int64_t prev_record_value_offset = 0;
+
+    while (level_offset < num_levels) {
+      // int16_t def_level = def_levels[level_offset];
+      // int16_t rep_level = rep_levels[level_offset];
+      int16_t def_level = has_def_levels ? def_levels[level_offset] : 0;
+      int16_t rep_level = has_rep_levels ? rep_levels[level_offset] : 0;
+
+      if (rep_level == 0) {
+        // record boundary
+        record_level_offset = level_offset;
+        record_value_offset = value_offset;
+      }
+
+      is_match = false;
+      if (def_levels != nullptr) {
+        is_match |= Roll(def_levels + level_offset);
+      }
+      if (rep_levels != nullptr) {
+        is_match |= Roll(rep_levels + level_offset);
+      }
+      ++level_offset;
+
+      if (has_rep_levels) {
+        if (def_level >= level_info_.repeated_ancestor_def_level) {
+          is_match = Roll(leaf_array.GetView(value_offset));
+          ++value_offset;
+        }
+      } else {
+        is_match = Roll(leaf_array.GetView(value_offset));
+        ++value_offset;
+      }
+
+      if (Check(is_match)) {
+        auto levels_to_write = record_level_offset - prev_record_level_offset;
+        if (levels_to_write > 0) {
+          result.push_back(std::make_tuple(prev_record_level_offset,
+                                           prev_record_value_offset, levels_to_write));
+          prev_record_level_offset = record_level_offset;
+          prev_record_value_offset = record_value_offset;
+        }
+      }
+    }
+
+    // this may not be necessary
+    auto levels_to_write = num_levels - prev_record_level_offset;
+    if (levels_to_write > 0) {
+      result.push_back(std::make_tuple(prev_record_level_offset, prev_record_value_offset,
+                                       levels_to_write));
+    }
+    return result;
+  }
+
+#define PRIMITIVE_CASE(TYPE_ID, ArrowType)                   \
+  case ::arrow::Type::TYPE_ID:                               \
+    return GetBoundaries(def_levels, rep_levels, num_levels, \
+                         reinterpret_cast<const ::arrow::ArrowType##Array&>(values));
+
+  const ::arrow::Result<std::vector<std::tuple<int64_t, int64_t, int64_t>>> GetBoundaries(
+      const int16_t* def_levels, const int16_t* rep_levels, int64_t num_levels,
+      const ::arrow::Array& values) {
+    auto type_id = values.type()->id();
+    switch (type_id) {
+      case ::arrow::Type::NA:
+        FakeNullArray fake_null_array;
+        return GetBoundaries(def_levels, rep_levels, num_levels, fake_null_array);
+        PRIMITIVE_CASE(BOOL, Boolean)
+        PRIMITIVE_CASE(INT8, Int8)
+        PRIMITIVE_CASE(INT16, Int16)
+        PRIMITIVE_CASE(INT32, Int32)
+        PRIMITIVE_CASE(INT64, Int64)
+        PRIMITIVE_CASE(UINT8, UInt8)
+        PRIMITIVE_CASE(UINT16, UInt16)
+        PRIMITIVE_CASE(UINT32, UInt32)
+        PRIMITIVE_CASE(UINT64, UInt64)
+        PRIMITIVE_CASE(HALF_FLOAT, HalfFloat)
+        PRIMITIVE_CASE(FLOAT, Float)
+        PRIMITIVE_CASE(DOUBLE, Double)
+        PRIMITIVE_CASE(STRING, String)
+        PRIMITIVE_CASE(BINARY, Binary)
+        PRIMITIVE_CASE(FIXED_SIZE_BINARY, FixedSizeBinary)
+        PRIMITIVE_CASE(DATE32, Date32)
+        PRIMITIVE_CASE(DATE64, Date64)
+        PRIMITIVE_CASE(TIME32, Time32)
+        PRIMITIVE_CASE(TIME64, Time64)
+        PRIMITIVE_CASE(TIMESTAMP, Timestamp)
+      default:
+        return ::arrow::Status::NotImplemented("Unsupported type " +
+                                               values.type()->ToString());
+    }
+  }
+
  private:
+  const internal::LevelInfo& level_info_;
   uint64_t hash_ = 0;
   uint64_t mask_ = MASK;
+  uint64_t min_len_ = MIN_LEN;
+  uint64_t max_len_ = MAX_LEN;
   uint64_t chunk_size_ = 0;
 };
+
+}  // namespace internal
+}  // namespace parquet
