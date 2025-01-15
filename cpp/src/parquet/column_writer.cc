@@ -1317,6 +1317,17 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
   Status WriteArrowCDC(const int16_t* def_levels, const int16_t* rep_levels,
                        int64_t num_levels, const ::arrow::Array& leaf_array,
                        ArrowWriteContext* ctx, bool leaf_field_nullable) override {
+    // Leaf nulls are canonical when there is only a single null element after a list
+    // and it is at the leaf.
+    bool single_nullable_element =
+        (level_info_.def_level == level_info_.repeated_ancestor_def_level + 1) &&
+        leaf_field_nullable;
+    if (!leaf_field_nullable && leaf_array.null_count() != 0) {
+      return Status::Invalid("Column '", descr_->name(),
+                             "' is declared non-nullable but contains nulls");
+    }
+    bool maybe_parent_nulls = level_info_.HasNullableValues() && !single_nullable_element;
+
     ARROW_ASSIGN_OR_RAISE(auto boundaries,
                           content_defined_chunker_.GetBoundaries(def_levels, rep_levels,
                                                                  num_levels, leaf_array));

@@ -108,21 +108,26 @@ const uint64_t GEAR_HASH_TABLE[] = {
     0x00004f63381b10c3, 0x07d5b7816fcc4e10, 0xe5a536726a6a8155, 0x57afb23447a07fdd,
     0x18f346f7abc9d394, 0x636dc655d61ad33d, 0xcc8bab4939f7f3f6, 0x63c7a906c1dd187b};
 
-// const uint64_t MASK = 0xffff00000000000;
+const uint64_t MASK = 0xffff00000000000;
 // const int MIN_LEN = 65536 / 8;
 // const int MAX_LEN = 65536 * 2;
 
-const uint64_t MASK = 0xfff00000000000;
-// const int MIN_LEN = 65536 / 8;
-// const int MAX_LEN = 65536 * 2;
+const int64_t MB = 1024 * 1024;
+const int64_t MAX_LEN = 2 * MB;
+const int64_t MIN_LEN = MB / 4;
 
-const int MIN_LEN = 1000;
-const int MAX_LEN = 10000;
+// const uint64_t MASK = 0xfff00000000000;
+// const int MIN_LEN = 1000;
+// const int MAX_LEN = 10000;
 
 // create a fake null array class with a GetView method returning 0 always
 class FakeNullArray {
  public:
   uint8_t GetView(int64_t i) const { return 0; }
+
+  std::shared_ptr<::arrow::DataType> type() const { return ::arrow::null(); }
+
+  int64_t null_count() const { return 0; }
 };
 
 class GearHash {
@@ -167,15 +172,39 @@ class GearHash {
     }
   }
 
+  // template <typename T>
+  // const std::vector<std::tuple<int64_t, int64_t, int64_t>> GetBoundaries(
+  //     int64_t num_levels, const T& leaf_array) {
+  //   std::vector<std::tuple<int64_t, int64_t, int64_t>> result;
+
+  //   int64_t offset = 0;
+  //   int64_t prev_offset = 0;
+
+  //   while (offset < num_levels) {
+  //     if (Check(Roll(leaf_array.GetView(offset)))) {
+  //       result.push_back(std::make_tuple(prev_offset, prev_offset, offset -
+  //       prev_offset)); prev_offset = offset;
+  //     }
+  //     ++offset;
+  //   }
+  //   if (prev_offset < num_levels) {
+  //     result.push_back(std::make_tuple(prev_offset, prev_offset, num_levels -
+  //     prev_offset));
+  //   }
+  //   return result;
+  // }
+
   template <typename T>
   const std::vector<std::tuple<int64_t, int64_t, int64_t>> GetBoundaries(
       const int16_t* def_levels, const int16_t* rep_levels, int64_t num_levels,
       const T& leaf_array) {
-    // TODO(kszucs): check for def_levels and rep_levels if they are nullptrs then pick a
-    // fast path
     std::vector<std::tuple<int64_t, int64_t, int64_t>> result;
     bool has_def_levels = level_info_.def_level > 0;
     bool has_rep_levels = level_info_.rep_level > 0;
+    // bool no_nulls = leaf_array.null_count() == 0;
+    // if (!has_rep_levels && !maybe_parent_nulls && no_nulls) {
+    //   return GetBoundaries(num_levels, leaf_array);
+    // }
 
     bool is_match;
     int64_t level_offset = 0;
@@ -219,7 +248,6 @@ class GearHash {
       }
     }
 
-    // this may not be necessary
     auto levels_to_write = num_levels - prev_record_level_offset;
     if (levels_to_write > 0) {
       result.push_back(std::make_tuple(prev_record_level_offset, prev_record_value_offset,
