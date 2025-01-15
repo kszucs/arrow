@@ -106,9 +106,16 @@ const uint64_t GEAR_HASH_TABLE[] = {
     0x00004f63381b10c3, 0x07d5b7816fcc4e10, 0xe5a536726a6a8155, 0x57afb23447a07fdd,
     0x18f346f7abc9d394, 0x636dc655d61ad33d, 0xcc8bab4939f7f3f6, 0x63c7a906c1dd187b};
 
-const uint64_t MASK = 0xffff00000000000;
-const int MIN_LEN = 65536 / 8;
-const int MAX_LEN = 65536 * 2;
+// const uint64_t MASK = 0xffff00000000000;
+// const int MIN_LEN = 65536 / 8;
+// const int MAX_LEN = 65536 * 2;
+
+const uint64_t MASK = 0xfff00000000000;
+// const int MIN_LEN = 65536 / 8;
+// const int MAX_LEN = 65536 * 2;
+
+const int MIN_LEN = 1000;
+const int MAX_LEN = 10000;
 
 // create a fake null array class with a GetView method returning 0 always
 class FakeNullArray {
@@ -120,60 +127,53 @@ class GearHash {
  public:
   GearHash(const LevelInfo& level_info, uint64_t min_len = MIN_LEN,
            uint64_t max_len = MAX_LEN)
-      : level_info_(level_info), min_len_(min_len), max_len_(max_len) {}
+      : level_info_(level_info), hash_(0), chunk_size_(0) {}
 
   // bool IsBoundary(int16_t def, int16_t rep, const std::string& str) {
-  //   bool match = Roll<int16_t>(reinterpret_cast<const uint8_t*>(&def));
-  //   match |= Roll<int16_t>(reinterpret_cast<const uint8_t*>(&rep));
-  //   match |= Roll(reinterpret_cast<const uint8_t*>(str.c_str()), str.size());
-  //   return Check(match);
+  //   bool match = false;
+  //   // update with both bytes of the def
+  //   hash_ = (hash_ << 1) + GEAR_HASH_TABLE[def & 0xff];
+  //   match |= (hash_ & mask_) == 0;
+  //   hash_ = (hash_ << 1) + GEAR_HASH_TABLE[(def >> 8) & 0xff];
+  //   match |= (hash_ & mask_) == 0;
+  //   // update with both bytes of the rep
+  //   hash_ = (hash_ << 1) + GEAR_HASH_TABLE[rep & 0xff];
+  //   match |= (hash_ & mask_) == 0;
+  //   hash_ = (hash_ << 1) + GEAR_HASH_TABLE[(rep >> 8) & 0xff];
+  //   match |= (hash_ & mask_) == 0;
+  //   chunk_size_ += 4;
+  //   match |= Update(reinterpret_cast<const uint8_t*>(str.c_str()), str.size());
+
+  //   if ((match && (chunk_size_ >= MIN_LEN)) || (chunk_size_ >= MAX_LEN)) {
+  //     // std::cout << "chunk size: " << chunk_size_ << std::endl;
+  //     // std::cout << "hash: " << hash_ << std::endl;
+  //     chunk_size_ = 0;
+  //     return true;
+  //   } else {
+  //     return false;
+  //   }
   // }
 
-  bool IsBoundary(int16_t def, int16_t rep, const std::string& str) {
-    bool match = false;
-    // update with both bytes of the def
-    hash_ = (hash_ << 1) + GEAR_HASH_TABLE[def & 0xff];
-    match |= (hash_ & mask_) == 0;
-    hash_ = (hash_ << 1) + GEAR_HASH_TABLE[(def >> 8) & 0xff];
-    match |= (hash_ & mask_) == 0;
-    // update with both bytes of the rep
-    hash_ = (hash_ << 1) + GEAR_HASH_TABLE[rep & 0xff];
-    match |= (hash_ & mask_) == 0;
-    hash_ = (hash_ << 1) + GEAR_HASH_TABLE[(rep >> 8) & 0xff];
-    match |= (hash_ & mask_) == 0;
-    chunk_size_ += 4;
-    match |= Update(reinterpret_cast<const uint8_t*>(str.c_str()), str.size());
-
-    if ((match && (chunk_size_ >= MIN_LEN)) || (chunk_size_ >= MAX_LEN)) {
-      // std::cout << "chunk size: " << chunk_size_ << std::endl;
-      // std::cout << "hash: " << hash_ << std::endl;
-      chunk_size_ = 0;
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  bool inline Update(const uint8_t* buf, size_t N) {
-    bool match = false;
-    for (size_t i = 0; i < N; ++i) {
-      hash_ = (hash_ << 1) + GEAR_HASH_TABLE[buf[i]];
-      if ((hash_ & mask_) == 0) {
-        match = true;
-      }
-    }
-    chunk_size_ += N;
-    return match;
-  }
+  // bool inline Update(const uint8_t* buf, size_t N) {
+  //   bool match = false;
+  //   for (size_t i = 0; i < N; ++i) {
+  //     hash_ = (hash_ << 1) + GEAR_HASH_TABLE[buf[i]];
+  //     if ((hash_ & mask_) == 0) {
+  //       match = true;
+  //     }
+  //   }
+  //   chunk_size_ += N;
+  //   return match;
+  // }
 
   template <typename T>
-  bool inline Roll(const T value) {
+  bool Roll(const T value) {
     constexpr size_t BYTE_WIDTH = sizeof(T);
     auto bytes = reinterpret_cast<const uint8_t*>(&value);
     bool match = false;
     for (size_t i = 0; i < BYTE_WIDTH; ++i) {
       hash_ = (hash_ << 1) + GEAR_HASH_TABLE[bytes[i]];
-      if ((hash_ & mask_) == 0) {
+      if ((hash_ & MASK) == 0) {
         match = true;
       }
     }
@@ -181,11 +181,11 @@ class GearHash {
     return match;
   }
 
-  bool inline Roll(std::string_view value) {
+  bool Roll(std::string_view value) {
     bool match = false;
     for (size_t i = 0; i < value.size(); ++i) {
       hash_ = (hash_ << 1) + GEAR_HASH_TABLE[static_cast<uint8_t>(value[i])];
-      if ((hash_ & mask_) == 0) {
+      if ((hash_ & MASK) == 0) {
         match = true;
       }
     }
@@ -193,8 +193,8 @@ class GearHash {
     return match;
   }
 
-  bool inline Check(bool match) {
-    if ((match && (chunk_size_ >= min_len_)) || (chunk_size_ >= max_len_)) {
+  bool Check(bool match) {
+    if ((match && (chunk_size_ >= MIN_LEN)) || (chunk_size_ >= MAX_LEN)) {
       chunk_size_ = 0;
       return true;
     } else {
@@ -206,6 +206,7 @@ class GearHash {
   const std::vector<std::tuple<int64_t, int64_t, int64_t>> GetBoundaries(
       const int16_t* def_levels, const int16_t* rep_levels, int64_t num_levels,
       const T& leaf_array) {
+    ARROW_LOG(INFO) << "Start hash_ " << hash_ << " start chunk_size_ " << chunk_size_;
     // TODO(kszucs): check for def_levels and rep_levels if they are nullptrs then pick a
     // fast path
     std::vector<std::tuple<int64_t, int64_t, int64_t>> result;
@@ -221,8 +222,6 @@ class GearHash {
     int64_t prev_record_value_offset = 0;
 
     while (level_offset < num_levels) {
-      // int16_t def_level = def_levels[level_offset];
-      // int16_t rep_level = rep_levels[level_offset];
       int16_t def_level = has_def_levels ? def_levels[level_offset] : 0;
       int16_t rep_level = has_rep_levels ? rep_levels[level_offset] : 0;
 
@@ -233,21 +232,17 @@ class GearHash {
       }
 
       is_match = false;
-      if (def_levels != nullptr) {
-        is_match |= Roll(def_levels + level_offset);
-      }
-      if (rep_levels != nullptr) {
-        is_match |= Roll(rep_levels + level_offset);
-      }
+      is_match |= Roll(def_level);
+      is_match |= Roll(rep_level);
       ++level_offset;
 
       if (has_rep_levels) {
         if (def_level >= level_info_.repeated_ancestor_def_level) {
-          is_match = Roll(leaf_array.GetView(value_offset));
+          is_match |= Roll(leaf_array.GetView(value_offset));
           ++value_offset;
         }
       } else {
-        is_match = Roll(leaf_array.GetView(value_offset));
+        is_match |= Roll(leaf_array.GetView(value_offset));
         ++value_offset;
       }
 
@@ -284,6 +279,7 @@ class GearHash {
       case ::arrow::Type::NA:
         FakeNullArray fake_null_array;
         return GetBoundaries(def_levels, rep_levels, num_levels, fake_null_array);
+        break;
         PRIMITIVE_CASE(BOOL, Boolean)
         PRIMITIVE_CASE(INT8, Int8)
         PRIMITIVE_CASE(INT16, Int16)
@@ -313,9 +309,9 @@ class GearHash {
  private:
   const internal::LevelInfo& level_info_;
   uint64_t hash_ = 0;
-  uint64_t mask_ = MASK;
-  uint64_t min_len_ = MIN_LEN;
-  uint64_t max_len_ = MAX_LEN;
+  // uint64_t mask_ = MASK;
+  //  uint64_t min_len_ = MIN_LEN;
+  //  uint64_t max_len_ = MAX_LEN;
   uint64_t chunk_size_ = 0;
 };
 

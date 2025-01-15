@@ -1320,18 +1320,10 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     ARROW_ASSIGN_OR_RAISE(auto boundaries,
                           content_defined_chunker_.GetBoundaries(def_levels, rep_levels,
                                                                  num_levels, leaf_array));
-
-    ARROW_LOG(INFO) << "Boundaries: " << leaf_array.type()->ToString() << " "
-                    << boundaries.size();
-
     for (auto boundary : boundaries) {
       auto level_offset = std::get<0>(boundary);
       auto array_offset = std::get<1>(boundary);
       auto levels_to_write = std::get<2>(boundary);
-      ARROW_LOG(INFO) << "level_offset: " << level_offset
-                      << " array_offset: " << array_offset
-                      << " levels_to_write: " << levels_to_write;
-
       auto sliced_array = leaf_array.Slice(array_offset);
       ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
                                 levels_to_write, *sliced_array, ctx,
@@ -1342,80 +1334,6 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
     }
     return Status::OK();
   }
-
-  // Status WriteArrowCDC(const int16_t* def_levels, const int16_t* rep_levels,
-  //                      int64_t num_levels, const ::arrow::Array& leaf_array,
-  //                      ArrowWriteContext* ctx, bool leaf_field_nullable) override {
-  //   bool has_def_levels = descr_->max_definition_level() > 0;
-  //   bool has_rep_levels = descr_->max_repetition_level() > 0;
-
-  //   // iterate over the levels and get the values corresponding to each level
-  //   int64_t l = 0;
-  //   int64_t v = 0;
-  //   int64_t rl = 0;
-  //   int64_t rv = 0;
-  //   int64_t prl = 0;
-  //   int64_t prv = 0;
-
-  //   while (l < num_levels) {
-  //     int16_t def_level = has_def_levels ? def_levels[l] : 0;
-  //     int16_t rep_level = has_rep_levels ? rep_levels[l] : 0;
-
-  //     if (rep_level == 0) {
-  //       // record boundary
-  //       rl = l;
-  //       rv = v;
-  //     }
-
-  //     std::string value = "";
-
-  //     l++;
-  //     if (has_rep_levels) {
-  //       if (def_level >= level_info_.repeated_ancestor_def_level) {
-  //         ARROW_ASSIGN_OR_RAISE(auto p, leaf_array.GetScalar(v));
-  //         value = p->ToString();
-  //         v++;
-  //       }
-  //     } else {
-  //       ARROW_ASSIGN_OR_RAISE(auto p, leaf_array.GetScalar(v));
-  //       value = p->ToString();
-  //       v++;
-  //     }
-
-  //     if (content_defined_chunker_.IsBoundary(def_level, rep_level, value)) {
-  //       // write trigger
-  //       auto level_offset = prl;
-  //       auto array_offset = prv;
-  //       auto levels_to_write = rl - prl;
-
-  //       if (levels_to_write > 0) {
-  //         auto sliced_array = leaf_array.Slice(array_offset);
-  //         ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels +
-  //         level_offset,
-  //                                   levels_to_write, *sliced_array, ctx,
-  //                                   leaf_field_nullable));
-  //         // TODO(kszucs): disable automatic page addition or increase the page size
-  //         // to inf
-  //         AddDataPage();
-  //         prl = rl;
-  //         prv = rv;
-  //       }
-  //     }
-  //   }
-
-  //   // write remaining, the condition is probably not needed
-
-  //   auto level_offset = prl;
-  //   auto array_offset = prv;
-  //   auto levels_to_write = num_levels - prl;
-  //   auto sliced_array = leaf_array.Slice(array_offset);
-
-  //   ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
-  //                             levels_to_write, *sliced_array, ctx,
-  //                             leaf_field_nullable));
-
-  //   return Status::OK();
-  // }
 
   Status WriteArrow(const int16_t* def_levels, const int16_t* rep_levels,
                     int64_t num_levels, const ::arrow::Array& leaf_array,
