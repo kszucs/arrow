@@ -36,6 +36,8 @@
 #include "arrow/util/logging.h"
 #include "parquet/level_conversion.h"
 
+using arrow::internal::checked_cast;
+
 namespace parquet {
 namespace internal {
 
@@ -127,7 +129,7 @@ class GearHash {
  public:
   GearHash(const LevelInfo& level_info, uint64_t min_len = MIN_LEN,
            uint64_t max_len = MAX_LEN)
-      : level_info_(level_info), hash_(0), chunk_size_(0) {}
+      : level_info_(level_info), min_len_(min_len), max_len_(max_len) {}
 
   template <typename T>
   bool Roll(const T value) {
@@ -136,7 +138,7 @@ class GearHash {
     bool match = false;
     for (size_t i = 0; i < BYTE_WIDTH; ++i) {
       hash_ = (hash_ << 1) + GEAR_HASH_TABLE[bytes[i]];
-      if ((hash_ & MASK) == 0) {
+      if ((hash_ & mask_) == 0) {
         match = true;
       }
     }
@@ -148,7 +150,7 @@ class GearHash {
     bool match = false;
     for (size_t i = 0; i < value.size(); ++i) {
       hash_ = (hash_ << 1) + GEAR_HASH_TABLE[static_cast<uint8_t>(value[i])];
-      if ((hash_ & MASK) == 0) {
+      if ((hash_ & mask_) == 0) {
         match = true;
       }
     }
@@ -157,7 +159,7 @@ class GearHash {
   }
 
   bool Check(bool match) {
-    if ((match && (chunk_size_ >= MIN_LEN)) || (chunk_size_ >= MAX_LEN)) {
+    if ((match && (chunk_size_ >= min_len_)) || (chunk_size_ >= max_len_)) {
       chunk_size_ = 0;
       return true;
     } else {
@@ -193,9 +195,7 @@ class GearHash {
         record_value_offset = value_offset;
       }
 
-      is_match = false;
-      is_match |= Roll(def_level);
-      is_match |= Roll(rep_level);
+      is_match = Roll(def_level) || Roll(rep_level);
       ++level_offset;
 
       if (has_rep_levels) {
@@ -231,7 +231,7 @@ class GearHash {
 #define PRIMITIVE_CASE(TYPE_ID, ArrowType)                   \
   case ::arrow::Type::TYPE_ID:                               \
     return GetBoundaries(def_levels, rep_levels, num_levels, \
-                         reinterpret_cast<const ::arrow::ArrowType##Array&>(values));
+                         checked_cast<const ::arrow::ArrowType##Array&>(values));
 
   const ::arrow::Result<std::vector<std::tuple<int64_t, int64_t, int64_t>>> GetBoundaries(
       const int16_t* def_levels, const int16_t* rep_levels, int64_t num_levels,
@@ -258,6 +258,13 @@ class GearHash {
       PRIMITIVE_CASE(TIME32, Time32)
       PRIMITIVE_CASE(TIME64, Time64)
       PRIMITIVE_CASE(TIMESTAMP, Timestamp)
+      PRIMITIVE_CASE(DURATION, Duration)
+      PRIMITIVE_CASE(DECIMAL128, Decimal128)
+      PRIMITIVE_CASE(DECIMAL256, Decimal256)
+      case ::arrow::Type::DICTIONARY:
+        return GetBoundaries(
+            def_levels, rep_levels, num_levels,
+            *checked_cast<const ::arrow::DictionaryArray&>(values).indices());
       case ::arrow::Type::NA:
         FakeNullArray fake_null_array;
         return GetBoundaries(def_levels, rep_levels, num_levels, fake_null_array);
@@ -269,10 +276,10 @@ class GearHash {
 
  private:
   const internal::LevelInfo& level_info_;
+  uint64_t mask_ = MASK;
+  uint64_t min_len_;
+  uint64_t max_len_;
   uint64_t hash_ = 0;
-  // uint64_t mask_ = MASK;
-  //  uint64_t min_len_ = MIN_LEN;
-  //  uint64_t max_len_ = MAX_LEN;
   uint64_t chunk_size_ = 0;
 };
 
