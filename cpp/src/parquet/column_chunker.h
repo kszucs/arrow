@@ -276,30 +276,29 @@ class GearHash {
       const ::arrow::Array& values) {
     auto type_id = values.type()->id();
     switch (type_id) {
+      PRIMITIVE_CASE(BOOL, Boolean)
+      PRIMITIVE_CASE(INT8, Int8)
+      PRIMITIVE_CASE(INT16, Int16)
+      PRIMITIVE_CASE(INT32, Int32)
+      PRIMITIVE_CASE(INT64, Int64)
+      PRIMITIVE_CASE(UINT8, UInt8)
+      PRIMITIVE_CASE(UINT16, UInt16)
+      PRIMITIVE_CASE(UINT32, UInt32)
+      PRIMITIVE_CASE(UINT64, UInt64)
+      PRIMITIVE_CASE(HALF_FLOAT, HalfFloat)
+      PRIMITIVE_CASE(FLOAT, Float)
+      PRIMITIVE_CASE(DOUBLE, Double)
+      PRIMITIVE_CASE(STRING, String)
+      PRIMITIVE_CASE(BINARY, Binary)
+      PRIMITIVE_CASE(FIXED_SIZE_BINARY, FixedSizeBinary)
+      PRIMITIVE_CASE(DATE32, Date32)
+      PRIMITIVE_CASE(DATE64, Date64)
+      PRIMITIVE_CASE(TIME32, Time32)
+      PRIMITIVE_CASE(TIME64, Time64)
+      PRIMITIVE_CASE(TIMESTAMP, Timestamp)
       case ::arrow::Type::NA:
         FakeNullArray fake_null_array;
         return GetBoundaries(def_levels, rep_levels, num_levels, fake_null_array);
-        break;
-        PRIMITIVE_CASE(BOOL, Boolean)
-        PRIMITIVE_CASE(INT8, Int8)
-        PRIMITIVE_CASE(INT16, Int16)
-        PRIMITIVE_CASE(INT32, Int32)
-        PRIMITIVE_CASE(INT64, Int64)
-        PRIMITIVE_CASE(UINT8, UInt8)
-        PRIMITIVE_CASE(UINT16, UInt16)
-        PRIMITIVE_CASE(UINT32, UInt32)
-        PRIMITIVE_CASE(UINT64, UInt64)
-        PRIMITIVE_CASE(HALF_FLOAT, HalfFloat)
-        PRIMITIVE_CASE(FLOAT, Float)
-        PRIMITIVE_CASE(DOUBLE, Double)
-        PRIMITIVE_CASE(STRING, String)
-        PRIMITIVE_CASE(BINARY, Binary)
-        PRIMITIVE_CASE(FIXED_SIZE_BINARY, FixedSizeBinary)
-        PRIMITIVE_CASE(DATE32, Date32)
-        PRIMITIVE_CASE(DATE64, Date64)
-        PRIMITIVE_CASE(TIME32, Time32)
-        PRIMITIVE_CASE(TIME64, Time64)
-        PRIMITIVE_CASE(TIMESTAMP, Timestamp)
       default:
         return ::arrow::Status::NotImplemented("Unsupported type " +
                                                values.type()->ToString());
