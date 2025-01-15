@@ -129,43 +129,6 @@ class GearHash {
            uint64_t max_len = MAX_LEN)
       : level_info_(level_info), hash_(0), chunk_size_(0) {}
 
-  // bool IsBoundary(int16_t def, int16_t rep, const std::string& str) {
-  //   bool match = false;
-  //   // update with both bytes of the def
-  //   hash_ = (hash_ << 1) + GEAR_HASH_TABLE[def & 0xff];
-  //   match |= (hash_ & mask_) == 0;
-  //   hash_ = (hash_ << 1) + GEAR_HASH_TABLE[(def >> 8) & 0xff];
-  //   match |= (hash_ & mask_) == 0;
-  //   // update with both bytes of the rep
-  //   hash_ = (hash_ << 1) + GEAR_HASH_TABLE[rep & 0xff];
-  //   match |= (hash_ & mask_) == 0;
-  //   hash_ = (hash_ << 1) + GEAR_HASH_TABLE[(rep >> 8) & 0xff];
-  //   match |= (hash_ & mask_) == 0;
-  //   chunk_size_ += 4;
-  //   match |= Update(reinterpret_cast<const uint8_t*>(str.c_str()), str.size());
-
-  //   if ((match && (chunk_size_ >= MIN_LEN)) || (chunk_size_ >= MAX_LEN)) {
-  //     // std::cout << "chunk size: " << chunk_size_ << std::endl;
-  //     // std::cout << "hash: " << hash_ << std::endl;
-  //     chunk_size_ = 0;
-  //     return true;
-  //   } else {
-  //     return false;
-  //   }
-  // }
-
-  // bool inline Update(const uint8_t* buf, size_t N) {
-  //   bool match = false;
-  //   for (size_t i = 0; i < N; ++i) {
-  //     hash_ = (hash_ << 1) + GEAR_HASH_TABLE[buf[i]];
-  //     if ((hash_ & mask_) == 0) {
-  //       match = true;
-  //     }
-  //   }
-  //   chunk_size_ += N;
-  //   return match;
-  // }
-
   template <typename T>
   bool Roll(const T value) {
     constexpr size_t BYTE_WIDTH = sizeof(T);
@@ -206,7 +169,6 @@ class GearHash {
   const std::vector<std::tuple<int64_t, int64_t, int64_t>> GetBoundaries(
       const int16_t* def_levels, const int16_t* rep_levels, int64_t num_levels,
       const T& leaf_array) {
-    ARROW_LOG(INFO) << "Start hash_ " << hash_ << " start chunk_size_ " << chunk_size_;
     // TODO(kszucs): check for def_levels and rep_levels if they are nullptrs then pick a
     // fast path
     std::vector<std::tuple<int64_t, int64_t, int64_t>> result;
