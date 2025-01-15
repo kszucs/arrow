@@ -151,9 +151,9 @@ class ArrowColumnWriterV2 {
               std::shared_ptr<Array> values_array =
                   result.leaf_array->Slice(range.start, range.Size());
 
-              return column_writer->WriteArrowCDC(
-                  result.def_levels, result.rep_levels, result.def_rep_level_count,
-                  *values_array, ctx, result.leaf_is_nullable);
+              return column_writer->WriteArrow(result.def_levels, result.rep_levels,
+                                               result.def_rep_level_count, *values_array,
+                                               ctx, result.leaf_is_nullable);
             }));
       }
 

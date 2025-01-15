@@ -114,7 +114,8 @@ const uint64_t MASK = 0xffff00000000000;
 
 const int64_t MB = 1024 * 1024;
 const int64_t MAX_LEN = 2 * MB;
-const int64_t MIN_LEN = MB / 4;
+// const int64_t MIN_LEN = MB / 4;
+const int64_t MIN_LEN = MB;
 
 // const uint64_t MASK = 0xfff00000000000;
 // const int MIN_LEN = 1000;
@@ -139,38 +140,54 @@ class GearHash {
   template <typename T>
   bool Roll(const T value) {
     constexpr size_t BYTE_WIDTH = sizeof(T);
+    chunk_size_ += BYTE_WIDTH;
+    if (chunk_size_ < min_len_) {
+      return false;
+    }
     auto bytes = reinterpret_cast<const uint8_t*>(&value);
     bool match = false;
+#pragma unroll
     for (size_t i = 0; i < BYTE_WIDTH; ++i) {
       hash_ = (hash_ << 1) + GEAR_HASH_TABLE[bytes[i]];
       if ((hash_ & mask_) == 0) {
         match = true;
       }
     }
-    chunk_size_ += BYTE_WIDTH;
     return match;
   }
 
   bool Roll(std::string_view value) {
+    chunk_size_ += value.size();
+    if (chunk_size_ < min_len_) {
+      return false;
+    }
     bool match = false;
-    for (size_t i = 0; i < value.size(); ++i) {
-      hash_ = (hash_ << 1) + GEAR_HASH_TABLE[static_cast<uint8_t>(value[i])];
+    for (char c : value) {
+      hash_ = (hash_ << 1) + GEAR_HASH_TABLE[static_cast<uint8_t>(c)];
       if ((hash_ & mask_) == 0) {
         match = true;
       }
     }
-    chunk_size_ += value.size();
     return match;
   }
 
   bool Check(bool match) {
-    if ((match && (chunk_size_ >= min_len_)) || (chunk_size_ >= max_len_)) {
+    if (match || (chunk_size_ >= max_len_)) {
       chunk_size_ = 0;
       return true;
     } else {
       return false;
     }
   }
+
+  // bool Check(bool match) {
+  //   if ((match && (chunk_size_ >= min_len_)) || (chunk_size_ >= max_len_)) {
+  //     chunk_size_ = 0;
+  //     return true;
+  //   } else {
+  //     return false;
+  //   }
+  // }
 
   // template <typename T>
   // const std::vector<std::tuple<int64_t, int64_t, int64_t>> GetBoundaries(
@@ -240,8 +257,8 @@ class GearHash {
       if (Check(is_match)) {
         auto levels_to_write = record_level_offset - prev_record_level_offset;
         if (levels_to_write > 0) {
-          result.push_back(std::make_tuple(prev_record_level_offset,
-                                           prev_record_value_offset, levels_to_write));
+          result.emplace_back(prev_record_level_offset, prev_record_value_offset,
+                              levels_to_write);
           prev_record_level_offset = record_level_offset;
           prev_record_value_offset = record_value_offset;
         }
@@ -250,8 +267,8 @@ class GearHash {
 
     auto levels_to_write = num_levels - prev_record_level_offset;
     if (levels_to_write > 0) {
-      result.push_back(std::make_tuple(prev_record_level_offset, prev_record_value_offset,
-                                       levels_to_write));
+      result.emplace_back(prev_record_level_offset, prev_record_value_offset,
+                          levels_to_write);
     }
     return result;
   }

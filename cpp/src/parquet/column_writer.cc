@@ -1314,37 +1314,40 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
                 WriteChunk, pages_change_on_record_boundaries());
   }
 
-  Status WriteArrowCDC(const int16_t* def_levels, const int16_t* rep_levels,
-                       int64_t num_levels, const ::arrow::Array& leaf_array,
-                       ArrowWriteContext* ctx, bool leaf_field_nullable) override {
-    // Leaf nulls are canonical when there is only a single null element after a list
-    // and it is at the leaf.
-    bool single_nullable_element =
-        (level_info_.def_level == level_info_.repeated_ancestor_def_level + 1) &&
-        leaf_field_nullable;
-    if (!leaf_field_nullable && leaf_array.null_count() != 0) {
-      return Status::Invalid("Column '", descr_->name(),
-                             "' is declared non-nullable but contains nulls");
-    }
-    bool maybe_parent_nulls = level_info_.HasNullableValues() && !single_nullable_element;
+  // Status WriteArrowCDC(const int16_t* def_levels, const int16_t* rep_levels,
+  //                      int64_t num_levels, const ::arrow::Array& leaf_array,
+  //                      ArrowWriteContext* ctx, bool leaf_field_nullable) override {
+  //   // Leaf nulls are canonical when there is only a single null element after a list
+  //   // and it is at the leaf.
+  //   bool single_nullable_element =
+  //       (level_info_.def_level == level_info_.repeated_ancestor_def_level + 1) &&
+  //       leaf_field_nullable;
+  //   if (!leaf_field_nullable && leaf_array.null_count() != 0) {
+  //     return Status::Invalid("Column '", descr_->name(),
+  //                            "' is declared non-nullable but contains nulls");
+  //   }
+  //   bool maybe_parent_nulls = level_info_.HasNullableValues() &&
+  //   !single_nullable_element;
 
-    ARROW_ASSIGN_OR_RAISE(auto boundaries,
-                          content_defined_chunker_.GetBoundaries(def_levels, rep_levels,
-                                                                 num_levels, leaf_array));
-    for (auto boundary : boundaries) {
-      auto level_offset = std::get<0>(boundary);
-      auto array_offset = std::get<1>(boundary);
-      auto levels_to_write = std::get<2>(boundary);
-      auto sliced_array = leaf_array.Slice(array_offset);
-      ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
-                                levels_to_write, *sliced_array, ctx,
-                                leaf_field_nullable));
-      // TODO(kszucs): disable automatic page addition or increase the page size limit
-      // to inf
-      AddDataPage();
-    }
-    return Status::OK();
-  }
+  //   ARROW_ASSIGN_OR_RAISE(auto boundaries,
+  //                         content_defined_chunker_.GetBoundaries(def_levels,
+  //                         rep_levels,
+  //                                                                num_levels,
+  //                                                                leaf_array));
+  //   for (auto boundary : boundaries) {
+  //     auto level_offset = std::get<0>(boundary);
+  //     auto array_offset = std::get<1>(boundary);
+  //     auto levels_to_write = std::get<2>(boundary);
+  //     auto sliced_array = leaf_array.Slice(array_offset);
+  //     ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
+  //                               levels_to_write, *sliced_array, ctx,
+  //                               leaf_field_nullable));
+  //     // TODO(kszucs): disable automatic page addition or increase the page size limit
+  //     // to inf
+  //     AddDataPage();
+  //   }
+  //   return Status::OK();
+  // }
 
   Status WriteArrow(const int16_t* def_levels, const int16_t* rep_levels,
                     int64_t num_levels, const ::arrow::Array& leaf_array,
@@ -1368,13 +1371,40 @@ class TypedColumnWriterImpl : public ColumnWriterImpl, public TypedColumnWriter<
       bits_buffer_->ZeroPadding();
     }
 
-    if (leaf_array.type()->id() == ::arrow::Type::DICTIONARY) {
-      return WriteArrowDictionary(def_levels, rep_levels, num_levels, leaf_array, ctx,
-                                  maybe_parent_nulls);
-    } else {
-      return WriteArrowDense(def_levels, rep_levels, num_levels, leaf_array, ctx,
-                             maybe_parent_nulls);
+    ARROW_ASSIGN_OR_RAISE(auto boundaries,
+                          content_defined_chunker_.GetBoundaries(def_levels, rep_levels,
+                                                                 num_levels, leaf_array));
+    for (auto boundary : boundaries) {
+      auto level_offset = std::get<0>(boundary);
+      auto array_offset = std::get<1>(boundary);
+      auto levels_to_write = std::get<2>(boundary);
+      auto sliced_array = leaf_array.Slice(array_offset);
+      if (leaf_array.type()->id() == ::arrow::Type::DICTIONARY) {
+        ARROW_CHECK_OK(WriteArrowDictionary(def_levels + level_offset,
+                                            rep_levels + level_offset, levels_to_write,
+                                            *sliced_array, ctx, maybe_parent_nulls));
+      } else {
+        ARROW_CHECK_OK(WriteArrowDense(def_levels + level_offset,
+                                       rep_levels + level_offset, levels_to_write,
+                                       *sliced_array, ctx, maybe_parent_nulls));
+      }
+      // ARROW_CHECK_OK(WriteArrow(def_levels + level_offset, rep_levels + level_offset,
+      //                           levels_to_write, *sliced_array, ctx,
+      //                           leaf_field_nullable));
+      // TODO(kszucs): disable automatic page addition or increase the page size limit
+      // to inf
+      AddDataPage();
     }
+
+    return Status::OK();
+
+    // if (leaf_array.type()->id() == ::arrow::Type::DICTIONARY) {
+    //   return WriteArrowDictionary(def_levels, rep_levels, num_levels, leaf_array, ctx,
+    //                               maybe_parent_nulls);
+    // } else {
+    //   return WriteArrowDense(def_levels, rep_levels, num_levels, leaf_array, ctx,
+    //                          maybe_parent_nulls);
+    // }
     END_PARQUET_CATCH_EXCEPTIONS
   }
 
