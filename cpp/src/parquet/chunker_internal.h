@@ -20,8 +20,6 @@
 #include <cstdint>
 #include <vector>
 
-#include "parquet/windows_fixup.h"  // for OPTIONAL
-
 #include "arrow/array.h"
 #include "parquet/level_conversion.h"
 
