@@ -18,8 +18,6 @@
 #pragma once
 #include <cstdint>
 
-#include "parquet/windows_fixup.h"  // for OPTIONAL
-
 namespace parquet::internal {
 
 constexpr uint64_t kGearhashTable[8][256] = {
