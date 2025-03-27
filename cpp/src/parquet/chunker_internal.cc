@@ -17,7 +17,7 @@
 
 #include "parquet/chunker_internal.h"
 
-#include <cmath>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -28,6 +28,7 @@
 #include "parquet/chunker_internal_generated.h"
 #include "parquet/exception.h"
 #include "parquet/level_conversion.h"
+#include "parquet/windows_fixup.h"  // for OPTIONAL
 
 namespace parquet::internal {
 

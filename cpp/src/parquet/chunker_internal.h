@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "arrow/array.h"
+#include "arrow/util/windows_fixup.h"  // for OPTIONAL
 #include "parquet/level_conversion.h"
 
 namespace parquet::internal {

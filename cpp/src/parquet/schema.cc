@@ -623,9 +623,6 @@ void ToParquet(const GroupNode* schema, std::vector<format::SchemaElement>* out)
 // Schema printing
 
 static void PrintRepLevel(Repetition::type repetition, std::ostream& stream) {
-#ifdef OPTIONAL
-#  undef OPTIONAL
-#endif
   switch (repetition) {
     case Repetition::REQUIRED:
       stream << "required";
