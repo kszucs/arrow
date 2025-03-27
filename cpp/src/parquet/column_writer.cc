@@ -25,6 +25,8 @@
 #include <utility>
 #include <vector>
 
+#include "parquet/windows_fixup.h"  // for OPTIONAL
+
 #include "arrow/array.h"
 #include "arrow/buffer_builder.h"
 #include "arrow/compute/api.h"

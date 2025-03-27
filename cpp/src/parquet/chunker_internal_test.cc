@@ -23,6 +23,8 @@
 #include <utility>
 #include <vector>
 
+#include "parquet/windows_fixup.h"  // for OPTIONAL
+
 #include "arrow/table.h"
 #include "arrow/testing/extension_type.h"
 #include "arrow/testing/generator.h"

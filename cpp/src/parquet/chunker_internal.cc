@@ -21,6 +21,8 @@
 #include <string>
 #include <vector>
 
+#include "parquet/windows_fixup.h"  // for OPTIONAL
+
 #include "arrow/array.h"
 #include "arrow/util/bit_util.h"
 #include "arrow/util/logging.h"
@@ -28,7 +30,6 @@
 #include "parquet/chunker_internal_generated.h"
 #include "parquet/exception.h"
 #include "parquet/level_conversion.h"
-#include "parquet/windows_fixup.h"  // for OPTIONAL
 
 namespace parquet::internal {
 
