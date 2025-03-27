@@ -34,6 +34,7 @@
 #include "parquet/schema.h"
 #include "parquet/type_fwd.h"
 #include "parquet/types.h"
+#include "parquet/windows_fixup.h"  // for OPTIONAL
 
 namespace parquet {
 

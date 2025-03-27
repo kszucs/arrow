@@ -60,6 +60,7 @@
 #include "parquet/statistics.h"
 #include "parquet/thrift_internal.h"
 #include "parquet/types.h"
+#include "parquet/windows_fixup.h"  // for OPTIONAL
 
 using arrow::Array;
 using arrow::ArrayData;
