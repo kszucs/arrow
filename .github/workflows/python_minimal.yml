@@ -27,7 +27,7 @@ on:
   workflow_dispatch:
     inputs:
       jobs:
-        description: "Comma-separated list of jobs to run (leave empty for all). Options: fedora-conda, fedora-venv, ubuntu-conda, ubuntu-venv"
+        description: "Comma-separated list of job IDs to run (leave empty for all)"
         required: false
         default: ""
         type: string
@@ -40,34 +40,55 @@ env:
 
 jobs:
   build:
-    name: AMD64 ${{ matrix.distro }} ${{ matrix.build_type }} Minimal Build
+    name: ${{ matrix.id }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        distro: [fedora, ubuntu]
-        build_type: [conda, venv]
+        include:
+          - id: example-python-minimal-build-fedora-conda
+            distro: fedora
+            build_type: conda
+          - id: example-python-minimal-build-fedora-venv
+            distro: fedora
+            build_type: venv
+          - id: example-python-minimal-build-ubuntu-conda
+            distro: ubuntu
+            build_type: conda
+          - id: example-python-minimal-build-ubuntu-venv
+            distro: ubuntu
+            build_type: venv
     steps:
-      - name: Check if job should run
-        id: check
+      - name: Debug inputs
         run: |
-          JOB_NAME="${{ matrix.distro }}-${{ matrix.build_type }}"
-          JOBS_INPUT="${{ inputs.jobs }}"
-          if [[ -z "$JOBS_INPUT" ]] || [[ "$JOBS_INPUT" == *"$JOB_NAME"* ]]; then
-            echo "should_run=true" >> $GITHUB_OUTPUT
+          echo "Event name: ${{ github.event_name }}"
+          echo "Inputs jobs: '${{ inputs.jobs }}'"
+          echo "Matrix id: ${{ matrix.id }}"
+
+      - name: Filter jobs
+        id: filter
+        run: |
+          if [ -z "${{ inputs.jobs }}" ]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+            echo "No job filter specified, running all jobs"
+          elif echo ",${{ inputs.jobs }}," | grep -q ",${{ matrix.id }},"; then
+            echo "run=true" >> $GITHUB_OUTPUT
+            echo "Job ${{ matrix.id }} matches filter"
           else
-            echo "should_run=false" >> $GITHUB_OUTPUT
-            echo "Skipping $JOB_NAME (not in jobs list: $JOBS_INPUT)"
+            echo "run=false" >> $GITHUB_OUTPUT
+            echo "Job ${{ matrix.id }} does not match filter, skipping"
           fi
+
       - name: Checkout Arrow
-        if: steps.check.outputs.should_run == 'true'
+        if: steps.filter.outputs.run == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: false
+
       - name: Run minimal build example
-        if: steps.check.outputs.should_run == 'true'
+        if: steps.filter.outputs.run == 'true'
         run: |
           cd python/examples/minimal_build
           docker compose run --rm minimal-${{ matrix.distro }}-${{ matrix.build_type }}
