@@ -18,6 +18,12 @@
 name: Python Minimal Build
 
 on:
+  push:
+    paths:
+      - ".github/workflows/python_minimal.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/python_minimal.yml"
   workflow_dispatch:
     inputs:
       jobs:
