@@ -1,0 +1,55 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Python Minimal Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      jobs:
+        description: "Comma-separated list of jobs to run (leave empty for all). Options: fedora-conda, fedora-venv, ubuntu-conda, ubuntu-venv"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  ARCHERY_DEBUG: 1
+
+jobs:
+  build:
+    name: AMD64 ${{ matrix.distro }} ${{ matrix.build_type }} Minimal Build
+    runs-on: ubuntu-latest
+    if: inputs.jobs == '' || contains(inputs.jobs, format('{0}-{1}', matrix.distro, matrix.build_type))
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [fedora, ubuntu]
+        build_type: [conda, venv]
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+      - name: Run minimal build example
+        run: |
+          cd python/examples/minimal_build
+          docker compose run --rm minimal-${{ matrix.distro }}-${{ matrix.build_type }}
