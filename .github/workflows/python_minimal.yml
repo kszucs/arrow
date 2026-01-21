@@ -36,7 +36,6 @@ jobs:
   build:
     name: AMD64 ${{ matrix.distro }} ${{ matrix.build_type }} Minimal Build
     runs-on: ubuntu-latest
-    if: inputs.jobs == '' || contains(inputs.jobs, format('{0}-{1}', matrix.distro, matrix.build_type))
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -44,12 +43,25 @@ jobs:
         distro: [fedora, ubuntu]
         build_type: [conda, venv]
     steps:
+      - name: Check if job should run
+        id: check
+        run: |
+          JOB_NAME="${{ matrix.distro }}-${{ matrix.build_type }}"
+          JOBS_INPUT="${{ inputs.jobs }}"
+          if [[ -z "$JOBS_INPUT" ]] || [[ "$JOBS_INPUT" == *"$JOB_NAME"* ]]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "Skipping $JOB_NAME (not in jobs list: $JOBS_INPUT)"
+          fi
       - name: Checkout Arrow
+        if: steps.check.outputs.should_run == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: false
       - name: Run minimal build example
+        if: steps.check.outputs.should_run == 'true'
         run: |
           cd python/examples/minimal_build
           docker compose run --rm minimal-${{ matrix.distro }}-${{ matrix.build_type }}
