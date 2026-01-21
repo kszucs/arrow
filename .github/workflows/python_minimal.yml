@@ -27,9 +27,8 @@ on:
   workflow_dispatch:
     inputs:
       jobs:
-        description: "Comma-separated list of job IDs to run (leave empty for all)"
-        required: false
-        default: ""
+        description: "Comma-separated list of job IDs to run"
+        required: true
         type: string
 
 permissions:
@@ -42,6 +41,7 @@ jobs:
   build:
     name: ${{ matrix.id }}
     runs-on: ubuntu-latest
+    if: contains(inputs.jobs, matrix.id)
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -50,45 +50,16 @@ jobs:
           - id: example-python-minimal-build-fedora-conda
             distro: fedora
             build_type: conda
-          - id: example-python-minimal-build-fedora-venv
-            distro: fedora
-            build_type: venv
-          - id: example-python-minimal-build-ubuntu-conda
-            distro: ubuntu
-            build_type: conda
           - id: example-python-minimal-build-ubuntu-venv
             distro: ubuntu
             build_type: venv
     steps:
-      - name: Debug inputs
-        run: |
-          echo "Event name: ${{ github.event_name }}"
-          echo "Inputs jobs: '${{ inputs.jobs }}'"
-          echo "Matrix id: ${{ matrix.id }}"
-
-      - name: Filter jobs
-        id: filter
-        run: |
-          if [ -z "${{ inputs.jobs }}" ]; then
-            echo "run=true" >> $GITHUB_OUTPUT
-            echo "No job filter specified, running all jobs"
-          elif echo ",${{ inputs.jobs }}," | grep -q ",${{ matrix.id }},"; then
-            echo "run=true" >> $GITHUB_OUTPUT
-            echo "Job ${{ matrix.id }} matches filter"
-          else
-            echo "run=false" >> $GITHUB_OUTPUT
-            echo "Job ${{ matrix.id }} does not match filter, skipping"
-          fi
-
       - name: Checkout Arrow
-        if: steps.filter.outputs.run == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: false
-
       - name: Run minimal build example
-        if: steps.filter.outputs.run == 'true'
         run: |
           cd python/examples/minimal_build
           docker compose run --rm minimal-${{ matrix.distro }}-${{ matrix.build_type }}
